@@ -71,20 +71,20 @@ Stop the running container with **Ctrl+C**. The Docker build context excludes Gi
   ```sh
   gcloud auth configure-docker asia-south1-docker.pkg.dev
   docker build --platform linux/amd64 \
-    -t asia-south1-docker.pkg.dev/YOUR_PROJECT_ID/sgsai-images/sgs-ai-website:v1 .
+    -t asia-south1-docker.pkg.dev/home-509818/sgsai-images/sgs-ai-website:v1 .
   ```
 
 1. Push the image to Artifact Registry:
 
   ```sh
-  docker push asia-south1-docker.pkg.dev/YOUR_PROJECT_ID/sgsai-images/sgs-ai-website:v1
+  docker push asia-south1-docker.pkg.dev/home-509818/sgsai-images/sgs-ai-website:v1
   ```
 
 1. Deploy that image as a Cloud Run service:
 
   ```sh
   gcloud run deploy sgs-ai-website \
-    --image asia-south1-docker.pkg.dev/YOUR_PROJECT_ID/sgsai-images/sgs-ai-website:v1 \
+    --image asia-south1-docker.pkg.dev/home-509818/sgsai-images/sgs-ai-website:v1 \
     --region asia-south1 \
     --port 8080 \
     --ingress internal-and-cloud-load-balancing \
@@ -150,7 +150,7 @@ Run these commands after the Cloud Run service has been deployed. Keep the proje
    ```sh
    gcloud compute target-https-proxies create sgsai-https-proxy \
      --global \
-     --url-map=sgsai-url-map \
+     --url-map=www.sgsaitechnology.com \
      --ssl-certificates=sgsai-managed-cert
 
    gcloud compute forwarding-rules create sgsai-https-forwarding-rule \

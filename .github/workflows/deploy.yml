@@ -1,0 +1,85 @@
+name: Deploy website to Cloud Run
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: website-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  build-scan-publish-deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Build commit-tagged container
+        run: docker build --tag sgs-ai-website:${{ github.sha }} .
+      - name: Scan fixable HIGH and CRITICAL container vulnerabilities
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # v0.28.0
+        with:
+          image-ref: sgs-ai-website:${{ github.sha }}
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+      - name: Authenticate to Google Cloud with Workload Identity Federation
+        uses: google-github-actions/auth@ba79af03959ebeac9769e648f473a284504d9193 # v2.1.10
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_WIF_SERVICE_ACCOUNT }}
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@6189d56e4096ee891640bb02ac264be376592d6a # v2.1.2
+      - name: Push SHA-tagged image to Artifact Registry
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCP_REGION: ${{ vars.GCP_REGION }}
+          GCP_ARTIFACT_REPOSITORY: ${{ vars.GCP_ARTIFACT_REPOSITORY }}
+          IMAGE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          image="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/$GCP_ARTIFACT_REPOSITORY/sgs-ai-website:$IMAGE_SHA"
+          gcloud auth configure-docker "$GCP_REGION-docker.pkg.dev" --quiet
+          docker tag "sgs-ai-website:$IMAGE_SHA" "$image"
+          docker push "$image"
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+      - name: Deploy to Cloud Run
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCP_REGION: ${{ vars.GCP_REGION }}
+          GCP_RUNTIME_SERVICE_ACCOUNT: ${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}
+          SMTP_HOST: ${{ vars.SMTP_HOST }}
+          CONTACT_FROM: ${{ vars.CONTACT_FROM }}
+          SMTP_USER_SECRET: ${{ vars.SMTP_USER_SECRET }}
+          SMTP_PASS_SECRET: ${{ vars.SMTP_PASS_SECRET }}
+        run: |
+          set -euo pipefail
+          secret_args=()
+          if [[ -n "$SMTP_USER_SECRET" && -n "$SMTP_PASS_SECRET" ]]; then
+            secret_args+=(--set-secrets "SMTP_USER=$SMTP_USER_SECRET:latest,SMTP_PASS=$SMTP_PASS_SECRET:latest")
+          elif [[ -n "$SMTP_USER_SECRET" || -n "$SMTP_PASS_SECRET" ]]; then
+            echo "Set both SMTP_USER_SECRET and SMTP_PASS_SECRET, or leave both unset." >&2
+            exit 1
+          fi
+          gcloud run deploy sgs-ai-website \
+            --project "$GCP_PROJECT_ID" \
+            --region "$GCP_REGION" \
+            --image "$IMAGE" \
+            --port 8080 \
+            --min 0 \
+            --max 5 \
+            --memory 256Mi \
+            --service-account "$GCP_RUNTIME_SERVICE_ACCOUNT" \
+            --ingress internal-and-cloud-load-balancing \
+            --set-env-vars "SMTP_HOST=$SMTP_HOST,SMTP_PORT=587,SMTP_SECURE=false,CONTACT_FROM=$CONTACT_FROM,CONTACT_TO=hello@sgsaitechnology.com" \
+            "${secret_args[@]}"
