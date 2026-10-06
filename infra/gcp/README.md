@@ -81,7 +81,7 @@ Create a GitHub environment named `production` and configure required reviewers 
 
 ## 3. Deploy the website
 
-After applying Terraform and setting the GitHub variables and production environment, merge the reviewed pull request to `main`. The deployment workflow uses GitHub OIDC, scans the image, pushes a commit-SHA tag to Artifact Registry, then deploys it to Cloud Run with 0–5 instances and 256 MiB memory. Wait for the workflow to succeed before changing public DNS; this keeps the existing site live until the actual website image is running behind the load balancer. The initial Terraform-created Cloud Run revision is only a bootstrap hello page.
+After applying Terraform and setting the GitHub variables and production environment, merge the reviewed pull request to `main`. The deployment workflow uses GitHub OIDC, pushes a commit-SHA tag to Artifact Registry, then deploys it to Cloud Run with 0–5 instances and 256 MiB memory. Image vulnerability scanning is currently skipped because the Trivy installer fails in GitHub Actions. Wait for the workflow to succeed before changing public DNS; this keeps the existing site live until the actual website image is running behind the load balancer. The initial Terraform-created Cloud Run revision is only a bootstrap hello page.
 
 ## 4. Point DNS at the load balancer
 

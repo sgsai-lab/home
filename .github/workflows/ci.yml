@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate-build-and-scan:
+  validate-and-build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -37,12 +37,3 @@ jobs:
         run: npm run lighthouse
       - name: Build container image
         run: docker build --tag sgs-ai-website:${{ github.sha }} .
-      - name: Scan fixable HIGH and CRITICAL container vulnerabilities
-        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # v0.28.0
-        with:
-          image-ref: sgs-ai-website:${{ github.sha }}
-          format: table
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: os,library
-          severity: HIGH,CRITICAL

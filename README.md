@@ -48,7 +48,7 @@ Open <http://localhost:8080>. Nginx returns a real 404 status with the branded p
 
 ## GitHub Actions, Artifact Registry, and Cloud Run
 
-The PR workflow runs HTML/CSS/JavaScript checks, local-link validation, API tests, a minified build, Lighthouse CI category budgets, and a Trivy scan that fails on fixable HIGH/CRITICAL image vulnerabilities. The `main` deployment workflow builds and scans the image, then pushes a tag equal to the full commit SHA and deploys that image to Cloud Run with 0–5 instances and 256 MiB memory. It uses Workload Identity Federation (WIF); no service-account key is stored in GitHub.
+The PR workflow runs HTML/CSS/JavaScript checks, local-link validation, API tests, a minified build, and Lighthouse CI budgets. Image vulnerability scanning is currently skipped because the Trivy installer fails in GitHub Actions; restore scanning when its installation path is fixed. The `main` deployment workflow builds and pushes a tag equal to the full commit SHA, then deploys that image to Cloud Run with 0–5 instances and 256 MiB memory. It uses Workload Identity Federation (WIF); no service-account key is stored in GitHub.
 
 Provision the Artifact Registry, Cloud Run service, global HTTPS load balancer, reserved DNS address, managed TLS certificate, Secret Manager containers, and GitHub-to-GCP Workload Identity Federation with the checked-in [GCP infrastructure guide](infra/gcp/README.md) and [Terraform configuration](infra/gcp/terraform/). It documents the GitHub repository variables, SMTP setup, Squarespace DNS cutover, certificate validation, and rollback procedure. No GCP service-account keys or mail credentials belong in this repository.
 
@@ -90,4 +90,4 @@ gcloud run services update-traffic sgs-ai-website --region="$GCP_REGION" --to-re
 
 ## Legal and analytics notes
 
-The site sends page paths for public-page views to a first-party endpoint. Cloud Run application logs record only the allowed page path and event timestamp; the website analytics event does not retain visitor IP addresses, query strings, referrers, user agents, cookies, or visitor IDs. Hosting/network logs may separately process request metadata, and retention depends on the provider/configuration. No analytics cookies are set. Verified legal-entity, address, and founder/team details are not available and are intentionally not invented.
+The site sends page paths for public-page views to a first-party endpoint. Cloud Run application logs record only the allowed page path and event timestamp; the website analytics event does not retain visitor IP addresses, query strings, referrers, user agents, cookies, or visitor IDs. Hosting/network logs may separately process request metadata, and retention depends on the hosting provider and its configuration. No analytics cookies are set. Verified legal-entity, address, and founder/team details are not available and are intentionally not invented.
