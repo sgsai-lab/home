@@ -8,6 +8,7 @@ node_modules
 npm-debug.log
 GCP_DEPLOYMENT.md
 README.md
+infra
 .github
 .vscode
 .editorconfig

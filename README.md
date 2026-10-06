@@ -50,22 +50,24 @@ Open <http://localhost:8080>. Nginx returns a real 404 status with the branded p
 
 The PR workflow runs HTML/CSS/JavaScript checks, local-link validation, API tests, a minified build, Lighthouse CI category budgets, and a Trivy scan that fails on fixable HIGH/CRITICAL image vulnerabilities. The `main` deployment workflow builds and scans the image, then pushes a tag equal to the full commit SHA and deploys that image to Cloud Run with 0–5 instances and 256 MiB memory. It uses Workload Identity Federation (WIF); no service-account key is stored in GitHub.
 
-Before enabling deployment, an administrator must create the Artifact Registry repository, Cloud Run service/runtime identity, SMTP secrets, and a WIF provider/service account with least-privilege access. The workflow expects these **repository variables** (not secrets):
+Provision the Artifact Registry, Cloud Run service, global HTTPS load balancer, reserved DNS address, managed TLS certificate, Secret Manager containers, and GitHub-to-GCP Workload Identity Federation with the checked-in [GCP infrastructure guide](infra/gcp/README.md) and [Terraform configuration](infra/gcp/terraform/). It documents the GitHub repository variables, SMTP setup, Squarespace DNS cutover, certificate validation, and rollback procedure. No GCP service-account keys or mail credentials belong in this repository.
+
+The deploy workflow reads these **repository variables** (not secrets):
 
 | Variable | Example format / use |
 | --- | --- |
-| `GCP_PROJECT_ID` | Project ID; not supplied as workflow configuration |
-| `GCP_REGION` | Cloud Run and Artifact Registry region, e.g. `asia-south1` |
-| `GCP_ARTIFACT_REPOSITORY` | Existing Docker repository name |
-| `GCP_WIF_PROVIDER` | Full `projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL/providers/PROVIDER` resource name |
-| `GCP_WIF_SERVICE_ACCOUNT` | Dedicated deployment service-account email |
-| `GCP_RUNTIME_SERVICE_ACCOUNT` | Cloud Run runtime service-account email with access to SMTP secrets |
+| `GCP_PROJECT_ID` | `home-509818` (Terraform output) |
+| `GCP_REGION` | `asia-south1` (Terraform output) |
+| `GCP_ARTIFACT_REPOSITORY` | `sgsai-images` (Terraform output) |
+| `GCP_WIF_PROVIDER` | Full Workload Identity Provider resource name (Terraform output) |
+| `GCP_WIF_SERVICE_ACCOUNT` | Dedicated deployment service-account email (Terraform output) |
+| `GCP_RUNTIME_SERVICE_ACCOUNT` | Cloud Run runtime service-account email (Terraform output) |
 | `SMTP_HOST` | SMTP hostname (not a credential) |
 | `CONTACT_FROM` | Verified sender address |
 | `SMTP_USER_SECRET` | Secret Manager secret name containing SMTP username |
 | `SMTP_PASS_SECRET` | Secret Manager secret name containing SMTP password |
 
-The deployment identity needs only Artifact Registry write, Cloud Run deploy, and service-account act-as permissions. The runtime identity needs access to the two named Secret Manager secrets. External infrastructure prerequisites tracked as INF-05 and INF-07, project identifiers, WIF setup, and email credentials are not inferred or fabricated here. Add the `production` GitHub environment and configure required reviewers before relying on an approval gate.
+Terraform scopes deployment access to Artifact Registry image publishing, Cloud Run deployment, and runtime service-account act-as. The runtime identity can access only the SMTP secrets. Create the `production` GitHub environment and configure required reviewers before relying on an approval gate.
 
 ### Rollback
 

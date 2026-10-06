@@ -64,6 +64,13 @@ jobs:
           SMTP_PASS_SECRET: ${{ vars.SMTP_PASS_SECRET }}
         run: |
           set -euo pipefail
+          secret_args=()
+          if [[ -n "$SMTP_USER_SECRET" && -n "$SMTP_PASS_SECRET" ]]; then
+            secret_args+=(--set-secrets "SMTP_USER=$SMTP_USER_SECRET:latest,SMTP_PASS=$SMTP_PASS_SECRET:latest")
+          elif [[ -n "$SMTP_USER_SECRET" || -n "$SMTP_PASS_SECRET" ]]; then
+            echo "Set both SMTP_USER_SECRET and SMTP_PASS_SECRET, or leave both unset." >&2
+            exit 1
+          fi
           gcloud run deploy sgs-ai-website \
             --project "$GCP_PROJECT_ID" \
             --region "$GCP_REGION" \
@@ -76,4 +83,4 @@ jobs:
             --ingress internal-and-cloud-load-balancing \
             --allow-unauthenticated \
             --set-env-vars "SMTP_HOST=$SMTP_HOST,SMTP_PORT=587,SMTP_SECURE=false,CONTACT_FROM=$CONTACT_FROM,CONTACT_TO=hello@sgsaitechnology.com" \
-            --set-secrets "SMTP_USER=$SMTP_USER_SECRET:latest,SMTP_PASS=$SMTP_PASS_SECRET:latest"
+            "${secret_args[@]}"
