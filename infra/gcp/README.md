@@ -42,6 +42,8 @@ terraform apply tfplan
 
 Read the plan before applying. It creates a Cloud Run bootstrap revision using Google's public hello container so the load balancer can be provisioned before the first GitHub deployment. On subsequent applies, Terraform deliberately ignores Cloud Run image and environment changes; GitHub Actions owns those fields. The Cloud Run service has deletion protection enabled; disable it explicitly in `main.tf` only for an approved teardown.
 
+If the project already contains any resources with these names (for example, from the manual steps in `GCP_DEPLOYMENT.md`), do not apply this as a fresh state. Import each existing resource into its matching Terraform address and reconcile the plan first, or choose new resource names. Terraform cannot safely adopt existing resources automatically.
+
 Terraform state contains infrastructure metadata and must not be committed. The local state files are ignored by Git. For a team or CI-managed Terraform workflow, configure an access-controlled, versioned GCS backend before sharing or automating state.
 
 ## 2. Add GitHub repository variables
@@ -68,7 +70,11 @@ Do not add secret values as GitHub variables, Terraform inputs, checked-in files
 
 Create a GitHub environment named `production` and configure required reviewers under repository Settings → Environments. Also protect `main` with pull-request review and required CI status checks; infrastructure cannot enforce the GitHub-side branch rule itself.
 
-## 3. Point DNS at the load balancer
+## 3. Deploy the website
+
+After applying Terraform and setting the GitHub variables and production environment, merge the reviewed pull request to `main`. The deployment workflow uses GitHub OIDC, scans the image, pushes a commit-SHA tag to Artifact Registry, then deploys it to Cloud Run with 0–5 instances and 256 MiB memory. Wait for the workflow to succeed before changing public DNS; this keeps the existing site live until the actual website image is running behind the load balancer. The initial Terraform-created Cloud Run revision is only a bootstrap hello page.
+
+## 4. Point DNS at the load balancer
 
 Get the stable public IP:
 
@@ -97,9 +103,7 @@ gcloud compute ssl-certificates describe sgsai-managed-cert \
 
 Wait for `managed.status: ACTIVE` and `ACTIVE` status for both domains before relying on HTTPS; issuance and DNS propagation can take time. Test `https://sgsaitechnology.com` and `https://www.sgsaitechnology.com`. The port-80 frontend redirects to HTTPS.
 
-## 4. Deploy and roll back
-
-Push/merge to `main` after GitHub variables, SMTP values (if needed), environment approval, and DNS are ready. The existing deploy workflow uses GitHub OIDC, scans the image, pushes a commit-SHA tag, then deploys it to Cloud Run with 0–5 instances and 256 MiB memory. The global IP and DNS records do not change between revisions.
+## 5. Roll back
 
 Rollback to a known-good Cloud Run revision:
 
