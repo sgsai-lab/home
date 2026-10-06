@@ -7,5 +7,15 @@ firebase.json
 node_modules
 npm-debug.log
 GCP_DEPLOYMENT.md
+README.md
+.github
+.vscode
+.editorconfig
+.gitignore
+test
+scripts/check-links.mjs
+scripts/preview.mjs
+firebase-debug.log
+dist
 Dockerfile
 .dockerignore

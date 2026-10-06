@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://sgsaitechnology.com/sitemap.xml
