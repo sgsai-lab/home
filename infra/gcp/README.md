@@ -14,7 +14,7 @@ Cloud Run serverless NEG (asia-south1)
 sgs-ai-website (unprivileged Nginx + contact API)
 ```
 
-The load balancer serves both `sgsaitechnology.com` and `www.sgsaitechnology.com` with a Google-managed certificate. DNS remains hosted by Squarespace; Terraform does not edit registrar DNS. The certificate becomes active after both hostnames resolve to the reserved load-balancer address.
+The load balancer serves both `sgsaitechnology.com` and `www.sgsaitechnology.com` with Google-managed certificates. DNS remains hosted by Squarespace; Terraform does not edit registrar DNS. The certificates become active after both hostnames resolve to the reserved load-balancer address. Before cutover, `FAILED_NOT_VISIBLE` for the apex certificate and `PROVISIONING` for `www` are expected.
 
 ## Prerequisites
 
@@ -42,7 +42,16 @@ terraform apply tfplan
 
 Read the plan before applying. It creates a Cloud Run bootstrap revision using Google's public hello container so the load balancer can be provisioned before the first GitHub deployment. On subsequent applies, Terraform deliberately ignores Cloud Run image and environment changes; GitHub Actions owns those fields. The Cloud Run service has deletion protection enabled; disable it explicitly in `main.tf` only for an approved teardown.
 
-If the project already contains any resources with these names (for example, from the manual steps in `GCP_DEPLOYMENT.md`), do not apply this as a fresh state. Import each existing resource into its matching Terraform address and reconcile the plan first, or choose new resource names. Terraform cannot safely adopt existing resources automatically.
+The repository, apex certificate, reserved IP, and Cloud Run serverless NEG already exist in project `home-509818`. After the partial apply, import any of them that are not already shown by `terraform state list`:
+
+```sh
+terraform import google_artifact_registry_repository.website projects/home-509818/locations/asia-south1/repositories/sgsai-images
+terraform import google_compute_managed_ssl_certificate.website projects/home-509818/global/sslCertificates/sgsai-managed-cert
+terraform import google_compute_global_address.website projects/home-509818/global/addresses/sgsai-global-ip
+terraform import google_compute_region_network_endpoint_group.website projects/home-509818/regions/asia-south1/networkEndpointGroups/sgsai-cloudrun-neg
+```
+
+Do not re-import resources already shown by `terraform state list`. The existing certificate covers only the apex hostname, so Terraform keeps it and provisions a separate managed certificate for `www`; both are attached to the HTTPS proxy. Cloud Run ingress is restricted to the load balancer, and its invoker IAM check is disabled because this project organization blocks `allUsers` IAM members. This keeps `run.app` access restricted; do not broaden ingress to the public internet. Before another apply, run `terraform plan` and resolve any other resource-name conflicts by importing the named resource or updating the configuration. Terraform cannot adopt existing resources automatically.
 
 Terraform state contains infrastructure metadata and must not be committed. The local state files are ignored by Git. For a team or CI-managed Terraform workflow, configure an access-controlled, versioned GCS backend before sharing or automating state.
 

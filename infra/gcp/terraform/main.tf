@@ -74,11 +74,12 @@ resource "google_secret_manager_secret_iam_member" "runtime_smtp_pass" {
 }
 
 resource "google_cloud_run_v2_service" "website" {
-  project             = var.project_id
-  name                = local.service_name
-  location            = var.region
-  ingress             = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
-  deletion_protection = true
+  project              = var.project_id
+  name                 = local.service_name
+  location             = var.region
+  ingress              = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
+  invoker_iam_disabled = true
+  deletion_protection  = true
 
   template {
     service_account = google_service_account.runtime.email
@@ -97,6 +98,8 @@ resource "google_cloud_run_v2_service" "website" {
       }
 
       resources {
+        cpu_idle = true
+
         limits = {
           cpu    = "1"
           memory = "256Mi"
@@ -109,20 +112,13 @@ resource "google_cloud_run_v2_service" "website" {
   # Container image and mail configuration are owned by the GitHub Actions deploy workflow.
   lifecycle {
     ignore_changes = [
+      scaling,
       template[0].containers[0].image,
       template[0].containers[0].env,
     ]
   }
 
   depends_on = [google_project_service.required]
-}
-
-resource "google_cloud_run_v2_service_iam_member" "public_invoker" {
-  project  = var.project_id
-  location = google_cloud_run_v2_service.website.location
-  name     = google_cloud_run_v2_service.website.name
-  role     = "roles/run.invoker"
-  member   = "allUsers"
 }
 
 resource "google_compute_region_network_endpoint_group" "website" {
@@ -180,17 +176,31 @@ resource "google_compute_managed_ssl_certificate" "website" {
   name    = "sgsai-managed-cert"
 
   managed {
-    domains = local.domains
+    domains = [var.apex_domain]
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_compute_managed_ssl_certificate" "www" {
+  project = var.project_id
+  name    = "sgsai-www-managed-cert"
+
+  managed {
+    domains = [var.www_domain]
   }
 
   depends_on = [google_project_service.required]
 }
 
 resource "google_compute_target_https_proxy" "website" {
-  project          = var.project_id
-  name             = "sgsai-https-proxy"
-  url_map          = google_compute_url_map.https.id
-  ssl_certificates = [google_compute_managed_ssl_certificate.website.id]
+  project = var.project_id
+  name    = "sgsai-https-proxy"
+  url_map = google_compute_url_map.https.id
+  ssl_certificates = [
+    google_compute_managed_ssl_certificate.website.id,
+    google_compute_managed_ssl_certificate.www.id,
+  ]
 }
 
 resource "google_compute_target_http_proxy" "redirect" {

@@ -81,6 +81,5 @@ jobs:
             --memory 256Mi \
             --service-account "$GCP_RUNTIME_SERVICE_ACCOUNT" \
             --ingress internal-and-cloud-load-balancing \
-            --allow-unauthenticated \
             --set-env-vars "SMTP_HOST=$SMTP_HOST,SMTP_PORT=587,SMTP_SECURE=false,CONTACT_FROM=$CONTACT_FROM,CONTACT_TO=hello@sgsaitechnology.com" \
             "${secret_args[@]}"
