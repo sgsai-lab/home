@@ -15,7 +15,7 @@
     "lighthouse": "lhci autorun"
   },
   "dependencies": {
-    "nodemailer": "6.10.1"
+    "nodemailer": "10.0.14"
   },
   "devDependencies": {
     "@lhci/cli": "0.15.1",
