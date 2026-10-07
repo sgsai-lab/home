@@ -1,12 +1,12 @@
 // Keep product claims and availability together; publish only confirmed details.
 const products = [
   {
-    name: 'SGS AI mobile MVP',
+    name: 'SGS AI mobile application',
     status: 'In development',
     platforms: ['Mobile'],
     availability: 'Targeting a Q1 2027 private beta',
-    problem: 'The specific problem this application addresses has not yet been announced.',
-    audience: 'The intended audience has not yet been announced.'
+    problem: 'Product-specific details are being developed and will be shared when confirmed.',
+    audience: 'Business and education are our initial areas of focus; this application’s audience has not yet been announced.'
   }
 ];
 
