@@ -188,8 +188,8 @@ button {
 
 /* Vision Roadmap Component */
 .vision-roadmap {
-  margin: 100px 0;
-  padding: 60px;
+  margin: 60px 0 !important;
+  padding: 40px !important;
   background: white;
   border-radius: 20px;
   border: 1px solid var(--line);
@@ -344,7 +344,6 @@ h1 { font-family: var(--display); font-weight: 700; }
 /* Gap Management */
 section, .section, .intro, .approach { padding-block: 60px !important; }
 .services-section, .roadmap-section, .vision-section, .about-section, .contact-section { padding-block: 60px !important; padding: 60px 0 !important; }
-.vision-roadmap { margin: 60px 0 !important; padding: 40px !important; }
 
 /* Arrow Link Fix */
 .arrow-link { margin-top: 15px !important; display: inline-flex !important; }

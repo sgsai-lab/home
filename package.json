@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "lint:js": "eslint script.js products.js server.mjs test/**/*.mjs scripts/**/*.mjs",
-    "lint:css": "stylelint styles.css pages.css",
-    "validate:html": "html-validate index.html 404.html vision/index.html products/index.html roadmap/index.html about/index.html contact/index.html privacy/index.html terms/index.html",
+    "lint:js": "eslint app.js script.js products.js server.mjs test/**/*.mjs scripts/**/*.mjs components/**/*.js sections/**/*.js",
+    "lint:css": "stylelint *.css about/**/*.css components/**/*.css sections/**/*.css services/**/*.css vision/**/*.css",
+    "validate:html": "html-validate index.html 404.html about/index.html contact/index.html privacy/index.html products/index.html roadmap/index.html services/index.html terms/index.html vision/index.html components/**/*.html sections/**/*.html",
     "check:links": "node scripts/check-links.mjs",
     "test": "node --test",
     "lint": "npm run lint:js && npm run lint:css && npm run validate:html && npm run check:links",
