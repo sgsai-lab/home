@@ -29,7 +29,12 @@ async function minifyTree(directory) {
     }
     const source = await readFile(filename, 'utf8');
     if (filename.endsWith('.html')) {
-      await writeFile(filename, await minifyHtml(source, {
+      const html = source.replace(
+        /<link\b(?=[^>]*\brel=["']stylesheet["'])(?=[^>]*\bhref=["']https?:\/\/)[^>]*>/gi,
+        (link) => link
+          .replace(/\brel=["']stylesheet["']/i, 'rel="preload" as="style" data-async-stylesheet')
+      );
+      await writeFile(filename, await minifyHtml(html, {
         collapseWhitespace: true,
         removeComments: true,
         minifyCSS: true,

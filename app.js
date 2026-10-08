@@ -1,61 +1,65 @@
-document.addEventListener('DOMContentLoaded', async () => {
-  const components = [
-    { id: 'header-mount', path: 'components/header/header', hasCss: true, hasJs: false },
-    { id: 'nav-mount', path: 'components/nav/nav', hasCss: true, hasJs: true },
-    { id: 'hero-mount', path: 'sections/hero/hero', hasCss: true, hasJs: false },
-    { id: 'vision-mount', path: 'sections/vision/vision', hasCss: true, hasJs: false },
-    { id: 'services-mount', path: 'sections/services/services', hasCss: true, hasJs: false },
-    { id: 'roadmap-mount', path: 'sections/roadmap/roadmap', hasCss: true, hasJs: false },
-    { id: 'about-mount', path: 'sections/about/about', hasCss: true, hasJs: false },
-    { id: 'contact-mount', path: 'sections/contact/contact', hasCss: true, hasJs: true },
-    { id: 'footer-mount', path: 'components/footer/footer', hasCss: true, hasJs: true }
-  ];
+document.querySelectorAll('link[data-async-stylesheet]').forEach((preload) => {
+  const activateStylesheet = () => {
+    const stylesheet = document.createElement('link');
+    stylesheet.rel = 'stylesheet';
+    stylesheet.href = preload.href;
+    document.head.appendChild(stylesheet);
+    preload.remove();
+  };
 
-  for (const comp of components) {
-    try {
-      // 1. Fetch HTML
-      const response = await fetch(`/${comp.path}.html?v=${new Date().getTime()}`);
-      if (response.ok) {
-        const html = await response.text();
-        const container = document.getElementById(comp.id);
-        if (container) {
-          container.innerHTML = html;
-        }
+  preload.addEventListener('load', activateStylesheet, { once: true });
+  if (preload.sheet) activateStylesheet();
+});
 
-        // 2. Load CSS
-        if (comp.hasCss) {
-          const link = document.createElement('link');
-          link.rel = 'stylesheet';
-          link.href = `/${comp.path}.css?v=${new Date().getTime()}`;
-          document.head.appendChild(link);
-        }
+const components = [
+  { id: 'header-mount', path: 'components/header/header', hasCss: true, hasJs: false },
+  { id: 'nav-mount', path: 'components/nav/nav', hasCss: true, hasJs: true },
+  { id: 'hero-mount', path: 'sections/hero/hero', hasCss: true, hasJs: false },
+  { id: 'vision-mount', path: 'sections/vision/vision', hasCss: true, hasJs: false },
+  { id: 'services-mount', path: 'sections/services/services', hasCss: true, hasJs: false },
+  { id: 'roadmap-mount', path: 'sections/roadmap/roadmap', hasCss: true, hasJs: false },
+  { id: 'about-mount', path: 'sections/about/about', hasCss: true, hasJs: false },
+  { id: 'contact-mount', path: 'sections/contact/contact', hasCss: true, hasJs: true },
+  { id: 'footer-mount', path: 'components/footer/footer', hasCss: true, hasJs: true }
+];
 
-        // 3. Load JS
-        if (comp.hasJs) {
-          const script = document.createElement('script');
-          script.src = `/${comp.path}.js`;
-          script.defer = true;
-          document.body.appendChild(script);
-        }
-      }
-    } catch (e) {
-      console.error(`Failed to load ${comp.path}`, e);
+async function loadComponent(comp) {
+  const container = document.getElementById(comp.id);
+  if (!container) return;
+
+  try {
+    const response = await fetch(`/${comp.path}.html?v=6`);
+    if (!response.ok) return;
+
+    container.innerHTML = await response.text();
+
+    if (comp.hasCss) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = `/${comp.path}.css?v=6`;
+      document.head.appendChild(link);
     }
+
+    if (comp.hasJs) {
+      const script = document.createElement('script');
+      script.src = `/${comp.path}.js`;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+  } catch (error) {
+    console.error(`Failed to load ${comp.path}`, error);
   }
+}
 
-  // Header scroll state
-  window.addEventListener('scroll', () => {
-    const header = document.querySelector('.site-header');
-    if (header) {
-      if (window.scrollY > 20) {
-        header.classList.add('scrolled');
-      } else {
-        header.classList.remove('scrolled');
-      }
-    }
-  });
+async function loadComponents() {
+  // The navigation mount is inside the header fragment; load it before the rest.
+  await loadComponent(components[0]);
+  await Promise.all(components.slice(1).map(loadComponent));
+}
 
-  // Handle legacy hashes mapping
+document.addEventListener('DOMContentLoaded', () => {
+  const componentsLoaded = loadComponents();
+
   const hashMapping = {
     '#products': '/services',
     '#vision': '/vision',
@@ -64,24 +68,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     '#approach': '/vision/#approach'
   };
 
-  const handleHash = () => {
-    const hash = window.location.hash;
+  const handleHash = async () => {
+    const { hash } = window.location;
     if (hashMapping[hash]) {
       window.location.href = hashMapping[hash];
       return;
     }
-    
-    // Wait a brief moment for dynamic content to be in DOM, then scroll
-    if (hash) {
-      setTimeout(() => {
-        const target = document.querySelector(hash);
-        if (target) {
-          target.scrollIntoView({ behavior: 'smooth' });
-        }
-      }, 300);
-    }
+
+    if (!hash) return;
+
+    await componentsLoaded;
+    document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' });
   };
 
   handleHash();
   window.addEventListener('hashchange', handleHash);
-});
+}, { once: true });
