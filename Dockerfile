@@ -32,3 +32,4 @@ COPY --from=builder /app/vision/ /usr/share/nginx/html/vision/
 COPY --from=builder /app/assets/ /usr/share/nginx/html/assets/
 
 EXPOSE 8080
+CMD ["/sbin/tini", "-g", "--", "sh", "-c", "node /app/server.mjs & api_pid=$!; trap 'kill \"$api_pid\" 2>/dev/null || true' EXIT; nginx -g 'daemon off;'"]
