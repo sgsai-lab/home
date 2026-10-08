@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.lighthouseci/
+/og-image.png
+/firebase-debug.log
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+tfplan
+.env
+.env.*
+!.env.example
