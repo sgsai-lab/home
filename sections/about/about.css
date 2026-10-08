@@ -1,0 +1,62 @@
+.quote-section {
+  background: #17223b;
+  color: white;
+  padding: 70px 0 58px;
+  position: relative;
+  overflow: hidden;
+}
+.quote-section:before,
+.quote-section:after {
+  content: "";
+  position: absolute;
+  width: 340px;
+  height: 340px;
+  border-radius: 50%;
+  border: 1px solid #ffffff0d;
+  right: -56px;
+  top: -142px;
+}
+.quote-section:after {
+  width: 255px;
+  height: 255px;
+  right: -13px;
+  top: -100px;
+}
+.quote-inner {
+  position: relative;
+}
+.quote-mark {
+  font-family: var(--serif);
+  font-size: 75px;
+  line-height: 0.65;
+  color: #25bb9b;
+}
+.quote-inner blockquote {
+  font-family: var(--display);
+  font-size: clamp(24px, 3vw, 35px);
+  line-height: 1.45;
+  letter-spacing: -0.035em;
+  margin: 11px 0 30px;
+  font-weight: 400;
+}
+.quote-bottom {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-family: "DM Mono", monospace;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  color: #a7afc1;
+}
+.quote-rule {
+  width: 30px;
+  height: 1px;
+  background: #2ec3a0;
+}
+.quote-spark {
+  margin-left: auto;
+  color: #34c29f;
+  font-size: 18px;
+}
+
+@media(max-width:650px){ .quote-section{padding:54px 0 44px} .quote-inner blockquote{font-size:25px} .quote-inner blockquote br{display:none} }

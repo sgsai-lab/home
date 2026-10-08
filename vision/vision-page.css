@@ -1,0 +1,242 @@
+.vision-page {
+  animation: fadeIn 0.8s ease-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Page Hero */
+.vision-hero {
+  text-align: center;
+  max-width: 800px;
+  margin: 0 auto 60px;
+}
+.vision-hero h1 {
+  font-size: 55px;
+  line-height: 1.1;
+  margin: 20px 0 30px;
+  letter-spacing: -0.03em;
+}
+.vision-hero p {
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--muted);
+  margin-bottom: 40px;
+}
+
+/* Vision & Mission Split */
+.vm-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin-bottom: 80px;
+  align-items: stretch;
+}
+.vm-card {
+  background: white;
+  padding: 45px;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.5s ease;
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+}
+.vm-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 15px 40px rgba(135, 62, 208, 0.08);
+  border-color: #873ed033;
+}
+.vm-card-bg {
+  position: absolute;
+  top: -50px;
+  right: -50px;
+  font-size: 200px;
+  font-weight: 800;
+  color: #f0f2f8;
+  z-index: 0;
+  line-height: 1;
+  font-family: var(--display);
+  transition: transform 0.6s ease;
+}
+.vm-card:hover .vm-card-bg {
+  transform: scale(1.1) rotate(-5deg);
+  color: #f3ebfa;
+}
+.vm-card-content {
+  position: relative;
+  z-index: 1;
+}
+.vm-card h3 {
+  font-size: 10px;
+  font-family: "DM Mono", monospace;
+  letter-spacing: 0.1em;
+  color: var(--purple);
+  margin-bottom: 20px;
+}
+.vm-card h2 {
+  font-size: 28px;
+  margin-bottom: 20px;
+}
+.vm-card p {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--muted);
+}
+
+/* Why We Exist */
+.why-exist {
+  text-align: center;
+  max-width: 850px;
+  margin: 0 auto 80px;
+  padding: 60px 40px;
+  background: radial-gradient(circle at center, #ffffff 0%, #f8f9fc 100%);
+  border-radius: 20px;
+  border: 1px solid white;
+  box-shadow: inset 0 0 30px rgba(0,0,0,0.01), 0 15px 35px rgba(0,0,0,0.02);
+}
+.why-exist h2 {
+  font-size: 38px;
+  margin-bottom: 30px;
+}
+.why-exist p {
+  font-size: 15px;
+  line-height: 1.9;
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+.why-exist p:last-child {
+  font-weight: 600;
+  color: var(--ink);
+  font-size: 18px;
+  margin-top: 40px;
+}
+
+/* The Way We Build */
+.principles-section {
+  margin-bottom: 80px;
+}
+.principles-section > h2 {
+  font-size: 38px;
+  text-align: center;
+  margin-bottom: 10px;
+}
+.principles-section > p {
+  text-align: center;
+  color: var(--muted);
+  margin-bottom: 50px;
+}
+.principles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+}
+.principle-card {
+  background: white;
+  padding: 35px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.principle-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.04);
+  border-color: var(--green);
+}
+.principle-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 4px;
+  background: var(--green);
+  transition: width 0.4s ease;
+}
+.principle-card:hover::after {
+  width: 100%;
+}
+.principle-num {
+  font-family: "DM Mono", monospace;
+  font-size: 12px;
+  color: var(--green);
+  margin-bottom: 15px;
+  display: block;
+}
+.principle-card h3 {
+  font-size: 20px;
+  margin-bottom: 15px;
+}
+.principle-card p {
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--muted);
+}
+
+/* What We Will Not Do */
+.not-do-section {
+  background: #17223b;
+  color: white;
+  padding: 60px;
+  border-radius: 20px;
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 40px;
+}
+.not-do-left h2 {
+  font-size: 38px;
+  margin-bottom: 20px;
+}
+.not-do-left p {
+  color: #a2a9b8;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.not-do-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.not-do-list li {
+  padding: 20px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #e5e8f0;
+  transition: transform 0.3s ease, color 0.3s ease;
+}
+.not-do-list li:hover {
+  transform: translateX(10px);
+  color: white;
+}
+.not-do-list li i {
+  color: #f4a34d;
+  font-size: 14px;
+  margin-top: 4px;
+}
+.not-do-list li:last-child {
+  border-bottom: none;
+}
+
+@media(max-width: 900px) {
+  .vm-split, .not-do-section {
+    grid-template-columns: 1fr;
+  }
+  .vision-hero h1 { font-size: 42px; }
+  .why-exist, .not-do-section { padding: 40px; }
+}
+@media(max-width: 650px) {
+  .vision-hero h1 { font-size: 32px; }
+  .vm-card { padding: 30px; }
+  .why-exist, .not-do-section { padding: 30px 20px; }
+}

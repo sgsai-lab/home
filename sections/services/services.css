@@ -1,0 +1,277 @@
+.services-section {
+  background: #eef1f7;
+  padding: 96px 0 105px;
+}
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  margin-bottom: 40px;
+}
+.section-heading .section-kicker {
+  margin: 0 0 22px;
+}
+.section-heading h2 {
+  font-size: 47px;
+}
+.section-heading-aside {
+  max-width: 295px;
+  margin: 0 7px 7px 0;
+  font-size: 12px;
+  line-height: 1.8;
+  color: #737c90;
+}
+.service-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.service-card {
+  height: 385px;
+  background: #fff;
+  border: 1px solid #e8eaf0;
+  border-radius: 5px;
+  padding: 22px 23px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
+}
+.service-card:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 25px 50px rgba(41, 56, 86, 0.08), 0 10px 20px rgba(41, 56, 86, 0.04);
+}
+.service-card-featured {
+  background: linear-gradient(147deg, #fff 44%, #f8f3ff 100%);
+}
+.service-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.service-number {
+  font-family: "DM Mono", monospace;
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  color: #8891a4;
+}
+.service-icon {
+  width: 35px;
+  height: 35px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+}
+.icon-ai {
+  background: #f3eafb;
+  color: #9349cd;
+}
+.icon-code {
+  background: #e5f5fb;
+  color: #2199bf;
+}
+.icon-transform {
+  background: #e8f8f0;
+  color: #17b384;
+}
+.service-card h3 {
+  font-family: var(--display);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.05em;
+  line-height: 1.19;
+  margin: 22px 0 11px;
+  position: relative;
+  z-index: 1;
+}
+.service-card p {
+  max-width: 270px;
+  font-size: 10px;
+  line-height: 1.8;
+  color: #7b8395;
+  margin: 0;
+  position: relative;
+  z-index: 1;
+}
+.card-link {
+  display: inline-flex;
+  gap: 22px;
+  align-items: center;
+  position: absolute;
+  z-index: 2;
+  bottom: 23px;
+  left: 23px;
+  font-size: 9px;
+  font-weight: 700;
+}
+.card-link span {
+  font-size: 13px;
+  color: #8244c6;
+  transition: transform 0.3s ease;
+  display: inline-block;
+}
+.card-graphic {
+  position: absolute;
+  right: -6px;
+  bottom: 25px;
+  width: 137px;
+  height: 93px;
+  opacity: 0.8;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s ease;
+}
+.graphic-strategy span {
+  position: absolute;
+  width: 73px;
+  height: 73px;
+  border: 1px solid #bc8fde66;
+  border-radius: 50%;
+  right: 6px;
+  bottom: -29px;
+  box-shadow:
+    0 0 0 12px #cfb0e31c,
+    0 0 0 25px #cfb0e312;
+  transition: border-color 0.4s ease, box-shadow 0.4s ease;
+}
+.graphic-strategy span:nth-child(2) {
+  width: 45px;
+  height: 45px;
+  right: 47px;
+  bottom: -2px;
+  border-color: #64c4ce80;
+}
+.graphic-strategy span:nth-child(3) {
+  width: 15px;
+  height: 15px;
+  right: 62px;
+  bottom: 13px;
+  background: #9865d7;
+  border: 0;
+}
+.graphic-strategy i {
+  position: absolute;
+  right: 18px;
+  top: 3px;
+  font-size: 20px;
+  color: #18b797;
+  font-style: normal;
+}
+.graphic-code {
+  width: 95px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: center;
+  justify-items: center;
+  color: #51bad0;
+  font-family: "DM Mono", monospace;
+  font-size: 9px;
+  transform: rotate(-17deg);
+}
+.graphic-code span:nth-child(2n) {
+  color: #a782d2;
+}
+.graphic-code span:last-child {
+  font-size: 20px;
+  color: #18b997;
+}
+.graphic-transform span {
+  position: absolute;
+  width: 45px;
+  height: 45px;
+  border: 1px solid #61c8a24a;
+  border-radius: 50%;
+  right: 4px;
+  bottom: -7px;
+  box-shadow:
+    0 0 0 9px #62cda714,
+    0 0 0 19px #62cda70c;
+}
+.graphic-transform span:nth-child(2) {
+  width: 27px;
+  height: 27px;
+  right: 35px;
+  bottom: 2px;
+}
+.graphic-transform span:nth-child(3) {
+  width: 8px;
+  height: 8px;
+  right: 45px;
+  bottom: 11px;
+  background: #26be95;
+  border: 0;
+}
+.graphic-transform i {
+  font-size: 18px;
+  color: #8f58ce;
+  position: absolute;
+  right: 24px;
+  top: 2px;
+  font-style: normal;
+}
+
+@media(max-width:900px){ .service-card{padding:18px;height:370px} .service-card h3{font-size:23px} }
+@media(max-width:650px){ .services-section{padding:70px 0} .section-heading{display:block;margin-bottom:27px} .section-heading h2{font-size:39px} .section-heading-aside{font-size:11px;margin:14px 0 0;max-width:390px} .service-grid{grid-template-columns:1fr;gap:11px} .service-card{height:310px;padding:20px} .service-card h3{font-size:25px;margin-top:16px} .service-card p{font-size:10px;max-width:250px} .card-link{bottom:20px;left:20px} }
+
+/* SERVICES SECTION ANIMATIONS & EFFECTS */
+
+/* Card Hover Enhancements */
+.service-card:hover h3 {
+  color: #8244c6;
+  transition: color 0.3s ease;
+}
+
+/* Card Link Arrow Hover */
+.service-card:hover .card-link span {
+  transform: translate(4px, -4px);
+}
+
+/* Graphic Container Hover */
+.service-card:hover .card-graphic {
+  transform: scale(1.15) translate(-8px, -5px);
+  opacity: 1;
+}
+
+/* Strategy Graphic Animations */
+@keyframes spinGraphic {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.service-card:hover .graphic-strategy span {
+  border-color: #b78dd7;
+  box-shadow: 0 0 0 15px rgba(207, 176, 227, 0.25), 0 0 0 30px rgba(207, 176, 227, 0.15);
+}
+.service-card:hover .graphic-strategy i {
+  animation: spinGraphic 3s linear infinite;
+}
+
+/* Code Graphic Animations */
+@keyframes codeBounce {
+  0%, 100% { transform: translateY(0); color: #51bad0; }
+  50% { transform: translateY(-5px); color: #a782d2; }
+}
+.service-card:hover .graphic-code span {
+  animation: codeBounce 1s ease-in-out infinite;
+}
+.service-card:hover .graphic-code span:nth-child(2) { animation-delay: 0.1s; }
+.service-card:hover .graphic-code span:nth-child(3) { animation-delay: 0.2s; }
+.service-card:hover .graphic-code span:nth-child(4) { animation-delay: 0.3s; }
+.service-card:hover .graphic-code span:last-child {
+  animation: none;
+  color: #18b997;
+  transform: scale(1.3) rotate(20deg);
+  transition: transform 0.3s ease;
+}
+
+/* Transform Graphic Animations */
+@keyframes shootArrow {
+  0% { transform: translate(0, 0); opacity: 1; }
+  45% { transform: translate(15px, -15px); opacity: 0; }
+  55% { transform: translate(-15px, 15px); opacity: 0; }
+  100% { transform: translate(0, 0); opacity: 1; }
+}
+.service-card:hover .graphic-transform i {
+  animation: shootArrow 1.2s ease-in-out infinite;
+}
+.service-card:hover .graphic-transform span {
+  border-color: #26be95;
+  transition: border-color 0.4s ease;
+}

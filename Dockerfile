@@ -1,29 +1,20 @@
-FROM node:22-alpine AS build
+FROM node:22-alpine AS builder
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
-COPY index.html 404.html styles.css pages.css script.js products.js favicon.svg favicon.ico favicon-192.png favicon-512.png apple-touch-icon.png og-image.jpg site.webmanifest robots.txt sitemap.xml ./
-COPY vision/ vision/
-COPY products/ products/
-COPY roadmap/ roadmap/
-COPY about/ about/
-COPY contact/ contact/
-COPY privacy/ privacy/
-COPY terms/ terms/
-COPY logo/ logo/
-COPY scripts/build.mjs scripts/build.mjs
-COPY partials/ partials/
-RUN npm run build
 
+COPY . .
+RUN npm ci && npm run build && npm prune --omit=dev
+
+# Final Stage: Nginx
 FROM nginxinc/nginx-unprivileged:stable-alpine
 USER root
-RUN apk add --no-cache nodejs npm tini && mkdir -p /app
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
-COPY server.mjs ./server.mjs
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build --chown=101:101 /app/dist/ /usr/share/nginx/html/
-USER 101:101
+RUN apk add --no-cache nodejs
+
+# Copy nginx configuration
+COPY --from=builder /app/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/dist/ /usr/share/nginx/html/
+COPY --from=builder /app/server.mjs /app/server.mjs
+COPY --from=builder /app/node_modules/ /app/node_modules/
+
 EXPOSE 8080
-CMD ["/sbin/tini", "-g", "--", "sh", "-c", "node /app/server.mjs & api_pid=$!; trap 'kill \"$api_pid\" 2>/dev/null || true' EXIT; nginx -g 'daemon off;'"]
+USER nginx
+CMD ["/bin/sh", "-c", "node /app/server.mjs & api_pid=$!; trap 'kill \"$api_pid\" 2>/dev/null || true' EXIT; nginx -g 'daemon off;'" ]

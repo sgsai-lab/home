@@ -1,0 +1,53 @@
+<section class="contact-section section-wrap" id="contact">
+  <div class="contact-card form-layout">
+    <div class="contact-copy">
+      <p class="section-kicker">YOUR NEXT CHAPTER STARTS HERE</p>
+      <h2>Have a big<br><span class="serif-italic">“what if?”</span></h2>
+      <p>Let’s turn it into a “what’s next.” Fill out the form below or email us directly—we’re all ears.</p>
+      <a class="contact-email" href="mailto:hello@sgsaitechnology.com">hello@sgsaitechnology.com <span>↗</span></a>
+    </div>
+    
+    <div class="contact-form-container">
+      <form id="contactForm" class="contact-form" novalidate>
+        <div class="form-group">
+          <label for="contact-name">Name <span aria-hidden="true">*</span></label>
+          <input type="text" id="contact-name" name="name" required placeholder="Jane Doe">
+          <span class="error-msg" id="name-error">Please enter your name.</span>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="contact-email">Email <span aria-hidden="true">*</span></label>
+            <input type="email" id="contact-email" name="email" required placeholder="jane@example.com">
+            <span class="error-msg" id="email-error">Please enter a valid email address.</span>
+          </div>
+          
+          <div class="form-group">
+            <label for="contact-phone">Phone</label>
+            <input type="tel" id="contact-phone" name="phone" placeholder="(555) 123-4567">
+            <span class="error-msg" id="phone-error">Please enter a valid phone number.</span>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="contact-subject">Subject <span aria-hidden="true">*</span></label>
+          <input type="text" id="contact-subject" name="subject" required placeholder="How can we help?">
+          <span class="error-msg" id="subject-error">Please enter a subject.</span>
+        </div>
+        
+        <div class="form-group">
+          <label for="contact-message">Message <span aria-hidden="true">*</span></label>
+          <textarea id="contact-message" name="message" required placeholder="Tell us about your project..." rows="4"></textarea>
+          <span class="error-msg" id="message-error">Please enter a message.</span>
+        </div>
+        
+        <button type="submit" class="button button-primary submit-btn">
+          <span class="btn-text">Send Message</span>
+          <span class="btn-loader"></span>
+        </button>
+        
+        <div class="form-status" id="form-status" aria-live="polite"></div>
+      </form>
+    </div>
+  </div>
+</section>

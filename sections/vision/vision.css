@@ -1,0 +1,291 @@
+.intro {
+  padding-top: 113px;
+  padding-bottom: 106px;
+  border-top: 1px solid var(--line);
+}
+.intro .section-kicker {
+  margin: 0 0 27px;
+}
+.intro-content {
+  display: grid;
+  grid-template-columns: 1.4fr 0.6fr;
+  align-items: end;
+  gap: 55px;
+}
+.serif-italic {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: -0.045em;
+  color: #8153be;
+}
+.intro-aside p {
+  font-size: 12px;
+  line-height: 1.9;
+  color: #737c90;
+  margin: 0 0 18px;
+}
+.arrow-link {
+  font-size: 10px;
+  font-weight: 700;
+}
+.arrow-link span {
+  color: #8244c6;
+  padding-left: 8px;
+}
+.values-row {
+  border-top: 1px solid var(--line);
+  margin-top: 57px;
+  padding-top: 19px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+.value-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.value-item span {
+  font-family: "DM Mono", monospace;
+  font-size: 8px;
+  color: #a2a9b8;
+}
+.value-item strong {
+  font-size: 10px;
+  font-weight: 600;
+}
+.approach {
+  padding-block: 120px;
+  display: grid;
+  grid-template-columns: 0.96fr 1.04fr;
+  gap: 83px;
+  align-items: center;
+}
+.approach-visual {
+  height: 435px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(
+    ellipse at 48% 52%,
+    #e2e8f2 0,
+    #f1f3f8 48%,
+    transparent 73%
+  );
+  overflow: hidden;
+}
+.approach-visual:before,
+.approach-visual:after {
+  content: "";
+  position: absolute;
+  width: 410px;
+  height: 410px;
+  border: 1px solid #ced7e545;
+  border-radius: 50%;
+}
+.approach-visual:after {
+  width: 310px;
+  height: 310px;
+  border-style: dotted;
+  animation: spinRingsReverse 30s linear infinite;
+}
+.approach-orb {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid #ffffffad;
+  box-shadow:
+    inset 0 0 25px #ffffff3b,
+    0 9px 28px #35425b15;
+  backdrop-filter: blur(5px);
+}
+.orb-a {
+  width: 225px;
+  height: 225px;
+  background: linear-gradient(140deg, #8954d13c, #21b8c43b);
+  transform: translate(-49px, -24px);
+  animation: orbA_Float 6s ease-in-out infinite;
+}
+.orb-b {
+  width: 191px;
+  height: 191px;
+  background: linear-gradient(140deg, #19ba9936, #a7d77b3b);
+  transform: translate(66px, 38px);
+  animation: orbB_Float 8s ease-in-out infinite 1s;
+}
+.orb-c {
+  width: 148px;
+  height: 148px;
+  background: linear-gradient(135deg, #ffbb5e48, #f1777a30);
+  transform: translate(82px, -91px);
+  animation: orbC_Pulse 7s ease-in-out infinite 2s;
+}
+.approach-center {
+  position: relative;
+  z-index: 2;
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #fffdf4e8;
+  box-shadow: 0 12px 40px #59627b24;
+  text-align: center;
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease;
+  cursor: pointer;
+}
+.approach-center span {
+  font-family: var(--display);
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+}
+.approach-center i {
+  font-style: normal;
+  color: #19b68c;
+}
+.visual-note {
+  position: absolute;
+  font-family: "DM Mono", monospace;
+  font-size: 7px;
+  letter-spacing: 0.12em;
+  color: #7f8799;
+  z-index: 3;
+}
+.note-a {
+  top: 21%;
+  left: 11%;
+}
+.note-b {
+  right: 4%;
+  top: 39%;
+}
+.note-c {
+  left: 16%;
+  bottom: 21%;
+}
+.visual-star {
+  position: absolute;
+  right: 16%;
+  top: 19%;
+  font-size: 23px;
+  color: #8e56ca;
+  animation: visionStarSpin 4s ease-in-out infinite;
+  transform-origin: center;
+}
+.approach-copy .section-kicker {
+  margin: 0 0 21px;
+}
+.approach h2 {
+  font-size: 46px;
+}
+.approach-lead {
+  font-size: 11px;
+  line-height: 1.85;
+  color: #788094;
+  max-width: 380px;
+  margin: 17px 0 22px;
+}
+.approach-steps {
+  border-top: 1px solid var(--line);
+}
+.approach-step {
+  display: grid;
+  grid-template-columns: 29px 1fr 14px;
+  gap: 8px;
+  align-items: start;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s ease, padding 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+  border-radius: 12px;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+}
+.approach-step > span:first-child {
+  font-family: "DM Mono", monospace;
+  font-size: 8px;
+  color: #9ca4b4;
+  padding-top: 3px;
+  transition: color 0.3s ease, transform 0.3s ease;
+}
+.approach-step h3 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+}
+.approach-step p {
+  margin: 5px 0 0;
+  color: #828a9b;
+  font-size: 9px;
+  line-height: 1.7;
+}
+.step-plus {
+  font-size: 13px;
+  color: #9c68ca;
+}
+
+@media(max-width:900px){ .intro-content{gap:25px} .intro h2{font-size:38px} .approach{gap:40px} .approach-visual{transform:scale(.94);margin-inline:-15px} .approach h2{font-size:39px} }
+@media(max-width:650px){ .intro{padding-top:72px;padding-bottom:70px} .intro .section-kicker{margin-bottom:19px} .intro-content{grid-template-columns:1fr;gap:16px} .intro h2{font-size:35px} .intro-aside p{font-size:11px;max-width:420px} .values-row{margin-top:34px;grid-template-columns:1fr;gap:14px} .value-item{gap:12px} .approach{padding-block:70px;grid-template-columns:1fr;gap:26px} .approach-visual{height:330px;margin:0;transform:none} .approach-visual:before{width:315px;height:315px} .approach-visual:after{width:245px;height:245px} .orb-a{width:180px;height:180px} .orb-b{width:158px;height:158px} .orb-c{width:120px;height:120px} .approach-center{width:110px;height:110px} .approach-center span{font-size:10px} .note-a{left:6%} .note-b{right:1%} .approach h2{font-size:39px} .approach-lead{font-size:11px} }
+
+/* VISION SECTION ANIMATIONS & HOVER EFFECTS */
+
+/* Orbs floating - Preserving their original translations */
+@keyframes orbA_Float {
+  0%, 100% { transform: translate(-49px, -24px) scale(1); opacity: 0.8; }
+  50% { transform: translate(-49px, -40px) scale(1.1); opacity: 1; }
+}
+@keyframes orbB_Float {
+  0%, 100% { transform: translate(66px, 38px) scale(1); opacity: 0.7; }
+  50% { transform: translate(66px, 15px) scale(1.15); opacity: 0.95; }
+}
+@keyframes orbC_Pulse {
+  0%, 100% { transform: translate(82px, -91px) scale(1); opacity: 0.8; }
+  50% { transform: translate(95px, -91px) scale(1.2); opacity: 1; }
+}
+
+/* Rotating Rings */
+@keyframes spinRings {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes spinRingsReverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+.approach-visual:before {
+  border-style: dashed;
+  animation: spinRings 40s linear infinite;
+}
+/* Center Badge Hover */
+.approach-center:hover {
+  transform: scale(1.2) rotate(5deg);
+  box-shadow: 0 20px 60px #59627b45, 0 0 0 10px #ffffff80;
+}
+
+/* Star twinkling */
+@keyframes visionStarSpin {
+  0%, 100% { transform: rotate(0deg) scale(1); opacity: 0.6; }
+  50% { transform: rotate(180deg) scale(1.5); opacity: 1; color: #19b68c; }
+}
+/* Steps Hover Effects - Much bolder */
+.approach-step:hover {
+  transform: translateX(20px) scale(1.02);
+  background: #ffffff;
+  padding: 18px 20px;
+  border-color: transparent;
+  box-shadow: 0 15px 35px rgba(23, 34, 59, 0.08);
+  z-index: 2;
+}
+.approach-step .step-plus {
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.3s ease;
+}
+.approach-step:hover .step-plus {
+  transform: rotate(180deg) scale(1.5);
+  color: #19b68c;
+}
+.approach-step:hover > span:first-child {
+  color: #8244c6;
+  transform: scale(1.1);
+  font-weight: bold;
+}
