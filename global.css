@@ -1,9 +1,10 @@
 :root {
-  --ink: #17223b;
-  --muted: #4a5568;
-  --paper: #f8f9fc;
+  --ink: #0b0b0f;
+  --muted: #5d6170;
+  --paper: #ffffff;
+  --surface: #f4f4f6;
   --white: #fff;
-  --line: #e5e8f0;
+  --line: #e6e6ea;
   --purple: #873ed0;
   --blue: #13a8cf;
   --green: #15b88b;
@@ -18,11 +19,11 @@
 }
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 88px;
+  scroll-padding-top: 76px;
   overflow-x: clip;
 }
 #header-mount {
-  height: 88px;
+  height: 76px;
 }
 .site-header {
   position: sticky;
@@ -58,15 +59,17 @@ button {
   align-items: center;
   justify-content: center;
   gap: 9px;
-  background: #14203c;
+  background: var(--ink);
   color: #e4e9f4;
-  font-size: 10px;
-  letter-spacing: 0.035em;
+  font-size: 12px;
+  letter-spacing: 0.02em;
 }
 .announcement a {
-  color: #aeead8;
+  color: #fff;
   margin-left: 8px;
   font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .announcement-dot,
 .live-dot {
@@ -82,10 +85,11 @@ button {
 }
 .eyebrow,
 .section-kicker {
-  font-family: "DM Mono", monospace;
-  font-size: 9px;
-  letter-spacing: 0.13em;
-  color: #727b91;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--muted);
 }
 .gradient-text {
   background: linear-gradient(100deg, #7538c4 5%, #128fc7 48%, #10b990 94%);
@@ -96,23 +100,43 @@ button {
 .button {
   display: inline-flex;
   align-items: center;
-  gap: 19px;
-  border-radius: 4px;
-  padding: 15px 19px;
-  font-size: 11px;
-  font-weight: 700;
+  justify-content: center;
+  gap: 10px;
+  border: 1.5px solid transparent;
+  border-radius: 999px;
+  padding: 14px 26px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: pointer;
   transition:
-    transform 0.2s,
-    box-shadow 0.2s;
+    background 0.2s,
+    color 0.2s,
+    border-color 0.2s,
+    transform 0.2s;
 }
 .button-primary {
-  background: #17223b;
+  background: var(--ink);
   color: white;
-  box-shadow: 0 8px 20px #17223b1b;
 }
 .button-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 25px #17223b2a;
+  background: #2a2a33;
+  transform: translateY(-1px);
+}
+.button-light {
+  background: #fff;
+  color: var(--ink);
+}
+.button-light:hover {
+  background: #ececf0;
+}
+.button-outline-light {
+  border-color: rgba(255, 255, 255, 0.7);
+  color: #fff;
+}
+.button-outline-light:hover {
+  background: #fff;
+  color: var(--ink);
 }
 .text-link {
   font-size: 11px;
@@ -127,7 +151,7 @@ button {
 @media(min-width:1450px){ :root{--wrap:1220px} }
 @media(max-width:900px){ :root{--wrap:740px} .section-wrap{width:min(var(--wrap),calc(100% - 52px))} }
 @media(max-width:650px){ .announcement{font-size:8px;height:32px} .section-wrap{width:calc(100% - 40px)} .button{font-size:10px;padding:14px 15px} .text-link{font-size:9px} }
-@media(max-width:650px){ #header-mount{height:70px} }
+@media(max-width:650px){ #header-mount{height:64px} }
 /* Reduced motion override removed */
 
 /* Floating Actions */
@@ -141,6 +165,7 @@ button {
   z-index: 100;
 }
 .float-btn {
+  position: relative;
   width: 55px;
   height: 55px;
   border-radius: 50%;
@@ -161,6 +186,30 @@ button {
 }
 .float-call {
   background: linear-gradient(135deg, var(--purple), var(--blue)); 
+}
+.float-chat {
+  background: #17223b;
+}
+.float-btn::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  right: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #17223b;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.float-btn:hover::before,
+.float-btn:focus-visible::before {
+  opacity: 1;
 }
 
 @media (max-width: 900px) {
@@ -183,6 +232,11 @@ button {
   .float-btn {
     width: 45px;
     height: 45px;
+  }
+}
+@media (max-width: 960px) {
+  body:has(.navigation.is-open) .floating-actions {
+    display: none;
   }
 }
 
@@ -342,8 +396,92 @@ button {
 h1 { font-family: var(--display); font-weight: 700; }
 
 /* Gap Management */
-section, .section, .intro, .approach { padding-block: 60px !important; }
-.services-section, .roadmap-section, .vision-section, .about-section, .contact-section { padding-block: 60px !important; padding: 60px 0 !important; }
+section:not(.hero):not(.panel):not(.auth-panel):not(.stack):not(.about-hero),
+.section, .intro, .approach { padding-block: clamp(64px, 8vw, 112px) !important; }
+.services-section, .roadmap-section, .vision-section, .about-section, .contact-section { padding: clamp(64px, 8vw, 112px) 0 !important; }
 
 /* Arrow Link Fix */
-.arrow-link { margin-top: 15px !important; display: inline-flex !important; }
+.arrow-link {
+  margin-top: 15px !important;
+  display: inline-flex !important;
+  font-weight: 700;
+  font-size: 15px;
+  border-bottom: 1.5px solid currentColor;
+  padding-bottom: 2px;
+}
+
+/* ---- Modern theme ---------------------------------------------------- */
+h1, h2, h3 {
+  font-family: var(--display);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  color: inherit;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Full-bleed image banners at the top of inner pages */
+body .vision-hero,
+body .srv-hero,
+body .about-hero,
+body .legal-hero,
+body .page-banner {
+  position: relative;
+  margin: 0 calc(50% - 50vw) clamp(48px, 6vw, 80px) !important;
+  padding: clamp(96px, 13vw, 168px) max(calc((100vw - var(--wrap)) / 2), 24px) clamp(64px, 9vw, 112px) !important;
+  background:
+    linear-gradient(90deg, rgba(5, 7, 16, 0.86) 0%, rgba(5, 7, 16, 0.6) 50%, rgba(5, 7, 16, 0.15) 100%),
+    var(--banner, url("/assets/images/hero-ai.svg")) center / cover no-repeat;
+  color: #fff;
+  text-align: left !important;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  max-width: none;
+}
+body .vision-hero { --banner: url("/assets/images/vision.svg"); }
+body .srv-hero { --banner: url("/assets/images/business.svg"); }
+body .about-hero { --banner: url("/assets/images/about.svg"); }
+body .contact-header { --banner: url("/assets/images/contact.svg"); }
+body .roadmap-banner { --banner: url("/assets/images/roadmap.svg"); }
+body .legal-hero { --banner: url("/assets/images/vision.svg"); }
+body :is(.vision-hero, .srv-hero, .about-hero, .legal-hero, .page-banner) h1 {
+  max-width: 820px;
+  margin: 0 0 22px !important;
+  font-size: clamp(42px, 6.5vw, 88px) !important;
+  line-height: 1 !important;
+  letter-spacing: -0.045em !important;
+  color: #fff !important;
+}
+body :is(.vision-hero, .srv-hero, .about-hero, .legal-hero, .page-banner) p {
+  max-width: 580px;
+  margin: 0 0 32px !important;
+  font-size: clamp(16px, 1.5vw, 19px) !important;
+  line-height: 1.65 !important;
+  color: rgba(255, 255, 255, 0.82) !important;
+}
+body :is(.vision-hero, .srv-hero, .about-hero, .legal-hero, .page-banner) .section-kicker {
+  margin: 0 0 18px !important;
+  font-size: 12px !important;
+  color: rgba(255, 255, 255, 0.72) !important;
+}
+body :is(.vision-hero, .srv-hero, .about-hero, .legal-hero, .page-banner) .gradient-text {
+  background: none;
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+}
+body :is(.vision-hero, .srv-hero, .about-hero, .legal-hero, .page-banner) .button-primary {
+  background: #fff;
+  color: var(--ink);
+}
+/* Inner pages start directly under the header so banners sit flush. */
+main#main:not(.auth-main) { padding-top: 0 !important; }
+body .about-page,
+body .services-page,
+body .vision-page { padding-top: 0 !important; margin-top: 0 !important; }

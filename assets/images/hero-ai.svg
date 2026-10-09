@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+  <title>Neural network of connected ideas</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#070a18"/>
+      <stop offset="0.55" stop-color="#101a3a"/>
+      <stop offset="1" stop-color="#05121c"/>
+    </linearGradient>
+    <radialGradient id="glowA" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#8b45e0" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#8b45e0" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#13a8cf" stop-opacity="0.65"/>
+      <stop offset="1" stop-color="#13a8cf" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowC" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#15b88b" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#15b88b" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="node" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.35" stop-color="#b9e9ff"/>
+      <stop offset="1" stop-color="#13a8cf" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#ffffff" stroke-opacity="0.05"/>
+    </pattern>
+    <linearGradient id="wire" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8b45e0" stop-opacity="0.15"/>
+      <stop offset="0.5" stop-color="#8fd8ff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#15b88b" stop-opacity="0.15"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect width="1600" height="900" fill="url(#grid)"/>
+  <circle cx="1180" cy="300" r="420" fill="url(#glowA)"/>
+  <circle cx="1380" cy="700" r="380" fill="url(#glowB)"/>
+  <circle cx="300" cy="820" r="360" fill="url(#glowC)"/>
+  <g stroke="url(#wire)" stroke-width="1.4" fill="none">
+    <path d="M820 160 L1040 260 L1260 170 L1460 290"/>
+    <path d="M820 160 L1040 420 L1260 380 L1460 290"/>
+    <path d="M820 380 L1040 260 L1260 380 L1460 520"/>
+    <path d="M820 380 L1040 420 L1260 590 L1460 520"/>
+    <path d="M820 600 L1040 420 L1260 170"/>
+    <path d="M820 600 L1040 680 L1260 590 L1460 740"/>
+    <path d="M820 820 L1040 680 L1260 780 L1460 740"/>
+    <path d="M1040 260 L1260 590"/>
+    <path d="M1040 680 L1260 380"/>
+    <path d="M1260 780 L1460 520"/>
+    <path d="M620 300 L820 160 M620 300 L820 380 M620 520 L820 380 M620 520 L820 600 M620 740 L820 600 M620 740 L820 820"/>
+  </g>
+  <g>
+    <circle cx="820" cy="160" r="22" fill="url(#node)"/>
+    <circle cx="820" cy="380" r="18" fill="url(#node)"/>
+    <circle cx="820" cy="600" r="22" fill="url(#node)"/>
+    <circle cx="820" cy="820" r="16" fill="url(#node)"/>
+    <circle cx="1040" cy="260" r="26" fill="url(#node)"/>
+    <circle cx="1040" cy="420" r="30" fill="url(#node)"/>
+    <circle cx="1040" cy="680" r="24" fill="url(#node)"/>
+    <circle cx="1260" cy="170" r="20" fill="url(#node)"/>
+    <circle cx="1260" cy="380" r="34" fill="url(#node)"/>
+    <circle cx="1260" cy="590" r="26" fill="url(#node)"/>
+    <circle cx="1260" cy="780" r="18" fill="url(#node)"/>
+    <circle cx="1460" cy="290" r="22" fill="url(#node)"/>
+    <circle cx="1460" cy="520" r="28" fill="url(#node)"/>
+    <circle cx="1460" cy="740" r="20" fill="url(#node)"/>
+    <circle cx="620" cy="300" r="12" fill="url(#node)"/>
+    <circle cx="620" cy="520" r="12" fill="url(#node)"/>
+    <circle cx="620" cy="740" r="12" fill="url(#node)"/>
+  </g>
+  <g fill="#ffffff">
+    <circle cx="140" cy="120" r="1.6" opacity="0.6"/><circle cx="420" cy="80" r="1.2" opacity="0.5"/>
+    <circle cx="560" cy="200" r="1.4" opacity="0.4"/><circle cx="260" cy="400" r="1.2" opacity="0.5"/>
+    <circle cx="90" cy="560" r="1.6" opacity="0.4"/><circle cx="700" cy="60" r="1.2" opacity="0.6"/>
+    <circle cx="1540" cy="80" r="1.4" opacity="0.5"/><circle cx="1560" cy="860" r="1.2" opacity="0.4"/>
+  </g>
+</svg>

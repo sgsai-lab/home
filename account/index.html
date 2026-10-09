@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f9fc">
+  <meta name="robots" content="noindex">
+  <title>Account — SGS AI Technology</title>
+  <meta name="description" content="Manage your SGS AI Technology account.">
+  <link rel="icon" type="image/x-icon" href="/logo/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/global.css?v=7">
+  <link rel="stylesheet" href="/account.css">
+  <script src="/app.js?v=7" defer></script>
+  <script src="/vendor/qrcode.js" defer></script>
+  <script type="module" src="/js/account.js"></script>
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <div id="header-mount"></div>
+  <div id="nav-mount"></div>
+
+  <main id="main" class="auth-main">
+    <div class="section-wrap">
+      <h1 class="page-title">Account</h1>
+
+      <div id="verify-banner" class="banner" hidden>
+        <span>Your email address is not verified. Verify it to create and edit projects.</span>
+        <button id="verify-resend" class="button button-secondary button-small" type="button">Resend verification email</button>
+      </div>
+      <p id="page-status" class="form-status" role="alert" hidden></p>
+
+      <section class="panel" aria-labelledby="profile-heading">
+        <h2 id="profile-heading">Profile</h2>
+        <p class="hint"><span id="profile-email"></span> · <span id="profile-role" class="badge"></span> · Member since <span id="profile-since"></span></p>
+        <form id="profile-form" class="stack" novalidate>
+          <div class="grid-2">
+            <label class="field">Full name
+              <input name="full_name" type="text" autocomplete="name" required maxlength="120">
+            </label>
+            <label class="field">Avatar URL
+              <input name="avatar_url" type="url" maxlength="2048" placeholder="https://">
+            </label>
+          </div>
+          <div><button class="button button-primary" type="submit">Save profile</button></div>
+        </form>
+        <p id="profile-status" class="form-status" role="status" hidden></p>
+      </section>
+
+      <section class="panel" aria-labelledby="password-heading">
+        <h2 id="password-heading">Password</h2>
+        <form id="password-form" class="stack" novalidate>
+          <label class="field">Current password
+            <input name="current_password" type="password" autocomplete="current-password" required maxlength="128">
+          </label>
+          <div class="grid-2">
+            <label class="field">New password
+              <input name="new_password" type="password" autocomplete="new-password" required minlength="10" maxlength="128">
+            </label>
+            <label class="field">Confirm new password
+              <input name="confirm" type="password" autocomplete="new-password" required minlength="10" maxlength="128">
+            </label>
+          </div>
+          <div><button class="button button-primary" type="submit">Change password</button></div>
+        </form>
+        <form id="set-password-form" class="stack" novalidate hidden>
+          <p class="hint">Your account signs in with Google. Set a password to also sign in with your email address.</p>
+          <div class="grid-2">
+            <label class="field">New password
+              <input name="new_password" type="password" autocomplete="new-password" required minlength="10" maxlength="128">
+            </label>
+            <label class="field">Confirm new password
+              <input name="confirm" type="password" autocomplete="new-password" required minlength="10" maxlength="128">
+            </label>
+          </div>
+          <div><button class="button button-primary" type="submit">Set password</button></div>
+        </form>
+        <p id="password-status" class="form-status" role="status" hidden></p>
+      </section>
+
+      <section class="panel" aria-labelledby="mfa-heading">
+        <h2 id="mfa-heading">Two-factor authentication</h2>
+        <p id="mfa-summary" class="hint"></p>
+
+        <div id="mfa-off" class="stack" hidden>
+          <div><button id="mfa-start" class="button button-primary" type="button">Set up authenticator app</button></div>
+        </div>
+
+        <div id="mfa-setup" class="stack" hidden>
+          <p class="hint">1. Scan this QR code with Google Authenticator, Microsoft Authenticator, 1Password or a similar app.</p>
+          <div class="qr-box">
+            <div id="mfa-qr"></div>
+            <div>
+              <p class="hint">Can't scan it? Enter this key manually:</p>
+              <p id="mfa-secret" class="secret"></p>
+            </div>
+          </div>
+          <form id="mfa-confirm-form" class="inline-form" novalidate>
+            <label class="field">2. Enter the 6-digit code from the app
+              <input name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+            </label>
+            <button class="button button-primary" type="submit">Verify and enable</button>
+            <button id="mfa-cancel" class="button button-secondary" type="button">Cancel</button>
+          </form>
+        </div>
+
+        <div id="mfa-codes" class="stack" hidden>
+          <p class="hint"><strong>Save these recovery codes now.</strong> Each code works once if you lose access to your authenticator app. They will not be shown again.</p>
+          <ul id="mfa-code-list" class="code-list"></ul>
+          <div class="row-actions">
+            <button id="mfa-copy" class="button button-secondary button-small" type="button">Copy</button>
+            <button id="mfa-download" class="button button-secondary button-small" type="button">Download</button>
+            <button id="mfa-done" class="button button-primary button-small" type="button">I have saved them</button>
+          </div>
+        </div>
+
+        <div id="mfa-on" class="stack" hidden>
+          <form id="mfa-regenerate-form" class="inline-form" novalidate>
+            <label class="field">Authenticator code
+              <input name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+            </label>
+            <button class="button button-secondary" type="submit">Generate new recovery codes</button>
+          </form>
+          <form id="mfa-disable-form" class="inline-form" novalidate>
+            <label class="field">Password or authenticator code
+              <input name="secret" type="password" autocomplete="current-password" required maxlength="128">
+            </label>
+            <button class="button button-danger" type="submit">Disable two-factor</button>
+          </form>
+        </div>
+        <p id="mfa-status" class="form-status" role="status" hidden></p>
+      </section>
+
+      <section class="panel" aria-labelledby="google-heading">
+        <h2 id="google-heading">Google sign-in</h2>
+        <p class="hint">Link your Google account to sign in with one click.</p>
+        <div id="google-link" class="google-button" hidden></div>
+        <p id="google-unavailable" class="hint" hidden>Google sign-in is not configured on this server.</p>
+        <div><button id="google-unlink" class="button button-secondary button-small" type="button">Unlink Google account</button></div>
+        <p id="google-status" class="form-status" role="status" hidden></p>
+      </section>
+
+      <section class="panel" aria-labelledby="sessions-heading">
+        <h2 id="sessions-heading">Active sessions</h2>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr><th>Device</th><th>IP address</th><th>Signed in</th><th>Last active</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="sessions-body"></tbody>
+          </table>
+        </div>
+        <div class="row-actions"><button id="logout-all" class="button button-secondary button-small" type="button">Sign out of all sessions</button></div>
+        <p id="sessions-status" class="form-status" role="status" hidden></p>
+      </section>
+
+      <section class="panel" aria-labelledby="delete-heading">
+        <h2 id="delete-heading">Delete account</h2>
+        <p class="hint">Permanently deletes your account and signs you out everywhere.</p>
+        <form id="delete-form" class="inline-form" novalidate>
+          <label class="field">Password or authenticator code
+            <input name="secret" type="password" autocomplete="current-password" required maxlength="128">
+          </label>
+          <button class="button button-danger" type="submit">Delete my account</button>
+        </form>
+        <p id="delete-status" class="form-status" role="status" hidden></p>
+      </section>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1100" preserveAspectRatio="xMidYMid slice">
+  <title>Ideas taking shape</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14082e"/>
+      <stop offset="0.5" stop-color="#232a6b"/>
+      <stop offset="1" stop-color="#0a4a5c"/>
+    </linearGradient>
+    <radialGradient id="a" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#c58bff" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#c58bff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="b" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#5ff0c4" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#5ff0c4" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="900" height="1100" fill="url(#bg)"/>
+  <circle cx="250" cy="300" r="380" fill="url(#a)"/>
+  <circle cx="700" cy="850" r="360" fill="url(#b)"/>
+  <g fill="none" stroke="#ffffff" stroke-opacity="0.18">
+    <circle cx="450" cy="560" r="120"/><circle cx="450" cy="560" r="200"/><circle cx="450" cy="560" r="290"/><circle cx="450" cy="560" r="390"/>
+  </g>
+  <g fill="#ffffff">
+    <circle cx="450" cy="440" r="8"/><circle cx="620" cy="620" r="6"/><circle cx="300" cy="700" r="7"/>
+    <circle cx="190" cy="430" r="5" opacity="0.7"/><circle cx="700" cy="380" r="5" opacity="0.7"/><circle cx="560" cy="860" r="4" opacity="0.7"/>
+  </g>
+  <path d="M450 470 L450 560 L540 620" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+</svg>

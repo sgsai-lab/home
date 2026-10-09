@@ -54,6 +54,20 @@ test('the 11th rapid request from one address is throttled', async (t) => {
   assert.equal(statuses[10], 429);
 });
 
+test('config exposes only the public Google and Apple client IDs', async (t) => {
+  const server = createServer({ env: { GOOGLE_CLIENT_ID: 'web-client.apps.googleusercontent.com', APPLE_CLIENT_ID: 'com.sgsai.web', SMTP_PASS: 'secret' } });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())));
+  const url = `http://127.0.0.1:${server.address().port}/api/config`;
+
+  const response = await fetch(url);
+  const post = await fetch(url, { method: 'POST' });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { googleClientId: 'web-client.apps.googleusercontent.com', appleClientId: 'com.sgsai.web' });
+  assert.equal(post.status, 405);
+});
+
 test('analytics records an approved page path without visitor identifiers', async (t) => {
   const pageViews = [];
   const server = createServer({ recordPageView: (page) => pageViews.push(page) });

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f9fc">
+  <meta name="robots" content="noindex">
+  <title>User management — SGS AI Technology</title>
+  <meta name="description" content="Administer SGS AI Technology user accounts.">
+  <link rel="icon" type="image/x-icon" href="/logo/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/global.css?v=7">
+  <link rel="stylesheet" href="/account.css">
+  <script src="/app.js?v=7" defer></script>
+  <script type="module" src="/js/admin-users.js"></script>
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <div id="header-mount"></div>
+  <div id="nav-mount"></div>
+
+  <main id="main" class="auth-main">
+    <div class="section-wrap">
+      <h1 class="page-title">User management</h1>
+      <p id="page-status" class="form-status" role="alert" hidden></p>
+
+      <section class="panel" aria-labelledby="invite-heading">
+        <h2 id="invite-heading">Invite a user</h2>
+        <p class="hint">The user receives an email link to choose their password.</p>
+        <form id="create-form" class="inline-form" novalidate>
+          <label class="field">Full name
+            <input name="full_name" type="text" required maxlength="120">
+          </label>
+          <label class="field">Email
+            <input name="email" type="email" required maxlength="254">
+          </label>
+          <label class="field">Role
+            <select name="role">
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+          <button class="button button-primary" type="submit">Send invitation</button>
+        </form>
+        <p id="create-status" class="form-status" role="status" hidden></p>
+      </section>
+
+      <section class="panel" aria-labelledby="users-heading">
+        <h2 id="users-heading">Users</h2>
+        <form id="filter-form" class="inline-form" novalidate>
+          <label class="field">Search
+            <input name="q" type="search" maxlength="100" placeholder="Name or email">
+          </label>
+          <label class="field">Role
+            <select name="role">
+              <option value="">Any</option>
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+          <label class="field">Status
+            <select name="status">
+              <option value="">Any</option>
+              <option value="active">Active</option>
+              <option value="disabled">Disabled</option>
+            </select>
+          </label>
+          <label class="field">Sort
+            <select name="sort">
+              <option value="-created_at">Newest first</option>
+              <option value="created_at">Oldest first</option>
+              <option value="full_name">Name A–Z</option>
+              <option value="-full_name">Name Z–A</option>
+              <option value="email">Email A–Z</option>
+              <option value="-email">Email Z–A</option>
+            </select>
+          </label>
+          <button class="button button-secondary" type="submit">Apply</button>
+        </form>
+
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Verified</th><th>2FA</th><th>Last sign-in</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="users-body"></tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <button id="prev-page" class="button button-secondary button-small" type="button">Previous</button>
+          <span id="page-info"></span>
+          <button id="next-page" class="button button-secondary button-small" type="button">Next</button>
+        </div>
+        <p id="users-status" class="form-status" role="status" hidden></p>
+      </section>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid slice">
+  <title>A path of milestones leading forward</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#06131f"/>
+      <stop offset="1" stop-color="#0d2f3f"/>
+    </linearGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8b45e0"/>
+      <stop offset="0.5" stop-color="#13a8cf"/>
+      <stop offset="1" stop-color="#15b88b"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="700" fill="url(#bg)"/>
+  <path d="M-20 600 C300 600 380 380 700 380 S1100 160 1620 140" fill="none" stroke="url(#road)" stroke-width="10" stroke-linecap="round"/>
+  <path d="M-20 600 C300 600 380 380 700 380 S1100 160 1620 140" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="2" stroke-dasharray="10 14"/>
+  <g>
+    <circle cx="330" cy="535" r="22" fill="#0d2f3f" stroke="#8b45e0" stroke-width="6"/>
+    <circle cx="700" cy="380" r="22" fill="#0d2f3f" stroke="#13a8cf" stroke-width="6"/>
+    <circle cx="1080" cy="230" r="22" fill="#0d2f3f" stroke="#15b88b" stroke-width="6"/>
+    <circle cx="1440" cy="155" r="30" fill="#15b88b"/>
+    <path d="M1428 155 L1438 165 L1456 145" fill="none" stroke="#06131f" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <g fill="#ffffff" fill-opacity="0.08">
+    <rect x="270" y="420" width="120" height="60" rx="10"/>
+    <rect x="640" y="265" width="120" height="60" rx="10"/>
+    <rect x="1020" y="115" width="120" height="60" rx="10"/>
+  </g>
+</svg>

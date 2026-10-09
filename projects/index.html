@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f9fc">
+  <meta name="robots" content="noindex">
+  <title>Projects — SGS AI Technology</title>
+  <meta name="description" content="Start and manage your SGS AI Technology projects.">
+  <link rel="icon" type="image/x-icon" href="/logo/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/global.css?v=7">
+  <link rel="stylesheet" href="/account.css">
+  <script src="/app.js?v=7" defer></script>
+  <script type="module" src="/js/projects.js"></script>
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <div id="header-mount"></div>
+  <div id="nav-mount"></div>
+
+  <main id="main" class="auth-main">
+    <div class="section-wrap">
+      <h1 class="page-title">Projects</h1>
+
+      <div id="verify-banner" class="banner" hidden>
+        <span>Verify your email address to start and edit projects.</span>
+        <a class="button button-secondary button-small" href="/account/">Go to account</a>
+      </div>
+      <p id="page-status" class="form-status" role="alert" hidden></p>
+
+      <section class="panel" aria-labelledby="editor-heading">
+        <h2 id="editor-heading">Start a new project</h2>
+        <form id="project-form" class="stack" novalidate>
+          <div class="grid-2">
+            <label class="field">Name
+              <input name="name" type="text" required maxlength="120">
+            </label>
+            <label class="field">Status
+              <select name="status">
+                <option value="draft">Draft</option>
+                <option value="active">Active</option>
+                <option value="on_hold">On hold</option>
+                <option value="completed">Completed</option>
+                <option value="archived">Archived</option>
+              </select>
+            </label>
+          </div>
+          <label class="field">Description
+            <textarea name="description" maxlength="5000"></textarea>
+          </label>
+          <div class="grid-2">
+            <label class="field">Start date
+              <input name="start_date" type="date">
+            </label>
+            <label class="field">End date
+              <input name="end_date" type="date">
+            </label>
+          </div>
+          <label class="field">Tags (comma separated, up to 20)
+            <input name="tags" type="text" maxlength="700" placeholder="ai, education, pilot">
+          </label>
+          <div class="row-actions">
+            <button id="submit-project" class="button button-primary" type="submit">Create project</button>
+            <button id="cancel-edit" class="button button-secondary" type="button" hidden>Cancel</button>
+          </div>
+        </form>
+        <p id="editor-status" class="form-status" role="status" hidden></p>
+      </section>
+
+      <section class="panel" aria-labelledby="list-heading">
+        <h2 id="list-heading">My projects</h2>
+        <form id="filter-form" class="inline-form" novalidate>
+          <label class="field">Search
+            <input name="q" type="search" maxlength="100" placeholder="Name or description">
+          </label>
+          <label class="field">Status
+            <select name="status">
+              <option value="">Any</option>
+              <option value="draft">Draft</option>
+              <option value="active">Active</option>
+              <option value="on_hold">On hold</option>
+              <option value="completed">Completed</option>
+              <option value="archived">Archived</option>
+            </select>
+          </label>
+          <label class="field">Tag
+            <input name="tag" type="text" maxlength="32">
+          </label>
+          <label class="field">Sort
+            <select name="sort">
+              <option value="-created_at">Newest first</option>
+              <option value="created_at">Oldest first</option>
+              <option value="-updated_at">Recently updated</option>
+              <option value="name">Name A–Z</option>
+              <option value="-name">Name Z–A</option>
+            </select>
+          </label>
+          <button class="button button-secondary" type="submit">Apply</button>
+        </form>
+
+        <ul id="project-list" class="project-list"></ul>
+        <div class="pager">
+          <button id="prev-page" class="button button-secondary button-small" type="button">Previous</button>
+          <span id="page-info"></span>
+          <button id="next-page" class="button button-secondary button-small" type="button">Next</button>
+        </div>
+        <p id="list-status" class="form-status" role="status" hidden></p>
+      </section>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+</body>
+</html>
