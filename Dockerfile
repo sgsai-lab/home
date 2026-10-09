@@ -15,7 +15,7 @@ COPY --from=builder /app/dist/ /usr/share/nginx/html/
 COPY --from=builder /app/server.mjs /app/server.mjs
 COPY --from=builder /app/node_modules/ /app/node_modules/
 
-ENV API_UPSTREAM=http://api:8080 \
+ENV API_UPSTREAM=http://127.0.0.1:8000 \
     NGINX_ENVSUBST_FILTER=API_UPSTREAM
 
 EXPOSE 8080

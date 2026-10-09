@@ -46,6 +46,8 @@ docker run --rm --name sgs-ai-website -p 8080:8080 \
 
 Open <http://localhost:8080>. Nginx returns a real 404 status with the branded page, compresses responses with gzip, caches static assets for an hour and HTML briefly, and proxies only the API to the local Node process. The stock Alpine Nginx image does not include Brotli; gzip is enabled. The supplied logo remains a large PNG; no optimized source asset was supplied and binary conversion was not performed here.
 
+Run `bash scripts/check-container.sh sgs-ai-website:local` to verify the homepage and local Node API with Cloud Run's `PORT=8080` setting. CI and deployment run this check before publishing. The optional `/api/v1/` backend defaults to `http://127.0.0.1:8000`; set `API_UPSTREAM` to a reachable backend URL when using these routes. Without a backend, these routes return 502 but the website and local Node API still start. Do not use the Docker-only hostname `api` on Cloud Run: Nginx resolves this upstream at startup and exits if the hostname cannot resolve.
+
 ## GitHub Actions, Artifact Registry, and Cloud Run
 
 The PR workflow runs HTML/CSS/JavaScript checks, local-link validation, API tests, a minified build, and Lighthouse CI budgets. Image vulnerability scanning is currently skipped because the Trivy installer fails in GitHub Actions; restore scanning when its installation path is fixed. The `main` deployment workflow builds and pushes a tag equal to the full commit SHA, then deploys that image to Cloud Run with 0–5 instances and 256 MiB memory. It uses Workload Identity Federation (WIF); no service-account key is stored in GitHub.

@@ -24,6 +24,8 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Build commit-tagged container
         run: docker build --tag sgs-ai-website:${{ github.sha }} .
+      - name: Verify container startup on Cloud Run port
+        run: bash scripts/check-container.sh sgs-ai-website:${{ github.sha }}
       - name: Authenticate to Google Cloud with Workload Identity Federation
         uses: google-github-actions/auth@ba79af03959ebeac9769e648f473a284504d9193 # v2.1.10
         with:

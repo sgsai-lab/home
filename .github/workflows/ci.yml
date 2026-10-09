@@ -37,3 +37,5 @@ jobs:
         run: npm run lighthouse
       - name: Build container image
         run: docker build --tag sgs-ai-website:${{ github.sha }} .
+      - name: Verify container startup on Cloud Run port
+        run: bash scripts/check-container.sh sgs-ai-website:${{ github.sha }}
