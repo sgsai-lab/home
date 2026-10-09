@@ -1,5 +1,5 @@
-import { api, ApiError, describeError, handleSubmit, hasSessionHint, offerContinueAs, safeNext, showStatus, storeTokens } from '/js/auth.js';
-import { cancelGooglePrompt, mountGoogleButton } from '/js/google.js';
+import { api, ApiError, handleSubmit, offerContinueAs, safeNext, showStatus, storeTokens } from '/js/auth.js';
+import { setupProviders } from '/js/auth-providers.js';
 
 const NOTICES = {
   'password-reset': 'Your password has been updated. Sign in with your new password.',
@@ -9,6 +9,8 @@ const NOTICES = {
 
 const params = new URLSearchParams(location.search);
 const next = safeNext(params.get('next'));
+const identifyStep = document.getElementById('identify-step');
+const emailForm = document.getElementById('email-form');
 const loginForm = document.getElementById('login-form');
 const mfaForm = document.getElementById('mfa-form');
 const statusEl = document.getElementById('status');
@@ -16,30 +18,32 @@ let mfaToken = null;
 
 if (NOTICES[params.get('notice')]) showStatus(statusEl, NOTICES[params.get('notice')], 'success');
 
-function showLogin() {
-  mfaToken = null;
-  mfaForm.reset();
-  mfaForm.hidden = true;
-  loginForm.hidden = false;
-  loginForm.elements.email.focus();
+function showStep(step) {
+  for (const element of [identifyStep, loginForm, mfaForm]) element.hidden = element !== step;
+  step.querySelector('input:not([hidden])')?.focus();
 }
 
 function finish(result) {
-  cancelGooglePrompt();
   if (result.mfa_required) {
     mfaToken = result.mfa_token;
-    loginForm.hidden = true;
-    mfaForm.hidden = false;
-    mfaForm.elements.code.focus();
+    showStep(mfaForm);
     return;
   }
   storeTokens(result);
   location.replace(next);
 }
 
+handleSubmit(emailForm, statusEl, async ({ email }) => {
+  const value = email.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) throw new ApiError(0, 'CLIENT', 'Enter a valid email address.');
+  document.getElementById('login-email').textContent = value;
+  loginForm.elements.email.value = value;
+  showStep(loginForm);
+});
+
 handleSubmit(loginForm, statusEl, async ({ email, password }) => {
-  if (!email.trim() || !password) throw new ApiError(0, 'CLIENT', 'Enter your email and password.');
-  const result = await api('/auth/login', { auth: false, method: 'POST', body: { email: email.trim(), password } });
+  if (!password) throw new ApiError(0, 'CLIENT', 'Enter your password.');
+  const result = await api('/auth/login', { auth: false, method: 'POST', body: { email, password } });
   loginForm.elements.password.value = '';
   finish(result);
 });
@@ -51,17 +55,18 @@ handleSubmit(mfaForm, statusEl, async ({ code }) => {
   finish(await api('/auth/mfa/verify', { auth: false, method: 'POST', body: { mfa_token: mfaToken, ...factor } }));
 });
 
-document.getElementById('mfa-cancel').addEventListener('click', showLogin);
-
-mountGoogleButton(document.getElementById('google-button'), async (credential) => {
+document.getElementById('change-email').addEventListener('click', () => {
+  loginForm.reset();
   showStatus(statusEl, '');
-  try {
-    finish(await api('/auth/google', { auth: false, method: 'POST', body: credential }));
-  } catch (error) {
-    showStatus(statusEl, describeError(error));
-  }
-}, { context: 'signin', oneTap: !hasSessionHint() }).then((shown) => {
-  document.getElementById('google-divider').hidden = !shown;
-}).catch(() => {});
+  showStep(identifyStep);
+});
 
-offerContinueAs(document.getElementById('continue-card'), [loginForm], next).catch(() => {});
+document.getElementById('mfa-cancel').addEventListener('click', () => {
+  mfaToken = null;
+  mfaForm.reset();
+  showStep(identifyStep);
+});
+
+setupProviders({ statusEl, onResult: finish, context: 'signin' });
+
+offerContinueAs(document.getElementById('continue-card'), [identifyStep], next).catch(() => {});

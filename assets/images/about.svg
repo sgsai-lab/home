@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid slice">
+  <title>People and technology working together</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#120a24"/>
+      <stop offset="1" stop-color="#0b2a33"/>
+    </linearGradient>
+    <radialGradient id="warm" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#f4a34d" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#f4a34d" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1600" height="700" fill="url(#bg)"/>
+  <circle cx="1150" cy="380" r="380" fill="url(#warm)"/>
+  <g fill="none" stroke="#ffffff" stroke-opacity="0.3" stroke-width="2">
+    <path d="M960 260 L1150 380 L1340 260 M960 500 L1150 380 L1340 500 M1150 160 V380 V600"/>
+  </g>
+  <g>
+    <g transform="translate(1150 380)"><circle r="70" fill="#ffffff" fill-opacity="0.12" stroke="#ffffff" stroke-opacity="0.6" stroke-width="2"/><text y="12" text-anchor="middle" font-family="Manrope, sans-serif" font-size="34" font-weight="800" fill="#ffffff">AI</text></g>
+    <g fill="#ffffff">
+      <g transform="translate(960 260)"><circle r="44" fill-opacity="0.1"/><circle cy="-10" r="14"/><path d="M-24 26 A24 22 0 0 1 24 26 Z"/></g>
+      <g transform="translate(1340 260)"><circle r="44" fill-opacity="0.1"/><circle cy="-10" r="14"/><path d="M-24 26 A24 22 0 0 1 24 26 Z"/></g>
+      <g transform="translate(960 500)"><circle r="44" fill-opacity="0.1"/><circle cy="-10" r="14"/><path d="M-24 26 A24 22 0 0 1 24 26 Z"/></g>
+      <g transform="translate(1340 500)"><circle r="44" fill-opacity="0.1"/><circle cy="-10" r="14"/><path d="M-24 26 A24 22 0 0 1 24 26 Z"/></g>
+      <g transform="translate(1150 160)"><circle r="36" fill-opacity="0.1"/><circle cy="-8" r="11"/><path d="M-19 21 A19 18 0 0 1 19 21 Z"/></g>
+      <g transform="translate(1150 600)"><circle r="36" fill-opacity="0.1"/><circle cy="-8" r="11"/><path d="M-19 21 A19 18 0 0 1 19 21 Z"/></g>
+    </g>
+  </g>
+</svg>

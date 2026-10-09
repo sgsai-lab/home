@@ -91,26 +91,34 @@
   font-weight: bold;
 }
 .srv-graphic {
-  background: white;
+  background: var(--surface) center / cover no-repeat;
   border-radius: 20px;
-  height: 350px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.03);
-  border: 1px solid var(--line);
+  height: 420px;
   position: relative;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.6s ease;
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
+.graphic-business { background-image: url("/assets/images/business.svg"); }
+.graphic-education { background-image: url("/assets/images/education.svg"); }
+.graphic-innovation { background-image: url("/assets/images/innovation.svg"); }
 .srv-graphic:hover {
-  transform: translateY(-8px) scale(1.01);
-  box-shadow: 0 20px 40px rgba(19, 168, 207, 0.08);
+  transform: scale(1.01);
 }
 .srv-graphic-icon {
-  font-size: 90px;
-  opacity: 0.9;
-  color: var(--ink);
+  width: 112px;
+  height: 112px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-size: 44px;
+  color: #fff;
   transition: transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .srv-graphic:hover .srv-graphic-icon {

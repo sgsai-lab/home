@@ -45,8 +45,15 @@ export async function mountGoogleButton(container, onCredential, { text = 'conti
     use_fedcm_for_prompt: true,
     callback: (response) => onCredential({ id_token: response.credential, nonce })
   });
-  window.google.accounts.id.renderButton(container, { theme: 'outline', size: 'large', text, width: 300 });
   container.hidden = false;
+  window.google.accounts.id.renderButton(container, {
+    theme: 'outline',
+    size: 'large',
+    shape: 'pill',
+    text,
+    logo_alignment: 'center',
+    width: Math.min(Math.max(container.clientWidth, 240), 400)
+  });
   if (oneTap) window.google.accounts.id.prompt();
   return true;
 }

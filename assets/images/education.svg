@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+  <title>Connected learning: books, ideas and learning paths</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#05253a"/>
+      <stop offset="1" stop-color="#0b4f62"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#5ff0c4" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#5ff0c4" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="page" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#d9f6ff" stop-opacity="0.9"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#bg)"/>
+  <circle cx="600" cy="300" r="430" fill="url(#glow)"/>
+  <g transform="translate(330 360)">
+    <path d="M0 40 C120 0 220 10 270 50 L270 300 C220 260 120 250 0 290 Z" fill="url(#page)"/>
+    <path d="M540 40 C420 0 320 10 270 50 L270 300 C320 260 420 250 540 290 Z" fill="url(#page)" fill-opacity="0.85"/>
+    <g stroke="#0b4f62" stroke-opacity="0.35" stroke-width="6" stroke-linecap="round">
+      <path d="M40 90 C110 70 180 72 230 95"/><path d="M40 140 C110 120 180 122 230 145"/><path d="M40 190 C110 170 180 172 230 195"/>
+      <path d="M310 95 C360 72 430 70 500 90"/><path d="M310 145 C360 122 430 120 500 140"/>
+    </g>
+  </g>
+  <g fill="none" stroke="#8fd8ff" stroke-width="3" stroke-dasharray="2 12" stroke-linecap="round" stroke-opacity="0.9">
+    <path d="M600 360 C560 260 420 220 300 160"/>
+    <path d="M600 360 C620 240 720 170 860 130"/>
+    <path d="M600 360 C700 300 860 300 980 250"/>
+  </g>
+  <g>
+    <circle cx="300" cy="160" r="38" fill="#ffffff" fill-opacity="0.12" stroke="#ffffff" stroke-opacity="0.5"/>
+    <path d="M282 160 L300 150 L318 160 L300 170 Z M290 166 V176 C296 181 304 181 310 176 V166" fill="none" stroke="#ffffff" stroke-width="3"/>
+    <circle cx="860" cy="130" r="38" fill="#ffffff" fill-opacity="0.12" stroke="#ffffff" stroke-opacity="0.5"/>
+    <path d="M860 112 A14 14 0 0 1 870 136 L868 146 H852 L850 136 A14 14 0 0 1 860 112 Z M854 152 H866" fill="none" stroke="#ffffff" stroke-width="3"/>
+    <circle cx="980" cy="250" r="38" fill="#ffffff" fill-opacity="0.12" stroke="#ffffff" stroke-opacity="0.5"/>
+    <path d="M964 262 L976 246 L986 256 L998 238" fill="none" stroke="#5ff0c4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <g fill="#ffffff" fill-opacity="0.4">
+    <circle cx="120" cy="90" r="3"/><circle cx="1080" cy="640" r="3"/><circle cx="1120" cy="700" r="2"/><circle cx="80" cy="620" r="2"/>
+  </g>
+</svg>

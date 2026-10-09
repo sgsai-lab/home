@@ -135,7 +135,7 @@ export function createRequestHandler({
         response.setHeader('Allow', 'GET');
         return respond(response, 405, { error: 'Method not allowed.' });
       }
-      return respond(response, 200, { googleClientId: env.GOOGLE_CLIENT_ID || null });
+      return respond(response, 200, { googleClientId: env.GOOGLE_CLIENT_ID || null, appleClientId: env.APPLE_CLIENT_ID || null });
     }
     if (request.url === '/api/analytics') {
       if (request.method !== 'POST') {

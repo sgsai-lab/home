@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid slice">
+  <title>A lens focused on the future</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a0b1e"/>
+      <stop offset="1" stop-color="#1f1147"/>
+    </linearGradient>
+    <radialGradient id="iris" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.2" stop-color="#8fd8ff"/>
+      <stop offset="0.6" stop-color="#8b45e0" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#8b45e0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1600" height="700" fill="url(#bg)"/>
+  <circle cx="1150" cy="350" r="330" fill="url(#iris)" opacity="0.85"/>
+  <g fill="none" stroke="#ffffff">
+    <circle cx="1150" cy="350" r="140" stroke-opacity="0.5" stroke-width="2"/>
+    <circle cx="1150" cy="350" r="220" stroke-opacity="0.25"/>
+    <circle cx="1150" cy="350" r="300" stroke-opacity="0.12"/>
+    <path d="M700 350 C880 170 1420 170 1600 350 C1420 530 880 530 700 350 Z" stroke-opacity="0.35" stroke-width="2"/>
+  </g>
+  <g stroke="#8fd8ff" stroke-opacity="0.35">
+    <path d="M0 520 H600"/><path d="M0 560 H520"/><path d="M0 600 H440"/>
+  </g>
+  <g fill="#ffffff">
+    <circle cx="200" cy="120" r="2" opacity="0.7"/><circle cx="420" cy="220" r="1.5" opacity="0.5"/><circle cx="640" cy="90" r="1.8" opacity="0.6"/>
+  </g>
+</svg>

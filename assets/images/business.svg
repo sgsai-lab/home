@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+  <title>Business dashboards and automated workflows</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1b1033"/>
+      <stop offset="1" stop-color="#3a1d6e"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#c58bff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#c58bff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bar" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#8b45e0"/>
+      <stop offset="1" stop-color="#13a8cf"/>
+    </linearGradient>
+    <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#15b88b" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#15b88b" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#bg)"/>
+  <circle cx="900" cy="180" r="420" fill="url(#glow)"/>
+  <g transform="translate(150 150) rotate(-6)">
+    <rect width="620" height="420" rx="22" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.18"/>
+    <rect x="30" y="28" width="160" height="14" rx="7" fill="#ffffff" fill-opacity="0.5"/>
+    <rect x="30" y="54" width="100" height="10" rx="5" fill="#ffffff" fill-opacity="0.25"/>
+    <g fill="url(#bar)">
+      <rect x="40" y="250" width="44" height="130" rx="8"/>
+      <rect x="110" y="200" width="44" height="180" rx="8"/>
+      <rect x="180" y="230" width="44" height="150" rx="8"/>
+      <rect x="250" y="150" width="44" height="230" rx="8"/>
+      <rect x="320" y="120" width="44" height="260" rx="8"/>
+    </g>
+    <path d="M400 300 C440 250 470 280 500 210 S560 150 590 120 L590 380 L400 380 Z" fill="url(#area)"/>
+    <path d="M400 300 C440 250 470 280 500 210 S560 150 590 120" fill="none" stroke="#5ff0c4" stroke-width="4"/>
+  </g>
+  <g transform="translate(700 430) rotate(4)">
+    <rect width="380" height="250" rx="20" fill="#ffffff" fill-opacity="0.1" stroke="#ffffff" stroke-opacity="0.2"/>
+    <g fill="none" stroke="#ffffff" stroke-opacity="0.7" stroke-width="3">
+      <rect x="30" y="40" width="90" height="56" rx="12"/>
+      <rect x="150" y="100" width="90" height="56" rx="12"/>
+      <rect x="270" y="160" width="80" height="56" rx="12"/>
+      <path d="M120 68 H135 V128 H150 M240 128 H255 V188 H270"/>
+    </g>
+    <circle cx="75" cy="68" r="10" fill="#5ff0c4"/>
+    <circle cx="195" cy="128" r="10" fill="#8fd8ff"/>
+    <circle cx="310" cy="188" r="10" fill="#c58bff"/>
+  </g>
+  <g fill="#ffffff" fill-opacity="0.35">
+    <circle cx="1080" cy="90" r="3"/><circle cx="1120" cy="140" r="2"/><circle cx="90" cy="700" r="3"/><circle cx="160" cy="740" r="2"/>
+  </g>
+</svg>

@@ -29,13 +29,8 @@ const navLinks = document.querySelectorAll('.navigation > a');
 if (navLinks.length > 0) {
   const currentPath = window.location.pathname.replace('.html', '').replace(/\/$/, '');
   navLinks.forEach(link => {
-    link.style.color = ''; // reset
     const linkPath = new URL(link.href).pathname.replace('.html', '').replace(/\/$/, '');
-    if (linkPath === currentPath) {
-      link.style.color = 'var(--purple)';
-    } else if (currentPath === '/' && linkPath.endsWith('/index')) {
-      link.style.color = 'var(--purple)';
-    }
+    if (linkPath === currentPath) link.setAttribute('aria-current', 'page');
   });
 }
 
