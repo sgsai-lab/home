@@ -130,6 +130,13 @@ export function createRequestHandler({
   recordPageView = (page) => console.log(JSON.stringify({ event: 'page_view', path: page, timestamp: new Date().toISOString() }))
 } = {}) {
   return async (request, response) => {
+    if (request.url === '/api/config') {
+      if (request.method !== 'GET') {
+        response.setHeader('Allow', 'GET');
+        return respond(response, 405, { error: 'Method not allowed.' });
+      }
+      return respond(response, 200, { googleClientId: env.GOOGLE_CLIENT_ID || null });
+    }
     if (request.url === '/api/analytics') {
       if (request.method !== 'POST') {
         response.setHeader('Allow', 'POST');

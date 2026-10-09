@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f9fc">
+  <meta name="robots" content="noindex">
+  <meta name="referrer" content="no-referrer">
+  <title>Verify email — SGS AI Technology</title>
+  <meta name="description" content="Verify your SGS AI Technology email address.">
+  <link rel="icon" type="image/x-icon" href="/logo/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/global.css?v=7">
+  <link rel="stylesheet" href="/account.css">
+  <script src="/app.js?v=7" defer></script>
+  <script type="module" src="/js/verify-email.js"></script>
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <div id="header-mount"></div>
+  <div id="nav-mount"></div>
+
+  <main id="main" class="auth-main">
+    <div class="section-wrap">
+      <div class="auth-card">
+        <p class="section-kicker">ACCOUNT</p>
+        <h1 id="title">Verifying your email…</h1>
+        <p id="verified" class="hint" hidden>Your email address is verified. <a href="/projects/">Continue to your projects</a>.</p>
+
+        <form id="resend-form" class="stack" novalidate hidden>
+          <p class="hint">The link is invalid or has expired. Enter your email to receive a new one.</p>
+          <label class="field">Email
+            <input name="email" type="email" autocomplete="email" required maxlength="254">
+          </label>
+          <button class="button button-primary" type="submit">Send a new link</button>
+        </form>
+
+        <p id="status" class="form-status" role="alert" hidden></p>
+      </div>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+</body>
+</html>

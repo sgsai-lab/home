@@ -141,6 +141,7 @@ button {
   z-index: 100;
 }
 .float-btn {
+  position: relative;
   width: 55px;
   height: 55px;
   border-radius: 50%;
@@ -161,6 +162,30 @@ button {
 }
 .float-call {
   background: linear-gradient(135deg, var(--purple), var(--blue)); 
+}
+.float-chat {
+  background: #17223b;
+}
+.float-btn::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  right: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #17223b;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.float-btn:hover::before,
+.float-btn:focus-visible::before {
+  opacity: 1;
 }
 
 @media (max-width: 900px) {
@@ -183,6 +208,9 @@ button {
   .float-btn {
     width: 45px;
     height: 45px;
+  }
+  body:has(.navigation.is-open) .floating-actions {
+    display: none;
   }
 }
 

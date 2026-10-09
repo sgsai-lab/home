@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f9fc">
+  <meta name="robots" content="noindex">
+  <title>Create an account — SGS AI Technology</title>
+  <meta name="description" content="Create your SGS AI Technology account.">
+  <link rel="icon" type="image/x-icon" href="/logo/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/global.css?v=7">
+  <link rel="stylesheet" href="/account.css">
+  <script src="/app.js?v=7" defer></script>
+  <script type="module" src="/js/signup.js"></script>
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <div id="header-mount"></div>
+  <div id="nav-mount"></div>
+
+  <main id="main" class="auth-main">
+    <div class="section-wrap">
+      <div class="auth-card">
+        <p class="section-kicker">ACCOUNT</p>
+
+        <section id="continue-card" class="stack" hidden>
+          <h1>Welcome back</h1>
+          <p class="hint">You already have an account and are signed in as <strong data-continue-email></strong>.</p>
+          <button class="button button-primary" type="button" data-continue>Continue</button>
+          <button class="link-button" type="button" data-switch-account>Sign out and create a new account</button>
+        </section>
+
+        <form id="signup-form" class="stack" novalidate>
+          <h1>Create an account</h1>
+          <label class="field">Full name
+            <input name="full_name" type="text" autocomplete="name" required maxlength="120">
+          </label>
+          <label class="field">Email
+            <input name="email" type="email" autocomplete="email" required maxlength="254">
+          </label>
+          <label class="field">Password
+            <input name="password" type="password" autocomplete="new-password" required minlength="10" maxlength="128">
+          </label>
+          <label class="field">Confirm password
+            <input name="confirm" type="password" autocomplete="new-password" required minlength="10" maxlength="128">
+          </label>
+          <p class="hint">At least 10 characters. Avoid common or previously used passwords.</p>
+          <label class="field field-check">
+            <input name="accept_terms" type="checkbox" required>
+            <span>I accept the <a href="/terms/">terms</a> and <a href="/privacy/">privacy policy</a>.</span>
+          </label>
+          <button class="button button-primary" type="submit">Create account</button>
+          <p class="auth-links">Already have an account? <a href="/login/">Sign in</a></p>
+          <div id="google-divider" class="divider" hidden>or</div>
+          <div id="google-button" class="google-button" hidden></div>
+        </form>
+
+        <section id="signup-done" class="stack" hidden>
+          <h1>Check your inbox</h1>
+          <p class="hint">We sent a verification link to <strong id="signup-email"></strong>. Open it to verify your email address, then sign in.</p>
+          <button id="resend" class="button button-secondary" type="button">Resend verification email</button>
+          <p class="auth-links"><a href="/login/">Go to sign in</a></p>
+        </section>
+
+        <p id="status" class="form-status" role="alert" hidden></p>
+      </div>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+</body>
+</html>

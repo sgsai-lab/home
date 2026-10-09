@@ -14,6 +14,18 @@ export default [
     }
   },
   {
+    files: ['js/**/*.js'],
+    languageOptions: { globals: globals.browser, ecmaVersion: 'latest', sourceType: 'module' },
+    rules: {
+      'array-callback-return': 'error',
+      'eqeqeq': ['error', 'always'],
+      'no-console': ['error', { allow: ['error'] }],
+      'no-implicit-coercion': 'error',
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      'prefer-const': 'error'
+    }
+  },
+  {
     files: ['server.mjs', 'test/**/*.mjs', 'scripts/**/*.mjs'],
     languageOptions: { globals: globals.node, ecmaVersion: 'latest' },
     rules: {

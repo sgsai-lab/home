@@ -10,7 +10,8 @@ const files = [
   'index.html', '404.html', 'global.css', 'app.js', 'styles.css', 'pages.css', 'script.js', 'products.js',
   'favicon.svg', 'favicon.ico', 'favicon-192.png', 'favicon-512.png', 'apple-touch-icon.png', 'og-image.jpg',
   'site.webmanifest', 'robots.txt', 'sitemap.xml',
-  'assets', 'logo', 'about', 'contact', 'privacy', 'products', 'roadmap', 'services', 'terms', 'vision',
+  'assets', 'logo', 'about', 'contact', 'login', 'signup', 'verify-email', 'forgot-password', 'reset-password',
+  'account', 'admin', 'projects', 'js', 'vendor', 'account.css', 'privacy', 'products', 'roadmap', 'services', 'terms', 'vision',
   'components', 'sections'
 ];
 

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f9fc">
+  <meta name="robots" content="noindex">
+  <title>Sign in — SGS AI Technology</title>
+  <meta name="description" content="Sign in to your SGS AI Technology account.">
+  <link rel="icon" type="image/x-icon" href="/logo/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/global.css?v=7">
+  <link rel="stylesheet" href="/account.css">
+  <script src="/app.js?v=7" defer></script>
+  <script type="module" src="/js/login.js"></script>
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <div id="header-mount"></div>
+  <div id="nav-mount"></div>
+
+  <main id="main" class="auth-main">
+    <div class="section-wrap">
+      <div class="auth-card">
+        <p class="section-kicker">ACCOUNT</p>
+
+        <section id="continue-card" class="stack" hidden>
+          <h1>Welcome back</h1>
+          <p class="hint">You are already signed in as <strong data-continue-email></strong>.</p>
+          <button class="button button-primary" type="button" data-continue>Continue</button>
+          <button class="link-button" type="button" data-switch-account>Use a different account</button>
+        </section>
+
+        <form id="login-form" class="stack" novalidate>
+          <h1>Sign in</h1>
+          <label class="field">Email
+            <input name="email" type="email" autocomplete="username" required maxlength="254">
+          </label>
+          <label class="field">Password
+            <input name="password" type="password" autocomplete="current-password" required maxlength="128">
+          </label>
+          <button class="button button-primary" type="submit">Sign in</button>
+          <p class="auth-links"><a href="/forgot-password/">Forgot password?</a> · <a href="/signup/">Create an account</a></p>
+          <div id="google-divider" class="divider" hidden>or</div>
+          <div id="google-button" class="google-button" hidden></div>
+        </form>
+
+        <form id="mfa-form" class="stack" novalidate hidden>
+          <h1>Two-factor authentication</h1>
+          <p class="hint">Enter the 6-digit code from your authenticator app, or one of your recovery codes.</p>
+          <label class="field">Code
+            <input name="code" type="text" inputmode="text" autocomplete="one-time-code" required maxlength="20">
+          </label>
+          <button class="button button-primary" type="submit">Verify</button>
+          <button id="mfa-cancel" class="link-button" type="button">Use a different account</button>
+        </form>
+
+        <p id="status" class="form-status" role="alert" hidden></p>
+      </div>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+</body>
+</html>

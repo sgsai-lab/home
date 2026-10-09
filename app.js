@@ -1,14 +1,12 @@
+// The build turns external stylesheets into preloads; promote them now. Waiting for the preload's
+// load event misses it when it fires before this deferred script runs (icons/fonts never apply).
 document.querySelectorAll('link[data-async-stylesheet]').forEach((preload) => {
-  const activateStylesheet = () => {
-    const stylesheet = document.createElement('link');
-    stylesheet.rel = 'stylesheet';
-    stylesheet.href = preload.href;
-    document.head.appendChild(stylesheet);
-    preload.remove();
-  };
-
-  preload.addEventListener('load', activateStylesheet, { once: true });
-  if (preload.sheet) activateStylesheet();
+  const stylesheet = document.createElement('link');
+  stylesheet.rel = 'stylesheet';
+  stylesheet.href = preload.href;
+  if (preload.crossOrigin !== null) stylesheet.crossOrigin = preload.crossOrigin;
+  document.head.appendChild(stylesheet);
+  preload.remove();
 });
 
 const components = [
@@ -20,7 +18,8 @@ const components = [
   { id: 'roadmap-mount', path: 'sections/roadmap/roadmap', hasCss: true, hasJs: false },
   { id: 'about-mount', path: 'sections/about/about', hasCss: true, hasJs: false },
   { id: 'contact-mount', path: 'sections/contact/contact', hasCss: true, hasJs: true },
-  { id: 'footer-mount', path: 'components/footer/footer', hasCss: true, hasJs: true }
+  { id: 'footer-mount', path: 'components/footer/footer', hasCss: true, hasJs: true },
+  { id: 'floating-mount', path: 'components/floating/floating', hasCss: false, hasJs: false }
 ];
 
 async function loadComponent(comp) {
@@ -28,7 +27,7 @@ async function loadComponent(comp) {
   if (!container) return;
 
   try {
-    const response = await fetch(`/${comp.path}.html?v=6`);
+    const response = await fetch(`/${comp.path}.html?v=7`);
     if (!response.ok) return;
 
     container.innerHTML = await response.text();
@@ -36,13 +35,13 @@ async function loadComponent(comp) {
     if (comp.hasCss) {
       const link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = `/${comp.path}.css?v=6`;
+      link.href = `/${comp.path}.css?v=7`;
       document.head.appendChild(link);
     }
 
     if (comp.hasJs) {
       const script = document.createElement('script');
-      script.src = `/${comp.path}.js`;
+      script.src = `/${comp.path}.js?v=7`;
       script.defer = true;
       document.body.appendChild(script);
     }
@@ -52,6 +51,12 @@ async function loadComponent(comp) {
 }
 
 async function loadComponents() {
+  // Floating contact actions appear on every page without a per-page mount.
+  if (!document.getElementById('floating-mount')) {
+    const mount = document.createElement('div');
+    mount.id = 'floating-mount';
+    document.body.append(mount);
+  }
   // The navigation mount is inside the header fragment; load it before the rest.
   await loadComponent(components[0]);
   await Promise.all(components.slice(1).map(loadComponent));
