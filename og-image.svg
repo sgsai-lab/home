@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">SGS AI Technology — Intelligence, applied</title>
+  <desc id="description">Thoughtful AI products and practical technology, built around people.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8f9fc"/>
+      <stop offset="1" stop-color="#ece8f8"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#873ed0"/>
+      <stop offset="1" stop-color="#13a8cf"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#background)"/>
+  <circle cx="1000" cy="310" r="236" fill="none" stroke="#873ed0" stroke-opacity=".12" stroke-width="2"/>
+  <circle cx="1000" cy="310" r="184" fill="none" stroke="#13a8cf" stroke-opacity=".18" stroke-width="2"/>
+  <circle cx="1000" cy="310" r="130" fill="#fff" fill-opacity=".74"/>
+  <circle cx="1000" cy="310" r="78" fill="#17223b"/>
+  <path d="m1008 256-36 62h30l-6 49 44-73h-31z" fill="url(#accent)" stroke="#fff" stroke-linejoin="round" stroke-width="5"/>
+  <rect x="84" y="84" width="10" height="44" rx="5" fill="url(#accent)"/>
+  <text x="120" y="116" fill="#58627a" font-family="Arial,Helvetica,sans-serif" font-size="24" font-weight="700" letter-spacing="5">SGS AI TECHNOLOGY</text>
+  <text x="84" y="278" fill="#17223b" font-family="Arial,Helvetica,sans-serif" font-size="72" font-weight="700" letter-spacing="-3">Intelligence,</text>
+  <text x="84" y="362" fill="#17223b" font-family="Arial,Helvetica,sans-serif" font-size="72" font-weight="700" letter-spacing="-3">applied.</text>
+  <rect x="86" y="408" width="300" height="5" rx="2.5" fill="url(#accent)"/>
+  <text x="84" y="470" fill="#4f5b73" font-family="Arial,Helvetica,sans-serif" font-size="28">Thoughtful AI products and practical technology,</text>
+  <text x="84" y="511" fill="#4f5b73" font-family="Arial,Helvetica,sans-serif" font-size="28">built around people.</text>
+  <text x="84" y="574" fill="#687188" font-family="Arial,Helvetica,sans-serif" font-size="18" letter-spacing="2">SGSAITECHNOLOGY.COM</text>
+</svg>

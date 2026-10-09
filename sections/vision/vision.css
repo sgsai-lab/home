@@ -86,6 +86,8 @@
 .approach-visual:after {
   width: 310px;
   height: 310px;
+  border-style: dotted;
+  animation: spinRingsReverse 30s linear infinite;
 }
 .approach-orb {
   position: absolute;
@@ -101,18 +103,21 @@
   height: 225px;
   background: linear-gradient(140deg, #8954d13c, #21b8c43b);
   transform: translate(-49px, -24px);
+  animation: orbA_Float 6s ease-in-out infinite;
 }
 .orb-b {
   width: 191px;
   height: 191px;
   background: linear-gradient(140deg, #19ba9936, #a7d77b3b);
   transform: translate(66px, 38px);
+  animation: orbB_Float 8s ease-in-out infinite 1s;
 }
 .orb-c {
   width: 148px;
   height: 148px;
   background: linear-gradient(135deg, #ffbb5e48, #f1777a30);
   transform: translate(82px, -91px);
+  animation: orbC_Pulse 7s ease-in-out infinite 2s;
 }
 .approach-center {
   position: relative;
@@ -125,6 +130,8 @@
   background: #fffdf4e8;
   box-shadow: 0 12px 40px #59627b24;
   text-align: center;
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease;
+  cursor: pointer;
 }
 .approach-center span {
   font-family: var(--display);
@@ -163,6 +170,8 @@
   top: 19%;
   font-size: 23px;
   color: #8e56ca;
+  animation: visionStarSpin 4s ease-in-out infinite;
+  transform-origin: center;
 }
 .approach-copy .section-kicker {
   margin: 0 0 21px;
@@ -187,12 +196,18 @@
   align-items: start;
   padding: 14px 0;
   border-bottom: 1px solid var(--line);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s ease, padding 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+  border-radius: 12px;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
 }
 .approach-step > span:first-child {
   font-family: "DM Mono", monospace;
   font-size: 8px;
   color: #9ca4b4;
   padding-top: 3px;
+  transition: color 0.3s ease, transform 0.3s ease;
 }
 .approach-step h3 {
   margin: 0;
@@ -229,10 +244,6 @@
   50% { transform: translate(95px, -91px) scale(1.2); opacity: 1; }
 }
 
-.orb-a { animation: orbA_Float 6s ease-in-out infinite; }
-.orb-b { animation: orbB_Float 8s ease-in-out infinite 1s; }
-.orb-c { animation: orbC_Pulse 7s ease-in-out infinite 2s; }
-
 /* Rotating Rings */
 @keyframes spinRings {
   from { transform: rotate(0deg); }
@@ -246,16 +257,7 @@
   border-style: dashed;
   animation: spinRings 40s linear infinite;
 }
-.approach-visual:after {
-  border-style: dotted;
-  animation: spinRingsReverse 30s linear infinite;
-}
-
 /* Center Badge Hover */
-.approach-center {
-  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease;
-  cursor: pointer;
-}
 .approach-center:hover {
   transform: scale(1.2) rotate(5deg);
   box-shadow: 0 20px 60px #59627b45, 0 0 0 10px #ffffff80;
@@ -266,19 +268,7 @@
   0%, 100% { transform: rotate(0deg) scale(1); opacity: 0.6; }
   50% { transform: rotate(180deg) scale(1.5); opacity: 1; color: #19b68c; }
 }
-.visual-star {
-  animation: visionStarSpin 4s ease-in-out infinite;
-  transform-origin: center;
-}
-
 /* Steps Hover Effects - Much bolder */
-.approach-step {
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s ease, padding 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
-  border-radius: 12px;
-  cursor: pointer;
-  position: relative;
-  z-index: 1;
-}
 .approach-step:hover {
   transform: translateX(20px) scale(1.02);
   background: #ffffff;
@@ -293,9 +283,6 @@
 .approach-step:hover .step-plus {
   transform: rotate(180deg) scale(1.5);
   color: #19b68c;
-}
-.approach-step > span:first-child {
-  transition: color 0.3s ease, transform 0.3s ease;
 }
 .approach-step:hover > span:first-child {
   color: #8244c6;

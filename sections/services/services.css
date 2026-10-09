@@ -34,13 +34,11 @@
   padding: 22px 23px;
   position: relative;
   overflow: hidden;
-  transition:
-    transform 0.25s,
-    box-shadow 0.25s;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
 }
 .service-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 15px 35px #29385612;
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 25px 50px rgba(41, 56, 86, 0.08), 0 10px 20px rgba(41, 56, 86, 0.04);
 }
 .service-card-featured {
   background: linear-gradient(147deg, #fff 44%, #f8f3ff 100%);
@@ -109,6 +107,8 @@
 .card-link span {
   font-size: 13px;
   color: #8244c6;
+  transition: transform 0.3s ease;
+  display: inline-block;
 }
 .card-graphic {
   position: absolute;
@@ -117,6 +117,7 @@
   width: 137px;
   height: 93px;
   opacity: 0.8;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s ease;
 }
 .graphic-strategy span {
   position: absolute;
@@ -129,6 +130,7 @@
   box-shadow:
     0 0 0 12px #cfb0e31c,
     0 0 0 25px #cfb0e312;
+  transition: border-color 0.4s ease, box-shadow 0.4s ease;
 }
 .graphic-strategy span:nth-child(2) {
   width: 45px;
@@ -212,31 +214,17 @@
 /* SERVICES SECTION ANIMATIONS & EFFECTS */
 
 /* Card Hover Enhancements */
-.service-card {
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
-}
-.service-card:hover {
-  transform: translateY(-8px) scale(1.02);
-  box-shadow: 0 25px 50px rgba(41, 56, 86, 0.08), 0 10px 20px rgba(41, 56, 86, 0.04);
-}
 .service-card:hover h3 {
   color: #8244c6;
   transition: color 0.3s ease;
 }
 
 /* Card Link Arrow Hover */
-.card-link span {
-  transition: transform 0.3s ease;
-  display: inline-block;
-}
 .service-card:hover .card-link span {
   transform: translate(4px, -4px);
 }
 
 /* Graphic Container Hover */
-.card-graphic {
-  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s ease;
-}
 .service-card:hover .card-graphic {
   transform: scale(1.15) translate(-8px, -5px);
   opacity: 1;
@@ -246,9 +234,6 @@
 @keyframes spinGraphic {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
-}
-.graphic-strategy span {
-  transition: border-color 0.4s ease, box-shadow 0.4s ease;
 }
 .service-card:hover .graphic-strategy span {
   border-color: #b78dd7;

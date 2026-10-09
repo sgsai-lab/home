@@ -1,0 +1,9 @@
+# Defaults match the current SGS AI Technology deployment. Review before applying.
+project_id      = "home-509818"
+region          = "asia-south1"
+repository_owner = "sgsai-lab"
+repository_name = "home"
+deploy_branch   = "main"
+apex_domain     = "sgsaitechnology.com"
+www_domain      = "www.sgsaitechnology.com"
+
