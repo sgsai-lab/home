@@ -406,6 +406,64 @@ export function createRequestHandler({
       return respond(response, 200, { ok: true });
     }
 
+    // Google account linking
+    if (pathname === '/api/v1/auth/google/link') {
+      const token = getBearerToken(request);
+      const session = await getSession(token);
+      if (!session) {
+        return respond(response, 401, { error: { code: 'UNAUTHORIZED', message: 'Sign in to continue.' } });
+      }
+      if (request.method === 'POST') {
+        let input;
+        try {
+          input = await readJson(request);
+        } catch (err) {
+          return respond(response, err.statusCode ?? 400, { error: { code: 'BAD_REQUEST', message: err.message } });
+        }
+        const payload = decodeJwt(input?.id_token);
+        if (!payload || !payload.sub) {
+          return respond(response, 400, { error: { code: 'INVALID_CREDENTIAL', message: 'Invalid Google credential.' } });
+        }
+        await updateUser(session.user_id, { google_linked: true, google_sub: String(payload.sub) });
+        return respond(response, 200, { ok: true });
+      }
+      if (request.method === 'DELETE') {
+        await updateUser(session.user_id, { google_linked: false, google_sub: null });
+        return respond(response, 200, { ok: true });
+      }
+      response.setHeader('Allow', 'POST, DELETE');
+      return respond(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' } });
+    }
+
+    // Sessions management
+    if (pathname === '/api/v1/auth/sessions') {
+      const token = getBearerToken(request);
+      const session = await getSession(token);
+      if (!session) {
+        return respond(response, 401, { error: { code: 'UNAUTHORIZED', message: 'Sign in to continue.' } });
+      }
+      return respond(response, 200, { items: [{ id: 'current', current: true, created_at: session.created_at, user_agent: request.headers['user-agent'] || 'Current Browser' }] });
+    }
+
+    if (pathname.startsWith('/api/v1/auth/sessions/')) {
+      const token = getBearerToken(request);
+      const session = await getSession(token);
+      if (!session) {
+        return respond(response, 401, { error: { code: 'UNAUTHORIZED', message: 'Sign in to continue.' } });
+      }
+      return respond(response, 200, { ok: true });
+    }
+
+    if (pathname === '/api/v1/auth/logout-all') {
+      const token = getBearerToken(request);
+      const session = await getSession(token);
+      if (!session) {
+        return respond(response, 401, { error: { code: 'UNAUTHORIZED', message: 'Sign in to continue.' } });
+      }
+      await deleteSession(token);
+      return respond(response, 200, { ok: true });
+    }
+
     // MFA status
     if (pathname === '/api/v1/auth/mfa') {
       return respond(response, 200, { enabled: false, available: false });

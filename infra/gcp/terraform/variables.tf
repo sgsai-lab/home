@@ -40,3 +40,9 @@ variable "www_domain" {
   default     = "www.sgsaitechnology.com"
 }
 
+variable "google_client_id" {
+  description = "Optional Google OAuth 2.0 Web Client ID for Google Identity Services."
+  type        = string
+  default     = ""
+}
+

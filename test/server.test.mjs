@@ -197,3 +197,48 @@ test('Google login rejects invalid tokens', async (t) => {
   });
   assert.equal(res.status, 400);
 });
+
+test('Google account link and unlink', async (t) => {
+  const server = createServer();
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())));
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+
+  const idToken = createMockJwt({
+    sub: 'link-google-12345',
+    email: 'link.user@example.com',
+    name: 'Link User'
+  });
+
+  const loginRes = await fetch(`${baseUrl}/api/v1/auth/google`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id_token: idToken })
+  });
+  const { access_token } = await loginRes.json();
+
+  const linkToken = createMockJwt({
+    sub: 'linked-sub-99999',
+    email: 'link.user@example.com'
+  });
+
+  const linkRes = await fetch(`${baseUrl}/api/v1/auth/google/link`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', Authorization: `Bearer ${access_token}` },
+    body: JSON.stringify({ id_token: linkToken })
+  });
+  assert.equal(linkRes.status, 200);
+
+  const unlinkRes = await fetch(`${baseUrl}/api/v1/auth/google/link`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${access_token}` }
+  });
+  assert.equal(unlinkRes.status, 200);
+
+  const sessionsRes = await fetch(`${baseUrl}/api/v1/auth/sessions`, {
+    headers: { Authorization: `Bearer ${access_token}` }
+  });
+  assert.equal(sessionsRes.status, 200);
+  const sessions = await sessionsRes.json();
+  assert.equal(sessions.items.length, 1);
+});

@@ -51,6 +51,8 @@ jobs:
           GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
           GCP_REGION: ${{ vars.GCP_REGION }}
           GCP_RUNTIME_SERVICE_ACCOUNT: ${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+          APPLE_CLIENT_ID: ${{ vars.APPLE_CLIENT_ID }}
           SMTP_HOST: ${{ vars.SMTP_HOST }}
           CONTACT_FROM: ${{ vars.CONTACT_FROM }}
           SMTP_USER_SECRET: ${{ vars.SMTP_USER_SECRET }}
@@ -64,6 +66,13 @@ jobs:
             echo "Set both SMTP_USER_SECRET and SMTP_PASS_SECRET, or leave both unset." >&2
             exit 1
           fi
+          env_vars="GCP_PROJECT_ID=$GCP_PROJECT_ID,SMTP_HOST=$SMTP_HOST,SMTP_PORT=587,SMTP_SECURE=false,CONTACT_FROM=$CONTACT_FROM,CONTACT_TO=hello@sgsaitechnology.com"
+          if [[ -n "${GOOGLE_CLIENT_ID:-}" ]]; then
+            env_vars="$env_vars,GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID"
+          fi
+          if [[ -n "${APPLE_CLIENT_ID:-}" ]]; then
+            env_vars="$env_vars,APPLE_CLIENT_ID=$APPLE_CLIENT_ID"
+          fi
           gcloud run deploy sgs-ai-website \
             --project "$GCP_PROJECT_ID" \
             --region "$GCP_REGION" \
@@ -74,5 +83,5 @@ jobs:
             --memory 256Mi \
             --service-account "$GCP_RUNTIME_SERVICE_ACCOUNT" \
             --ingress all \
-            --set-env-vars "GCP_PROJECT_ID=$GCP_PROJECT_ID,SMTP_HOST=$SMTP_HOST,SMTP_PORT=587,SMTP_SECURE=false,CONTACT_FROM=$CONTACT_FROM,CONTACT_TO=hello@sgsaitechnology.com" \
+            --set-env-vars "$env_vars" \
             "${secret_args[@]}"

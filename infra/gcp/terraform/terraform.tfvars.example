@@ -6,4 +6,5 @@ repository_name = "home"
 deploy_branch   = "main"
 apex_domain     = "sgsaitechnology.com"
 www_domain      = "www.sgsaitechnology.com"
+google_client_id = ""
 

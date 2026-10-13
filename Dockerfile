@@ -21,4 +21,4 @@ ENV API_UPSTREAM=http://127.0.0.1:3000 \
 
 EXPOSE 8080
 USER nginx
-CMD ["/bin/sh", "-c", "node /app/server.mjs & exec /docker-entrypoint.sh nginx -g 'daemon off;'"]
+CMD ["/bin/sh", "-c", "node /app/server.mjs & while ! nc -z 127.0.0.1 3000 2>/dev/null; do sleep 0.1; done; exec /docker-entrypoint.sh nginx -g 'daemon off;'"]
