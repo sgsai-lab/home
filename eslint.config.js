@@ -26,7 +26,7 @@ export default [
     }
   },
   {
-    files: ['server.mjs', 'test/**/*.mjs', 'scripts/**/*.mjs'],
+    files: ['server.mjs', 'db.mjs', 'test/**/*.mjs', 'scripts/**/*.mjs'],
     languageOptions: { globals: globals.node, ecmaVersion: 'latest' },
     rules: {
       'array-callback-return': 'error',

@@ -13,9 +13,10 @@ RUN apk add --no-cache nodejs
 COPY --from=builder /app/nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=builder /app/dist/ /usr/share/nginx/html/
 COPY --from=builder /app/server.mjs /app/server.mjs
+COPY --from=builder /app/db.mjs /app/db.mjs
 COPY --from=builder /app/node_modules/ /app/node_modules/
 
-ENV API_UPSTREAM=http://127.0.0.1:8000 \
+ENV API_UPSTREAM=http://127.0.0.1:3000 \
     NGINX_ENVSUBST_FILTER=API_UPSTREAM
 
 EXPOSE 8080

@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer, createRateLimiter, sanitizeText, validateSubmission } from '../server.mjs';
+import { setFirestoreDisabled } from '../db.mjs';
+
+setFirestoreDisabled(true);
 
 test('sanitizeText removes markup and control characters', () => {
   assert.equal(sanitizeText('  A<em> B</em>\n\u0000 ', 20), 'A B');
@@ -88,4 +91,109 @@ test('analytics records an approved page path without visitor identifiers', asyn
   assert.equal(response.status, 204);
   assert.equal(invalid.status, 400);
   assert.deepEqual(pageViews, ['/vision/']);
+});
+
+function createMockJwt(payload) {
+  const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  return `${header}.${body}.mock-sig`;
+}
+
+test('initial Google login stores user in Firebase DB and returns session', async (t) => {
+  const server = createServer();
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())));
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+
+  const idToken = createMockJwt({
+    sub: 'google-sub-12345',
+    email: 'new.google.user@example.com',
+    name: 'Google User',
+    picture: 'https://example.com/avatar.png',
+    email_verified: true
+  });
+
+  const loginRes = await fetch(`${baseUrl}/api/v1/auth/google`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id_token: idToken, nonce: 'test-nonce' })
+  });
+
+  assert.equal(loginRes.status, 200);
+  const loginData = await loginRes.json();
+  assert.ok(loginData.access_token);
+  assert.equal(loginData.user.email, 'new.google.user@example.com');
+  assert.equal(loginData.user.full_name, 'Google User');
+  assert.equal(loginData.user.role, 'user');
+
+  // Verify /api/v1/users/me retrieves the stored user
+  const meRes = await fetch(`${baseUrl}/api/v1/users/me`, {
+    headers: { Authorization: `Bearer ${loginData.access_token}` }
+  });
+  assert.equal(meRes.status, 200);
+  const meData = await meRes.json();
+  assert.equal(meData.id, loginData.user.id);
+  assert.equal(meData.email, 'new.google.user@example.com');
+  assert.equal(meData.full_name, 'Google User');
+
+  // Verify subsequent login returns same user ID
+  const loginRes2 = await fetch(`${baseUrl}/api/v1/auth/google`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id_token: idToken, nonce: 'test-nonce' })
+  });
+  assert.equal(loginRes2.status, 200);
+  const loginData2 = await loginRes2.json();
+  assert.equal(loginData2.user.id, loginData.user.id);
+});
+
+test('initial Apple login stores user in Firebase DB and returns session', async (t) => {
+  const server = createServer();
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())));
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+
+  const idToken = createMockJwt({
+    sub: 'apple-sub-67890',
+    email: 'apple.user@example.com'
+  });
+
+  const loginRes = await fetch(`${baseUrl}/api/v1/auth/apple`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id_token: idToken, nonce: 'test-nonce', full_name: 'Apple User' })
+  });
+
+  assert.equal(loginRes.status, 200);
+  const loginData = await loginRes.json();
+  assert.ok(loginData.access_token);
+  assert.equal(loginData.user.email, 'apple.user@example.com');
+  assert.equal(loginData.user.full_name, 'Apple User');
+
+  // Sign out
+  const logoutRes = await fetch(`${baseUrl}/api/v1/auth/logout`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${loginData.access_token}` }
+  });
+  assert.equal(logoutRes.status, 200);
+
+  // Subsequent /users/me fails after logout
+  const meRes = await fetch(`${baseUrl}/api/v1/users/me`, {
+    headers: { Authorization: `Bearer ${loginData.access_token}` }
+  });
+  assert.equal(meRes.status, 401);
+});
+
+test('Google login rejects invalid tokens', async (t) => {
+  const server = createServer();
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())));
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+
+  const res = await fetch(`${baseUrl}/api/v1/auth/google`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id_token: 'not-a-jwt' })
+  });
+  assert.equal(res.status, 400);
 });

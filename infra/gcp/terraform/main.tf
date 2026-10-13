@@ -73,6 +73,12 @@ resource "google_secret_manager_secret_iam_member" "runtime_smtp_pass" {
   member    = "serviceAccount:${google_service_account.runtime.email}"
 }
 
+resource "google_project_iam_member" "runtime_datastore" {
+  project = var.project_id
+  role    = "roles/datastore.user"
+  member  = "serviceAccount:${google_service_account.runtime.email}"
+}
+
 resource "google_cloud_run_v2_service" "website" {
   project              = var.project_id
   name                 = local.service_name
