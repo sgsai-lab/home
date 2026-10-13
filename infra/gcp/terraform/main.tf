@@ -77,7 +77,7 @@ resource "google_cloud_run_v2_service" "website" {
   project              = var.project_id
   name                 = local.service_name
   location             = var.region
-  ingress              = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
+  ingress              = "INGRESS_TRAFFIC_ALL"
   invoker_iam_disabled = true
   deletion_protection  = true
 

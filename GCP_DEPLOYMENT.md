@@ -87,11 +87,11 @@ Stop the running container with **Ctrl+C**. The Docker build context excludes Gi
     --image asia-south1-docker.pkg.dev/home-509818/sgsai-images/sgs-ai-website:v1 \
     --region asia-south1 \
     --port 8080 \
-    --ingress internal-and-cloud-load-balancing \
+    --ingress all \
     --allow-unauthenticated
   ```
 
-  The website is intentionally public. `--allow-unauthenticated` permits public visitors through the load balancer; Cloud Run ingress restricts public network traffic to the external load balancer. Your organization may prohibit public invoker access or this ingress setting through policy. If so, coordinate with its administrator and use the approved public-access configuration. Cloud Run prints its service URL when deployment completes.
+  The website is intentionally public. `--allow-unauthenticated` permits public visitors through the load balancer and direct domain mappings (`*.cloud.run`); `--ingress all` enables access via both the external load balancer and direct Cloud Run routing. Cloud Run prints its service URL when deployment completes.
 
 1. Open the service URL and verify the page and assets. Optionally confirm a successful HTTP response with `curl -I YOUR_CLOUD_RUN_URL`. In the Cloud Run console, review the active revision, logs, region, and service settings.
 
