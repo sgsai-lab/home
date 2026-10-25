@@ -67,6 +67,9 @@ document.getElementById('mfa-cancel').addEventListener('click', () => {
   showStep(identifyStep);
 });
 
-setupProviders({ statusEl, onResult: finish, context: 'signin' });
+const providers = setupProviders({ statusEl, onResult: finish, context: 'signin' });
 
-offerContinueAs(document.getElementById('continue-card'), [identifyStep], next).catch(() => {});
+// An existing site session wins; otherwise Google One Tap offers "Continue as <name>" (or signs in automatically).
+offerContinueAs(document.getElementById('continue-card'), [identifyStep], next)
+  .catch(() => false)
+  .then((signedIn) => (signedIn ? undefined : providers.offerGoogleOneTap()));

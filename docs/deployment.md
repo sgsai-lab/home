@@ -39,7 +39,7 @@ Open <http://localhost:8080>. Supply SMTP and cloud configuration only when inte
 
 SMTP settings and operational limitations are documented in [README.md](../README.md#contact-email-runtime-configuration). Inject credentials through Secret Manager in production.
 
-- `GOOGLE_CLIENT_ID` and `APPLE_CLIENT_ID` are public provider identifiers exposed through `/api/config`.
+- `GOOGLE_CLIENT_ID` and `APPLE_CLIENT_ID` are public provider identifiers exposed through `/api/config`. The API also uses them as the required token audience; sign-in with an unconfigured provider returns 503. See [Google sign-in](google-sign-in.md) for OAuth client and Firestore setup.
 - `GCP_PROJECT_ID` identifies the project used by the persistence integration. Cloud Run should use its runtime service account for credentials.
 - `API_UPSTREAM` defaults to `http://127.0.0.1:3000` for `/api/v1/`. Override only for an intentional alternate backend reachable from the container.
 - `API_PORT` configures the standalone Node listener. Keep the container API on 3000 unless the Nginx configuration and startup readiness check are changed together.

@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { Firestore } from '@google-cloud/firestore';
 
 const DEFAULT_PROJECT_ID = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || 'home-509818';
@@ -9,12 +9,19 @@ let firestoreDisabled = false;
 // In-memory fallback database for tests and offline/local execution.
 const memoryStore = {
   users: new Map(),
-  sessions: new Map()
+  sessions: new Map(),
+  refreshTokens: new Map()
 };
 
 export function resetInMemoryDb() {
   memoryStore.users.clear();
   memoryStore.sessions.clear();
+  memoryStore.refreshTokens.clear();
+}
+
+// Tokens are stored only as SHA-256 digests so a database read does not yield usable credentials.
+function tokenId(token) {
+  return createHash('sha256').update(String(token)).digest('hex');
 }
 
 export function setFirestoreDisabled(disabled) {
@@ -187,61 +194,119 @@ export async function updateUser(id, updates) {
   return updated;
 }
 
-export async function saveSession({ token, userId, expiresAt }) {
-  const session = {
-    token,
+function tokenRecord(userId, expiresAt) {
+  return {
     user_id: userId,
     expires_at: expiresAt,
+    // Timestamp field for the Firestore TTL policy; expires_at stays numeric for comparisons.
+    expire_at: new Date(expiresAt),
     created_at: new Date().toISOString()
   };
+}
 
-  memoryStore.sessions.set(token, session);
-
+async function saveToken(collection, store, token, record) {
+  const id = tokenId(token);
+  store.set(id, record);
   const db = getFirestore();
   if (db) {
     try {
-      await db.collection('sessions').doc(token).set(session);
+      await db.collection(collection).doc(id).set(record);
     } catch (err) {
-      console.error('Firestore saveSession failed:', err.message);
+      console.error(`Firestore ${collection} save failed:`, err.message);
     }
   }
+  return record;
+}
 
-  return session;
+async function deleteToken(collection, store, token) {
+  const id = tokenId(token);
+  store.delete(id);
+  const db = getFirestore();
+  if (db) {
+    try {
+      await db.collection(collection).doc(id).delete();
+    } catch (err) {
+      console.error(`Firestore ${collection} delete failed:`, err.message);
+    }
+  }
+}
+
+export function saveSession({ token, userId, expiresAt }) {
+  return saveToken('sessions', memoryStore.sessions, token, tokenRecord(userId, expiresAt));
 }
 
 export async function getSession(token) {
   if (!token) return null;
-  let session = memoryStore.sessions.get(token);
-
-  if (!session) {
-    const db = getFirestore();
-    if (db) {
-      try {
-        const doc = await db.collection('sessions').doc(token).get();
-        if (doc.exists) {
-          session = doc.data();
-          memoryStore.sessions.set(token, session);
-        }
-      } catch (err) {
-        console.error('Firestore getSession failed:', err.message);
-      }
-    }
-  }
-
-  if (session && session.expires_at > Date.now()) {
-    return session;
-  }
-  return null;
-}
-
-export async function deleteSession(token) {
-  memoryStore.sessions.delete(token);
+  const id = tokenId(token);
+  let session = null;
   const db = getFirestore();
   if (db) {
     try {
-      await db.collection('sessions').doc(token).delete();
+      // Firestore is authoritative so revocations from other instances take effect immediately.
+      const doc = await db.collection('sessions').doc(id).get();
+      session = doc.exists ? doc.data() : null;
     } catch (err) {
-      console.error('Firestore deleteSession failed:', err.message);
+      console.error('Firestore getSession failed, using memory store:', err.message);
+      session = memoryStore.sessions.get(id) ?? null;
+    }
+  } else {
+    session = memoryStore.sessions.get(id) ?? null;
+  }
+  return session && session.expires_at > Date.now() ? session : null;
+}
+
+export function deleteSession(token) {
+  return deleteToken('sessions', memoryStore.sessions, token);
+}
+
+export function saveRefreshToken({ token, userId, expiresAt }) {
+  return saveToken('refresh_tokens', memoryStore.refreshTokens, token, tokenRecord(userId, expiresAt));
+}
+
+export function deleteRefreshToken(token) {
+  return deleteToken('refresh_tokens', memoryStore.refreshTokens, token);
+}
+
+/** Returns the refresh token's record and deletes it, so each refresh token is usable once. */
+export async function consumeRefreshToken(token) {
+  if (!token) return null;
+  const id = tokenId(token);
+  let record = memoryStore.refreshTokens.get(id) ?? null;
+  memoryStore.refreshTokens.delete(id);
+  const db = getFirestore();
+  if (db) {
+    try {
+      const ref = db.collection('refresh_tokens').doc(id);
+      record = await db.runTransaction(async (transaction) => {
+        const doc = await transaction.get(ref);
+        if (!doc.exists) return null;
+        transaction.delete(ref);
+        return doc.data();
+      });
+    } catch (err) {
+      console.error('Firestore consumeRefreshToken failed, using memory store:', err.message);
+    }
+  }
+  return record && record.expires_at > Date.now() ? record : null;
+}
+
+/** Revokes every access and refresh token belonging to the user. */
+export async function deleteUserSessions(userId) {
+  for (const store of [memoryStore.sessions, memoryStore.refreshTokens]) {
+    for (const [id, record] of store) {
+      if (record.user_id === userId) store.delete(id);
+    }
+  }
+  const db = getFirestore();
+  if (!db) return;
+  for (const collection of ['sessions', 'refresh_tokens']) {
+    try {
+      const snapshot = await db.collection(collection).where('user_id', '==', userId).get();
+      const batch = db.batch();
+      snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+      await batch.commit();
+    } catch (err) {
+      console.error(`Firestore ${collection} revocation failed:`, err.message);
     }
   }
 }

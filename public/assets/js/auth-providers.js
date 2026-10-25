@@ -1,39 +1,11 @@
 // "Continue with Google / Apple" buttons shared by the sign-in and sign-up pages.
-import { api, describeError, hasSessionHint, showStatus } from '/assets/js/auth.js';
+import { api, describeError, showStatus } from '/assets/js/auth.js';
 import { signInWithApple } from '/assets/js/apple.js';
-import { cancelGooglePrompt, mountGoogleButton } from '/assets/js/google.js';
-
-function createSampleGoogleCredential() {
-  const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-  const payload = btoa(JSON.stringify({
-    iss: 'https://accounts.google.com',
-    sub: 'sample-google-1017079440680',
-    email: 'user@sgsaitechnology.com',
-    email_verified: true,
-    name: 'Sample Google User',
-    picture: 'https://lh3.googleusercontent.com/a/default-user',
-    iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + 86400
-  }));
-  return { id_token: `${header}.${payload}.sample-signature`, nonce: 'sample-nonce' };
-}
-
-function createSampleAppleCredential() {
-  const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-  const payload = btoa(JSON.stringify({
-    iss: 'https://appleid.apple.com',
-    sub: 'sample-apple-1017079440680',
-    email: 'apple.user@sgsaitechnology.com',
-    email_verified: true,
-    iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + 86400
-  }));
-  return { id_token: `${header}.${payload}.sample-signature`, nonce: 'sample-nonce', full_name: 'Sample Apple User' };
-}
+import { cancelGooglePrompt, mountGoogleButton, promptGoogleOneTap } from '/assets/js/google.js';
 
 /**
- * onResult receives the API response (tokens or MFA challenge) and whether the account is new.
- * Unconfigured providers keep their placeholder button and explain why when clicked.
+ * onResult receives the API response (tokens or MFA challenge).
+ * Returns { offerGoogleOneTap } so the page can show One Tap once it knows nobody is signed in.
  */
 export function setupProviders({ statusEl, onResult, context = 'signin' }) {
   const googleSlot = document.getElementById('google-button');
@@ -50,37 +22,21 @@ export function setupProviders({ statusEl, onResult, context = 'signin' }) {
     }
   };
 
-  googleFallback.addEventListener('click', async () => {
-    showStatus(statusEl, 'Signing in with sample Google account...', 'info');
-    try {
-      await complete('/auth/google', createSampleGoogleCredential());
-    } catch (error) {
-      showStatus(statusEl, describeError(error));
-    }
+  googleFallback.addEventListener('click', () => {
+    showStatus(statusEl, 'Google sign-in is not available right now. Continue with email instead.', 'info');
   });
-  mountGoogleButton(googleSlot, (credential) => complete('/auth/google', credential), {
+  const googleReady = mountGoogleButton(googleSlot, (credential) => complete('/auth/google', credential), {
     text: context === 'signup' ? 'signup_with' : 'continue_with',
     context,
-    oneTap: !hasSessionHint()
-  }).then((shown) => {
-    googleFallback.hidden = shown;
-  }).catch(() => {});
+    autoSelect: context === 'signin'
+  }).catch(() => false);
+  googleReady.then((shown) => { googleFallback.hidden = shown; });
 
   appleButton.addEventListener('click', async () => {
     showStatus(statusEl, '');
     appleButton.disabled = true;
     try {
-      let credential = null;
-      try {
-        credential = await signInWithApple();
-      } catch (err) {
-        if (err.message && err.message.includes('not configured')) {
-          showStatus(statusEl, 'Signing in with sample Apple account...', 'info');
-          credential = createSampleAppleCredential();
-        } else {
-          throw err;
-        }
-      }
+      const credential = await signInWithApple();
       if (credential) await complete('/auth/apple', credential);
     } catch (error) {
       showStatus(statusEl, error.message, 'info');
@@ -88,4 +44,10 @@ export function setupProviders({ statusEl, onResult, context = 'signin' }) {
       appleButton.disabled = false;
     }
   });
+
+  return {
+    async offerGoogleOneTap() {
+      if (await googleReady) promptGoogleOneTap();
+    }
+  };
 }

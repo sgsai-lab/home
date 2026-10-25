@@ -56,7 +56,7 @@ resendButton.addEventListener('click', async () => {
   }
 });
 
-setupProviders({
+const providers = setupProviders({
   statusEl,
   context: 'signup',
   onResult: (result) => {
@@ -70,4 +70,6 @@ setupProviders({
   }
 });
 
-offerContinueAs(document.getElementById('continue-card'), [identifyStep], '/projects/').catch(() => {});
+offerContinueAs(document.getElementById('continue-card'), [identifyStep], '/projects/')
+  .catch(() => false)
+  .then((signedIn) => (signedIn ? undefined : providers.offerGoogleOneTap()));
