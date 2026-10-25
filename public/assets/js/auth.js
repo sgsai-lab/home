@@ -1,5 +1,7 @@
 // Shared API client for the account pages. The access token is kept per-tab in sessionStorage;
 // the refresh token is an HttpOnly cookie that only the API can read.
+import { disableGoogleAutoSelect } from '/assets/js/google.js';
+
 const API_BASE = '/api/v1';
 const SESSION_KEY = 'sgsai.session';
 // Non-sensitive flag so public pages only attempt a refresh when a session likely exists.
@@ -151,6 +153,7 @@ export async function signOut() {
     // The local session is discarded even if the server call fails.
   }
   clearSession();
+  disableGoogleAutoSelect();
 }
 
 export async function logout() {

@@ -2,7 +2,7 @@ import { execSync } from 'node:child_process';
 import { Firestore } from '@google-cloud/firestore';
 import { OAuth2Client } from 'google-auth-library';
 import { createServer } from '../src/server/server.mjs';
-import { setFirestoreInstance } from '../src/server/db.mjs';
+import { deleteUserSessions, setFirestoreInstance } from '../src/server/db.mjs';
 
 async function main() {
   console.log('=== Verifying Sample Google Login with Firebase DB (Firestore) ===');
@@ -23,31 +23,27 @@ async function main() {
   // Inject connected Firestore instance into DB module
   setFirestoreInstance(db);
 
-  // Start HTTP server on port 0
-  const server = createServer();
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const port = server.address().port;
-  const baseUrl = `http://127.0.0.1:${port}`;
-  console.log(`1. Server started on ${baseUrl}`);
-
   const timestamp = Date.now();
   const testSub = `sample-google-${timestamp}`;
   const testEmail = `sample.user.${timestamp}@sgsaitechnology.com`;
   const testName = 'Sample Google Tester';
-
-  // Create sample Google JWT
-  const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
-  const payload = Buffer.from(JSON.stringify({
+  const claims = {
     iss: 'https://accounts.google.com',
     sub: testSub,
     email: testEmail,
     email_verified: true,
     name: testName,
-    picture: 'https://lh3.googleusercontent.com/a/default-user',
-    iat: Math.floor(timestamp / 1000),
-    exp: Math.floor(timestamp / 1000) + 86400
-  })).toString('base64url');
-  const sampleIdToken = `${header}.${payload}.sample-signature`;
+    picture: 'https://lh3.googleusercontent.com/a/default-user'
+  };
+
+  // This script checks Firestore persistence only; Google token signature checks are covered by test/auth.test.mjs.
+  const server = createServer({ verifyGoogleIdToken: async () => claims });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  const baseUrl = `http://127.0.0.1:${port}`;
+  console.log(`1. Server started on ${baseUrl}`);
+
+  const sampleIdToken = 'sample.google.credential';
 
   console.log('2. Sending POST /api/v1/auth/google...');
   const loginRes = await fetch(`${baseUrl}/api/v1/auth/google`, {
@@ -101,8 +97,8 @@ async function main() {
 
   console.log('5. Cleaning up test data from Firestore...');
   await db.collection('users').doc(loginData.user.id).delete();
-  await db.collection('sessions').doc(loginData.access_token).delete();
-  console.log('   Cleaned up test user and session.');
+  await deleteUserSessions(loginData.user.id);
+  console.log('   Cleaned up test user, sessions, and refresh tokens.');
 
   server.close();
   console.log('\n=== Sample Google Login verification SUCCESSFUL! ===');
