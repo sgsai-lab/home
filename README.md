@@ -1,19 +1,44 @@
 # SGS AI Technology website
 
-Plain HTML, CSS, JavaScript, and a small Node.js contact-notification API served by unprivileged Nginx. Public pages use clean routes. The Docker image builds minified static assets; no external font or analytics service is loaded.
+Plain HTML, CSS, and JavaScript with a Node.js API for contact notifications, analytics, and account endpoints, served behind unprivileged Nginx. Public pages use clean routes. The Docker image builds minified static assets from the public web root.
+
+## Repository layout
+
+```text
+.github/          CI/CD workflows and repository governance
+config/           Nginx runtime configuration
+docs/             Architecture and deployment documentation
+infra/gcp/        Infrastructure guide and Terraform
+public/           Public web root; copied and minified into dist/
+  assets/css/     Shared styles
+  assets/js/      Browser scripts and account modules
+  assets/images/  Page illustrations and social images
+  components/    Shared HTML/CSS/JS components
+  sections/      Homepage HTML/CSS/JS sections
+  logo/          Branding assets at existing public URLs
+  vendor/        Third-party browser code
+  <route>/       Page entry points and page-specific styles
+src/server/       Node API and persistence adapter
+scripts/          Build, validation, preview, and operational tools
+test/             Automated API and build regression tests
+dist/             Generated static site; not committed
+```
+
+See [architecture and module boundaries](docs/architecture.md), [deployment and operations](docs/deployment.md), and [contribution guidelines](CONTRIBUTING.md).
 
 ## Local development and checks
 
-Use Node.js 22 or a compatible current LTS release.
+Use Node.js 22, matching CI and the Docker builder. The version is recorded in [.nvmrc](.nvmrc) for version managers.
 
 ```sh
 npm ci
 npm run lint
 npm test
 npm run build
+npm run check:dist
 ```
 
-To preview the built site, run `npm run preview` and open <http://localhost:4173>. The preview server does not implement the contact API. Without a configured API, the form displays a direct email fallback.
+To preview the built site, run `npm run preview` and open <http://localhost:4173>. The preview serves static pages only, with a no-op analytics endpoint; it does not implement contact or account APIs. Run `npm start` to start the API on `127.0.0.1:3000`, or use the container below for same-origin frontend/API integration. Set runtime variables in the process environment; npm does not automatically load a local environment file.
 
 ## Contact email runtime configuration
 
@@ -44,9 +69,9 @@ docker run --rm --name sgs-ai-website -p 8080:8080 \
   -e CONTACT_FROM -e CONTACT_TO sgs-ai-website:local
 ```
 
-Open <http://localhost:8080>. Nginx returns a real 404 status with the branded page, compresses responses with gzip, caches static assets for an hour and HTML briefly, and proxies only the API to the local Node process. The stock Alpine Nginx image does not include Brotli; gzip is enabled. The supplied logo remains a large PNG; no optimized source asset was supplied and binary conversion was not performed here.
+Open <http://localhost:8080>. Nginx returns a real 404 status with the branded page, compresses responses with gzip, revalidates scripts/styles, caches images and HTML according to [config/nginx.conf](config/nginx.conf), and proxies API requests to the local Node process.
 
-Run `bash scripts/check-container.sh sgs-ai-website:local` to verify the homepage and local Node API with Cloud Run's `PORT=8080` setting. CI and deployment run this check before publishing. The optional `/api/v1/` backend defaults to `http://127.0.0.1:8000`; set `API_UPSTREAM` to a reachable backend URL when using these routes. Without a backend, these routes return 502 but the website and local Node API still start. Do not use the Docker-only hostname `api` on Cloud Run: Nginx resolves this upstream at startup and exits if the hostname cannot resolve.
+Run `bash scripts/check-container.sh sgs-ai-website:local` to verify the homepage, shared assets, dynamic header, and local Node API with Cloud Run's `PORT=8080` setting. CI and deployment run this check before publishing. The `/api/v1/` upstream defaults to the included Node API at `http://127.0.0.1:3000`; set `API_UPSTREAM` only when intentionally using a different reachable backend. Nginx resolves the configured upstream at startup.
 
 ## GitHub Actions, Artifact Registry, and Cloud Run
 

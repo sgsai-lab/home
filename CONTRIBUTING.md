@@ -2,7 +2,20 @@
 
 ## Development
 
-Use a supported Node.js LTS release and npm. Run `npm ci`, then use `npm run lint`, `npm test`, and `npm run build` before opening a pull request. Contact form email delivery requires the server-side SMTP environment documented in README.md; never add credentials to source, HTML, or client JavaScript.
+Use Node.js 22 (see [.nvmrc](.nvmrc)) and npm. Run `npm ci`, then use `npm run lint`, `npm test`, `npm run build`, and `npm run check:dist` before opening a pull request. Contact form email delivery requires the server-side SMTP environment documented in [README.md](README.md); never add credentials to source, HTML, or client JavaScript.
+
+## Code and folder conventions
+
+- Keep browser-delivered files in `public/`, Node-only modules in `src/server/`, automation in `scripts/`, and tests in `test/`. Nothing private belongs in `public/`; its entire contents are deployed.
+- Put shared browser scripts/styles in `public/assets/js/` and `public/assets/css/`. Keep page-specific styles beside their page and component/section HTML, CSS, and JavaScript together.
+- Preserve page routes and update every HTML reference, JavaScript import, and CSS URL when moving a resource. Keep third-party browser code isolated in `public/vendor/` and preserve its attribution.
+- Follow [.editorconfig](.editorconfig): UTF-8, LF, two-space indentation, and a final newline. Use descriptive camelCase identifiers, PascalCase classes, and kebab-case names for new files. Preserve established public names unless a migration requires changing them.
+- Use ES modules, `const` by default, strict equality, and explicit error handling. Keep functions focused and follow the checked-in ESLint, Stylelint, and HTML validation rules. Do not mix unrelated formatting changes with behavior changes.
+- Validate untrusted input at the server boundary. Keep runtime secrets in the environment or Secret Manager, never browser configuration or source control.
+- Add focused `node:test` regression coverage for behavior changes. Use injected dependencies or in-memory persistence in tests; do not require live SMTP, cloud credentials, or production data.
+- Keep dependencies and lockfile changes intentional. Do not commit `dist/`, `node_modules/`, Lighthouse reports, Terraform state/plans, or local configuration containing secrets.
+
+When changing packaging or routing, run `npm run lighthouse`, `docker build -t sgs-ai-website:local .`, and `bash scripts/check-container.sh sgs-ai-website:local`. The Cloud Run smoke test verifies the production container, not just the static preview. See [docs/architecture.md](docs/architecture.md) for module boundaries and [docs/deployment.md](docs/deployment.md) for operations.
 
 ## Branches
 

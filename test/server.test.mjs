@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createServer, createRateLimiter, sanitizeText, validateSubmission } from '../server.mjs';
-import { setFirestoreDisabled } from '../db.mjs';
+import { createServer, createRateLimiter, sanitizeText, validateSubmission } from '../src/server/server.mjs';
+import { setFirestoreDisabled } from '../src/server/db.mjs';
 
 setFirestoreDisabled(true);
 

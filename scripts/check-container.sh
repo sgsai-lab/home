@@ -21,7 +21,7 @@ if [ "$ready" != "true" ]; then
   exit 1
 fi
 
-for path in / /api/config; do
+for path in / /api/config /assets/js/app.js /assets/js/auth.js /assets/css/global.css /components/header/header.html; do
   curl --fail --silent --show-error --output /dev/null \
     --connect-timeout 2 --max-time 5 \
     --retry 10 --retry-delay 1 --retry-connrefused --retry-all-errors --retry-max-time 30 \

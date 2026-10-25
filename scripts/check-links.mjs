@@ -2,7 +2,10 @@ import { access, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../public');
+const root = process.argv[2]
+  ? path.resolve(process.argv[2])
+  : sourceRoot;
 const pageFiles = [];
 
 async function collectPages(directory) {
@@ -59,7 +62,8 @@ function resolveTarget(source, href) {
 }
 
 await collectPages(root);
-const mappings = findComponentMappings(await readFile(path.join(root, 'app.js'), 'utf8'));
+const mappings = findComponentMappings(await readFile(path.join(sourceRoot, 'assets/js/app.js'), 'utf8'));
+if (!mappings.length) throw new Error('No dynamic components found in the source loader.');
 const mountMap = new Map(mappings.map((component) => [component.id, path.join(root, `${component.path}.html`)]));
 const errors = new Set();
 
