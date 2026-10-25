@@ -7,7 +7,7 @@ const pageFiles = [];
 
 async function collectPages(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
-    if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name === 'components' || entry.name === 'sections' || entry.name === 'partials' || entry.name.startsWith('.')) continue;
+    if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name === 'components' || entry.name === 'sections' || entry.name.startsWith('.')) continue;
     const filename = path.join(directory, entry.name);
     if (entry.isDirectory()) await collectPages(filename);
     else if (entry.name.endsWith('.html')) pageFiles.push(filename);
