@@ -1,20 +1,9 @@
 import globals from 'globals';
 
 export default [
+  { ignores: ['public/vendor/**', 'dist/**'] },
   {
-    files: ['app.js', 'script.js', 'products.js', 'components/**/*.js', 'sections/**/*.js'],
-    languageOptions: { globals: globals.browser, ecmaVersion: 'latest' },
-    rules: {
-      'array-callback-return': 'error',
-      'eqeqeq': ['error', 'always'],
-      'no-console': ['error', { allow: ['error'] }],
-      'no-implicit-coercion': 'error',
-      'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      'prefer-const': 'error'
-    }
-  },
-  {
-    files: ['js/**/*.js'],
+    files: ['public/**/*.js'],
     languageOptions: { globals: globals.browser, ecmaVersion: 'latest', sourceType: 'module' },
     rules: {
       'array-callback-return': 'error',
@@ -26,7 +15,7 @@ export default [
     }
   },
   {
-    files: ['server.mjs', 'db.mjs', 'test/**/*.mjs', 'scripts/**/*.mjs'],
+    files: ['src/**/*.mjs', 'test/**/*.mjs', 'scripts/**/*.mjs'],
     languageOptions: { globals: globals.node, ecmaVersion: 'latest' },
     rules: {
       'array-callback-return': 'error',

@@ -1,8 +1,8 @@
 import { execSync } from 'node:child_process';
 import { Firestore } from '@google-cloud/firestore';
 import { OAuth2Client } from 'google-auth-library';
-import { createServer } from '../server.mjs';
-import { setFirestoreInstance } from '../db.mjs';
+import { createServer } from '../src/server/server.mjs';
+import { setFirestoreInstance } from '../src/server/db.mjs';
 
 async function main() {
   console.log('=== Verifying Sample Google Login with Firebase DB (Firestore) ===');

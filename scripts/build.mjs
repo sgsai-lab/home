@@ -1,25 +1,16 @@
-import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import CleanCSS from 'clean-css';
 import { minify as minifyHtml } from 'html-minifier-terser';
 import { minify as minifyJs } from 'terser';
 
-const root = process.cwd();
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const source = path.join(root, 'public');
 const output = path.join(root, 'dist');
-const files = [
-  'index.html', '404.html', 'global.css', 'app.js', 'styles.css', 'pages.css', 'script.js', 'products.js',
-  'favicon.svg', 'favicon.ico', 'favicon-192.png', 'favicon-512.png', 'apple-touch-icon.png', 'og-image.jpg',
-  'site.webmanifest', 'robots.txt', 'sitemap.xml',
-  'assets', 'logo', 'about', 'contact', 'login', 'signup', 'verify-email', 'forgot-password', 'reset-password',
-  'account', 'admin', 'projects', 'js', 'vendor', 'account.css', 'privacy', 'products', 'roadmap', 'services', 'terms', 'vision',
-  'components', 'sections'
-];
 
 await rm(output, { recursive: true, force: true });
-await mkdir(output, { recursive: true });
-for (const entry of files) {
-  await cp(path.join(root, entry), path.join(output, entry), { recursive: true });
-}
+await cp(source, output, { recursive: true });
 
 async function minifyTree(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {

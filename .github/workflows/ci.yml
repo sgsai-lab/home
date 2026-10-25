@@ -29,10 +29,12 @@ jobs:
         run: npm ci
       - name: Lint and validate HTML, CSS, JavaScript, and local links
         run: npm run lint
-      - name: Test contact API validation and rate limiting
+      - name: Test API behavior and static build boundaries
         run: npm test
       - name: Build minified static site
         run: npm run build
+      - name: Validate deployed page links and dynamic fragments
+        run: npm run check:dist
       - name: Enforce Lighthouse CI budgets
         run: npm run lighthouse
       - name: Build container image
