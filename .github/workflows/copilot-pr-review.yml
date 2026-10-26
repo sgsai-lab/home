@@ -22,6 +22,8 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+    outputs:
+      reviewed: ${{ steps.prepare.outputs.reviewed }}
     steps:
       - name: Check out trusted base configuration
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -34,15 +36,22 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install pinned Copilot CLI
-        run: npm install --global @github/copilot@1.0.103
-
       - name: Prepare isolated review input
+        id: prepare
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         with:
           script: |
             const fs = require('node:fs/promises');
             const path = require('node:path');
+            const agentFile = '.github/agents/pr-reviewer.agent.md';
+            try {
+              await fs.access(agentFile);
+            } catch (error) {
+              if (error.code !== 'ENOENT') throw error;
+              core.notice('Skipping Copilot review: the base branch does not contain the trusted PR Reviewer agent yet.');
+              core.setOutput('reviewed', 'false');
+              return;
+            }
             const pr = context.payload.pull_request;
             const params = { ...context.repo, pull_number: pr.number };
             const { data: current } = await github.rest.pulls.get(params);
@@ -62,7 +71,7 @@ jobs:
             const directory = path.join(process.env.RUNNER_TEMP, 'copilot-review');
             await fs.mkdir(path.join(directory, '.github', 'agents'), { recursive: true });
             await fs.copyFile(
-              '.github/agents/pr-reviewer.agent.md',
+              agentFile,
               path.join(directory, '.github', 'agents', 'pr-reviewer.agent.md')
             );
             const guide = await fs.readFile('AGENTS.md', 'utf8');
@@ -81,8 +90,14 @@ jobs:
               throw new Error('Review context exceeds the 100 KB prompt limit.');
             }
             await fs.writeFile(path.join(directory, 'prompt.txt'), prompt);
+            core.setOutput('reviewed', 'true');
+
+      - name: Install pinned Copilot CLI
+        if: steps.prepare.outputs.reviewed == 'true'
+        run: npm install --global @github/copilot@1.0.103
 
       - name: Review with Copilot
+        if: steps.prepare.outputs.reviewed == 'true'
         working-directory: ${{ runner.temp }}/copilot-review
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
@@ -103,6 +118,7 @@ jobs:
           fi
 
       - name: Save review for publisher
+        if: steps.prepare.outputs.reviewed == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: copilot-review
@@ -112,6 +128,7 @@ jobs:
 
   publish:
     needs: review
+    if: needs.review.outputs.reviewed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

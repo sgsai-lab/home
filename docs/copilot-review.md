@@ -13,8 +13,8 @@ updated, reopened, and ready-for-review pull requests.
 3. Add it under repository **Settings > Secrets and variables > Actions** as
    `COPILOT_GITHUB_TOKEN`. Never put the value in source code, comments, or logs.
 4. Merge the agent and workflow into the PR target branch. The workflow loads
-   its agent and repository guide from the PR's base commit, so that target
-   branch must contain these files before automatic reviews can succeed.
+   its agent and repository guide from the PR's base commit. Until the target
+   branch contains the agent, runs pass with a notice and skip the review.
 5. Open or update a non-draft PR from a branch in this repository. Look for the
    **Copilot PR review** Actions run and its bot comment.
 
