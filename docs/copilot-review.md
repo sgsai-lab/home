@@ -35,16 +35,29 @@ the workflow visibly instead of producing a successful-looking review.
   publishing job has `pull-requests: write` and `issues: write` and never
   receives the Copilot secret.
 - The checkout does not persist credentials. PR code is retrieved as diff text
-  for the prompt and is never installed, built, or executed; the only install is
-  the pinned Copilot CLI from the npm registry. Agent and setup configuration
-  come from the PR merge commit: because same-repo pull requests already control
-  this workflow file, reading them from the base branch would add no protection.
+  for the prompt and is never installed or built; the only install is the
+  pinned Copilot CLI from the npm registry, and the only repository code run is
+  the workflow-owned [review-diff helper](../scripts/review-diff.mjs). Agent,
+  helper, and setup configuration come from the PR merge commit: because
+  same-repo pull requests already control this workflow file, reading them from
+  the base branch would add no protection.
 - Copilot runs in an isolated temporary directory with a fresh configuration
   directory, no tools, no built-in MCP servers, and no implicit custom
   instructions or repository hooks copied from the checkout.
-- The agent receives the repository guide and the entire diff.
-  Diffs over 60,000 UTF-8 bytes or prompts over 100,000 bytes fail explicitly;
-  input is never silently truncated. Split oversized PRs or review them manually.
+- The agent receives the repository guide and the diff. Diffs larger than
+  60,000 UTF-8 bytes are split into parts of at most 60,000 bytes on file and
+  hunk boundaries (oversized hunks get recomputed headers, so line numbers stay
+  exact). Each part is reviewed separately, up to four in parallel, with the
+  list of all changed files as context. Generated lockfiles and binary files
+  are not sent, and they are listed under Limitations. Diffs that need more
+  than 16 parts, prompts over 100,000 bytes, or a single line too long for a
+  part fail explicitly. Input is never silently truncated. Each part is a
+  separate Copilot request, so large PRs use more of the token owner's quota.
+- Part reviews are merged into one review: findings are sorted by severity,
+  duplicate verification steps are removed, and Limitations notes that changes
+  spanning several parts may be missed. Any failed, empty, or malformed part
+  fails the job. If the merged review is too large for the comment, the
+  lowest-severity findings are dropped and the review says how many.
 - One marked bot comment is created and updated, with the reviewed commit SHA.
   Concurrent runs are cancelled, and a changed, closed, or draft PR is checked
   again before publishing so known-stale reviews are not posted.
@@ -84,7 +97,8 @@ terminal and strips the required headings. Agent changes take effect
 on the PR that makes them and on every PR after they reach the target branch.
 
 Validate the workflow with `actionlint .github/workflows/ci.yml`
-and run the standard repository checks from [AGENTS.md](../AGENTS.md). A full
+and run the standard repository checks from [AGENTS.md](../AGENTS.md).
+`test/review-diff.test.mjs` covers diff splitting and review merging. A full
 end-to-end check requires the secret and a real PR: confirm that a new push
 updates the same comment, draft/fork runs are skipped, and authentication
 failures leave a failed Actions run. No local test can establish that the

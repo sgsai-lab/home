@@ -23,7 +23,7 @@ SGS AI Technology website: framework-free, multi-page HTML/CSS/JavaScript plus a
 | `src/server/` (other) | `http.mjs` helpers and router, `security.mjs` (scrypt, TOTP, AES-GCM), `authz.mjs` (workspace roles), `validation.mjs`, `mail.mjs`, `storage.mjs` (GCS), `audit.mjs` |
 | `config/firestore/` | Firestore rules (deny all client access) and indexes, applied by the infrastructure repo |
 | `config/nginx.conf` | Routing, CSP, caching, API proxy |
-| `scripts/` | `build.mjs`, `check-links.mjs`, `preview.mjs`, `check-container.sh` |
+| `scripts/` | `build.mjs`, `check-links.mjs`, `preview.mjs`, `check-container.sh`, `review-diff.mjs` (CI Copilot review splitting) |
 | `test/` | `node:test` suites |
 | `docs/` | [architecture](docs/architecture.md), [deployment](docs/deployment.md), [API](docs/api.md), [data model](docs/data-model.md), [runbook](docs/runbook-firestore-gcs.md), [ADR-002](docs/adr/0002-firestore-first-data-platform.md) |
 | `infra/gcp/terraform/` | Infrastructure. Never edit or delete local state/plan/tfvars files. |
