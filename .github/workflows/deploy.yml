@@ -3,6 +3,20 @@ name: Deploy website to Cloud Run
 on:
   push:
     branches: [main]
+    # Deploy only when the production image or its rollout changes. CI, docs,
+    # agents, skills, tests, infra, and other tooling changes do not redeploy.
+    paths:
+      - public/**
+      - src/**
+      - config/**
+      - scripts/build.mjs
+      - package.json
+      - package-lock.json
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/deploy.yml
+  # Manual redeploy of main, e.g. after changing repository variables or secrets.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,6 +28,7 @@ concurrency:
 
 jobs:
   build-publish-deploy:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
     permissions:
