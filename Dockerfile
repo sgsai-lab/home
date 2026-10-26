@@ -1,8 +1,11 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
+# Install dependencies before copying source so this layer stays cached until the lockfile changes.
+COPY package.json package-lock.json ./
+RUN npm ci
 COPY . .
-RUN npm ci && npm run build && npm prune --omit=dev
+RUN npm run build && npm prune --omit=dev
 
 # Final Stage: Nginx
 FROM nginxinc/nginx-unprivileged:stable-alpine

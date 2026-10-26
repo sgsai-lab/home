@@ -33,4 +33,4 @@ Explain the user-visible change and verification, include screenshots for visual
 
 ## Ownership and repository protections
 
-The repository has no verified individual or team owner configured in CODEOWNERS yet. A repository administrator must add the correct GitHub team or users before code-owner review can be enforced. Branch protection, required reviews/checks, 2FA, secret scanning, push protection, Dependabot security updates, and production-environment reviewers are repository/organization settings; see README.md for the owner setup checklist. This repository configuration does not modify other repositories.
+The repository has no verified individual or team owner configured in CODEOWNERS yet. A repository administrator must add the correct GitHub team or users before code-owner review can be enforced. Branch protection, required reviews/checks, 2FA, secret scanning, push protection, and production-environment reviewers are repository/organization settings (Dependabot is intentionally disabled); see README.md for the owner setup checklist. This repository configuration does not modify other repositories.

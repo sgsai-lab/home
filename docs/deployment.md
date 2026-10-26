@@ -46,9 +46,9 @@ SMTP settings and operational limitations are documented in [README.md](../READM
 
 ## CI and release
 
-[Website CI](../.github/workflows/ci.yml) installs locked dependencies, runs lint and tests, builds the site, checks built links, enforces Lighthouse budgets, and builds and smoke-tests the image.
+[Website CI](../.github/workflows/ci.yml) restores cached locked dependencies (installing only when `package-lock.json`, Node, or the runner changes), runs lint and tests, builds the site, checks built links, and builds and smoke-tests the image. Lighthouse budgets run locally with `npm run lighthouse`, not in CI.
 
-[Production deployment](../.github/workflows/deploy.yml) builds a commit-SHA-tagged image, runs the container smoke test, authenticates through Workload Identity Federation, pushes to Artifact Registry, and deploys Cloud Run through the `production` environment. Protect the default branch and require CI and production approval gates through repository settings. Deployment does not itself wait for the separate CI workflow; those protections are important.
+[Production deployment](../.github/workflows/deploy.yml) builds a commit-SHA-tagged image, runs the container smoke test, authenticates through Workload Identity Federation, pushes to Artifact Registry, and deploys Cloud Run through the `production` environment. Both workflows build through the shared [build-site-image](../.github/actions/build-site-image/action.yml) action, which reuses Docker layers from the GitHub Actions cache. Protect the default branch and require CI and production approval gates through repository settings. Deployment does not itself wait for the separate CI workflow; those protections are important.
 
 Retain the last known-good image and revision. Review changes to Nginx, the Dockerfile, runtime configuration, and Terraform as operational changes, not just static content updates. Do not commit build output, credentials, Terraform state, saved plans, or local variable files.
 
