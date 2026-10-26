@@ -5,6 +5,9 @@ on:
     branches: [main]
     # Deploy only when the production image or its rollout changes. CI, docs,
     # agents, skills, tests, infra, and other tooling changes do not redeploy.
+    # .github/actions/** and scripts/check-container.sh are excluded: they gate
+    # the deploy but ship nothing, and CI runs them on every PR before merge.
+    # test/deploy.test.mjs fails if a Dockerfile or build input is missing here.
     paths:
       - public/**
       - src/**
