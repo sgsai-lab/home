@@ -117,7 +117,7 @@ Weeks are the existing sprint convention (`week-N` labels, `Week N - …` milest
 | 1 · Workspaces | **Week 4 - Client Workspaces** | Admin can create a client and invite people; invitee signs in and sees their workspace | WEB-24…WEB-27, INF-13 closed |
 | 2 · Catalog | **Week 5 - Catalog & Launch Links** | Projects/products/services per client; `/products/` driven by data; `/go/{slug}` live | WEB-29…WEB-32 closed; first real client onboarded |
 | 3 · Media | **Week 6 - Media & Storage** | Logos, covers, icons, documents stored in GCS via signed URLs | INF-12, WEB-34, WEB-35 closed |
-| 4 · Mobile hub | **Week 7 - Mobile Hub** | Flutter app: sign in → workspace → launch PWA; deep links | APP-11…APP-14, WEB-40 closed; internal build distributed (`mobile-app#10`) |
+| 4 · Mobile hub | **Week 7 - Mobile Hub** | Flutter app: sign in → workspace → launch PWA; deep links | APP-11…APP-14, WEB-40, WEB-41 closed; internal build distributed (`mobile-app#10`) |
 | 5 · Harden & launch | **Week 8 - Hardening & Launch** | Audit log, rate limits, alerts, Lighthouse in CI, docs; website PWA | WEB-36, WEB-37, WEB-39, APP-15/16, API-18 closed |
 
 ### Now / Next / Later
@@ -187,6 +187,7 @@ Prefixes continue the existing numbering: `WEB-12+` (`home`), `INF-12+` (`infras
 | [WEB-38](https://github.com/sgsai-lab/home/issues/71) | home | Sector profiles: business engagement vs education programme fields and templates | feature | P2 | 5 |
 | [WEB-39](https://github.com/sgsai-lab/home/issues/72) | home | Docs: data model, API reference, Firestore/GCS runbook, privacy notice update | documentation | P2 | 8 |
 | [WEB-40](https://github.com/sgsai-lab/home/issues/73) | home | Serve `/.well-known/assetlinks.json` and `apple-app-site-association` for mobile deep links | feature | P1 | 7 |
+| [WEB-41](https://github.com/sgsai-lab/home/issues/75) | home | Sign in with Apple on Android: web-flow callback `/api/v1/auth/apple/callback` | feature | P1 | 7 |
 | [INF-12](https://github.com/sgsai-lab/infrastructure/issues/12) | infrastructure | Provision GCS media buckets with CORS, lifecycle, versioning and a signing service account | setup | P1 | 6 |
 | [INF-13](https://github.com/sgsai-lab/infrastructure/issues/13) | infrastructure | Firestore: TTL policies, composite indexes, backups and budget alert | setup | P1 | 4 |
 | [INF-14](https://github.com/sgsai-lab/infrastructure/issues/14) | infrastructure | Pause Cloud SQL (INF-08) pending ADR-002; record the decision | decision | P1 | 3 |
