@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { account, call, PASSWORD, start, tokenFrom } from './helpers.mjs';
 import { hashPassword, totpCode, verifyPassword } from '../src/server/security.mjs';
-import { findUserByEmail, setMemoryFallbackAllowed, setFirestoreInstance, setFirestoreDisabled } from '../src/server/db.mjs';
+import { findUserByEmail, newUser, saveUser, setMemoryFallbackAllowed, setFirestoreInstance, setFirestoreDisabled } from '../src/server/db.mjs';
 
 const signup = (baseUrl, body = {}) => call(baseUrl, '/api/v1/auth/signup', {
   method: 'POST',
@@ -322,4 +322,18 @@ test('password hashes with foreign or malformed parameters fail closed instead o
   assert.equal(await verifyPassword(PASSWORD, `scrypt$1048576$8$1$${salt}$${key}`), false, 'expensive parameters are refused');
   assert.equal(await verifyPassword(PASSWORD, `scrypt$3$8$1$${salt}$${key}`), false, 'invalid parameters are refused');
   assert.equal(await verifyPassword(PASSWORD, 'scrypt$garbage'), false);
+});
+
+test('accounts created before account status existed can still sign in (and get admin)', async (t) => {
+  const { baseUrl } = await start(t, { env: { ADMIN_EMAILS: 'founder@sgs.test' } });
+  const legacy = { ...newUser({ email: 'founder@sgs.test', name: 'Founder', provider: 'password', emailVerified: true }), password_hash: await hashPassword(PASSWORD) };
+  delete legacy.status;
+  await saveUser(legacy);
+
+  const signedIn = await login(baseUrl, 'founder@sgs.test');
+  assert.equal(signedIn.status, 200, JSON.stringify(signedIn.data));
+  assert.equal(signedIn.data.user.role, 'admin');
+  const me = await call(baseUrl, '/api/v1/users/me', { token: signedIn.data.access_token });
+  assert.equal(me.status, 200);
+  assert.equal(me.data.status, 'active');
 });

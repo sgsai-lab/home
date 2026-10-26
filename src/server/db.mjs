@@ -210,22 +210,27 @@ export function newId(prefix) {
 
 // --- Users -----------------------------------------------------------------------
 
+/** Accounts created before account status existed have no `status`; they are active. */
+function withStatus(user) {
+  return user && !user.status ? { ...user, status: 'active' } : user;
+}
+
 export async function getUserById(id) {
-  return getDoc('users', id);
+  return withStatus(await getDoc('users', id));
 }
 
 export async function findUserByEmail(email) {
   const normalized = String(email).toLowerCase().trim();
   const [user] = await queryDocs('users', { where: [['email', '==', normalized]], limit: 1 });
-  return user ?? null;
+  return withStatus(user ?? null);
 }
 
 export async function findUserByProvider(provider, providerId) {
   const id = String(providerId);
   const [linked] = await queryDocs('users', { where: [[`${provider}_sub`, '==', id]], limit: 1 });
-  if (linked) return linked;
+  if (linked) return withStatus(linked);
   const [legacy] = await queryDocs('users', { where: [['provider', '==', provider], ['provider_id', '==', id]], limit: 1 });
-  return legacy ?? null;
+  return withStatus(legacy ?? null);
 }
 
 export async function saveUser(user) {
