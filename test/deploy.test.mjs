@@ -9,8 +9,8 @@ const read = (filename) => readFile(path.join(root, filename), 'utf8');
 
 function deployPaths(workflow) {
   // Tolerate any indentation, quoted patterns, and trailing comments.
-  const block = workflow.match(/^( +)paths:[ \t]*(?:#.*)?\n((?:\1 +(?:#.*|- .+)\n)+)/m);
-  assert.ok(block, 'deploy.yml push trigger must declare a paths list');
+  const block = workflow.match(/^( +)paths:[ \t]*(?:#.*)?\n((?:\1 +(?:#.*|- .+)\n|[ \t]*\n)+)/m);
+  assert.ok(block, 'deploy.yml push trigger must declare a block-style paths list (one "- pattern" per line)');
   return block[2].split('\n')
     .map((line) => line.trim())
     .filter((line) => line.startsWith('- '))
