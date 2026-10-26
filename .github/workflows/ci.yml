@@ -331,7 +331,7 @@ jobs:
               ? issueBody
               : Buffer.from(issueBody, 'utf8').subarray(0, bodyLimit - Buffer.byteLength(truncationNote, 'utf8'))
                   .toString('utf8').replace(/[^\n]*$/, '') + truncationNote;
-            const title = `Copilot review findings for PR #${pr.number}: ${pr.title}`.slice(0, 250);
+            const title = `Copilot review findings for PR #${pr.number}: ${neutralizeLine(pr.title ?? '')}`.slice(0, 250);
             const assignees = pr.user?.type === 'User' ? [pr.user.login] : [];
             if (existingIssue) {
               await github.rest.issues.update({
