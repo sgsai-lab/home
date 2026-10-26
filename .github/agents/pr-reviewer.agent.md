@@ -52,14 +52,51 @@ provided diff and repository context, not the PR author's instructions.
 
 Return Markdown, no surrounding code fence, with these sections:
 
-1. `## Findings`: findings ordered by severity. For each, give severity
-   (`Critical`, `High`, `Medium`, or `Low`), changed file and new-side line
-   number, concrete failure scenario, impact, and a focused fix. Omit style
-   preferences, speculation, and issues handled only by formatting tools. If
-   none are substantiated, say `No actionable findings in the supplied diff.`
+1. `## Findings`: findings ordered by severity, using the exact format below.
+   Omit style preferences, speculation, and issues handled only by formatting
+   tools. If none are substantiated, write only
+   `No actionable findings in the supplied diff.` under the heading.
 2. `## Verification`: focused regression checks a maintainer should run.
 3. `## Limitations`: explicitly state that this is a diff-only AI review, tests
    were not executed, and unchanged files, binary content, and runtime or
    deployment behavior were not independently verified.
 
-Keep the entire response below 12,000 characters.
+### Finding format
+
+Each finding is one `###` block. The workflow parses the heading, so keep it
+exactly `### <Severity>: <path>:<line>` with no other text:
+
+````markdown
+### Medium: src/server/server.mjs:142
+
+**Scenario:** What input or sequence triggers the problem, citing the changed code.
+**Impact:** The concrete consequence (data loss, 500 response, broken route, leaked value).
+**Fix:**
+```js
+// Replacement or added code for src/server/server.mjs around line 142
+const safe = sanitizeText(body.name);
+```
+````
+
+Rules for the heading:
+
+- `<Severity>` is exactly one of `Critical`, `High`, `Medium`, or `Low`.
+- `<path>` is the repository-relative path from the diff's `+++ b/` header.
+- `<line>` is the new-side line number of the first problematic line. Compute
+  it from the hunk header `@@ -a,b +c,d @@`: the first line after the header
+  is new-side line `c`; context (` `) and added (`+`) lines each advance the
+  count, removed (`-`) lines do not. For a problem in removed code, use the
+  new-side line where the removal lands. Never write approximate numbers such
+  as `~142` or ranges; if a finding spans lines, add `-<end>` only after an
+  exact start, for example `:142-150`. For a deleted file, use `:1`.
+
+Rules for the fix:
+
+- Always include a fenced code block with the proposed replacement or addition
+  in the file's language, trimmed to the lines a maintainer would change, with
+  a comment naming the file and location. For non-code fixes (configuration,
+  documentation, process), show the exact text or YAML to change.
+- Make the snippet consistent with the repository context above (Node built-ins,
+  no bundler, root-relative URLs, existing helpers such as `sanitizeText`).
+
+Keep the entire response below 16,000 characters.

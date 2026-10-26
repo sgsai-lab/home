@@ -177,6 +177,7 @@ jobs:
     timeout-minutes: 5
     permissions:
       pull-requests: write
+      issues: write
     steps:
       - name: Download review
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -232,4 +233,83 @@ jobs:
               await github.rest.issues.createComment({
                 ...context.repo, issue_number: pr.number, body
               });
+            }
+
+            // File (or refresh) one tracking issue per PR for Critical/High/Medium findings.
+            const trackedSeverities = ['Critical', 'High', 'Medium'];
+            // Fence-aware scan: fix snippets may contain lines that look like headings.
+            const findingBlocks = [];
+            let inFence = false;
+            let inFindings = false;
+            for (const line of review.split('\n')) {
+              if (/^(```|~~~)/.test(line)) inFence = !inFence;
+              if (!inFence && /^## /.test(line)) {
+                inFindings = line === '## Findings';
+                continue;
+              }
+              if (!inFindings) continue;
+              if (!inFence && line.startsWith('### ')) findingBlocks.push([line]);
+              else if (findingBlocks.length) findingBlocks.at(-1).push(line);
+            }
+            const tracked = findingBlocks.flatMap(lines => {
+              const match = lines[0].match(/^### (Critical|High|Medium|Low): (\S+?):(\d+(?:-\d+)?)\s*$/);
+              if (!match) {
+                core.warning(`Unparseable finding heading skipped: ${lines[0]}`);
+                return [];
+              }
+              const [, severity, file, line] = match;
+              return trackedSeverities.includes(severity)
+                ? [{ severity, file, line, block: lines.join('\n').trim() }]
+                : [];
+            });
+            const issueMarker = `<!-- sgsai-copilot-pr-review-issue:${pr.number} -->`;
+            const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+              ...context.repo, state: 'open', creator: 'github-actions[bot]', per_page: 100
+            });
+            const existingIssue = openIssues.find(issue =>
+              !issue.pull_request && issue.body?.startsWith(issueMarker)
+            );
+            if (tracked.length === 0) {
+              if (existingIssue) {
+                await github.rest.issues.createComment({
+                  ...context.repo, issue_number: existingIssue.number,
+                  body: `No Critical, High, or Medium findings remain at commit \`${pr.head.sha}\`. Closing automatically.`
+                });
+                await github.rest.issues.update({
+                  ...context.repo, issue_number: existingIssue.number, state: 'closed', state_reason: 'completed'
+                });
+              }
+              return;
+            }
+            const counts = trackedSeverities
+              .map(severity => [severity, tracked.filter(finding => finding.severity === severity).length])
+              .filter(([, count]) => count > 0)
+              .map(([severity, count]) => `${count} ${severity}`)
+              .join(', ');
+            const locations = tracked.map(finding =>
+              `- **${finding.severity}** [\`${finding.file}:${finding.line}\`](${pr.head.repo.html_url}/blob/${pr.head.sha}/${finding.file}#L${finding.line.split('-')[0]})`
+            ).join('\n');
+            const issueBody = [
+              issueMarker,
+              `Automated Copilot review of #${pr.number} found **${counts}** finding(s) at commit \`${pr.head.sha}\`.`,
+              `Each finding below includes the file, new-side line number, and a suggested fix. The body is refreshed on every reviewed push and the issue closes automatically when no Critical, High, or Medium findings remain.`,
+              `## Locations\n\n${locations}`,
+              `## Findings\n\n${tracked.map(finding => finding.block).join('\n\n')}`,
+              '---\nAI-generated advisory findings. Verify each one before changing code.'
+            ].join('\n\n');
+            if (Buffer.byteLength(issueBody, 'utf8') > 60000) {
+              throw new Error('Copilot findings exceed the 60 KB issue body limit.');
+            }
+            const title = `Copilot review findings for PR #${pr.number}: ${pr.title}`.slice(0, 250);
+            const assignees = pr.user?.type === 'User' ? [pr.user.login] : [];
+            if (existingIssue) {
+              await github.rest.issues.update({
+                ...context.repo, issue_number: existingIssue.number, title, body: issueBody, assignees
+              });
+              core.notice(`Updated findings issue #${existingIssue.number}.`);
+            } else {
+              const { data: created } = await github.rest.issues.create({
+                ...context.repo, title, body: issueBody, assignees
+              });
+              core.notice(`Created findings issue #${created.number}.`);
             }

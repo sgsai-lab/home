@@ -32,8 +32,8 @@ the workflow visibly instead of producing a successful-looking review.
 - Fork PRs, drafts, and Dependabot-triggered runs are skipped. Review those
   changes manually; do not switch to `pull_request_target` to expose the secret.
 - The review job has only `contents: read` and `pull-requests: read`; a separate
-  publishing job has only `pull-requests: write` and never receives the Copilot
-  secret.
+  publishing job has `pull-requests: write` and `issues: write` and never
+  receives the Copilot secret.
 - The checkout does not persist credentials. PR code is retrieved as diff text
   for the prompt and is never installed, built, or executed; the only install is
   the pinned Copilot CLI from the npm registry. Agent and setup configuration
@@ -48,9 +48,19 @@ the workflow visibly instead of producing a successful-looking review.
 - One marked bot comment is created and updated, with the reviewed commit SHA.
   Concurrent runs are cancelled, and a changed, closed, or draft PR is checked
   again before publishing so known-stale reviews are not posted.
-- Output must include Findings, Verification, and Limitations sections. Empty,
-  malformed, or oversized reviews fail rather than being posted as a clean bill
-  of health. Findings are advisory, not an approval or a branch-protection gate.
+- Output must include Findings, Verification, and Limitations sections. Each
+  finding is a `### <Severity>: <path>:<line>` block with a scenario, impact,
+  and a fenced code snippet for the fix; `<line>` is the exact new-side line
+  number. Empty, malformed, or oversized reviews fail rather than being posted
+  as a clean bill of health. Findings are advisory, not an approval or a
+  branch-protection gate.
+- Critical, High, and Medium findings also open one tracking issue per PR,
+  assigned to the PR author, titled `Copilot review findings for PR #<n>`. The
+  issue body (locations, findings, and fixes) is refreshed on each reviewed
+  push, and the issue is closed automatically with a comment when a later
+  review has no remaining Critical/High/Medium findings. Low findings appear
+  only in the PR comment. Findings whose heading does not match the format are
+  skipped with a workflow warning.
 - This is a diff-only AI review, not GitHub's native Copilot code review.
   Unchanged source, binary content, and runtime behavior are not independently
   inspected. Existing CI and human review remain necessary.
