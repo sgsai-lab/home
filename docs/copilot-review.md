@@ -1,0 +1,76 @@
+# Automatic Copilot PR review
+
+The [PR Reviewer agent](../.github/agents/pr-reviewer.agent.md) runs through
+[Copilot PR review](../.github/workflows/copilot-pr-review.yml) on opened,
+updated, reopened, and ready-for-review pull requests.
+
+## Enable it
+
+1. Use a GitHub account with an active Copilot subscription, CLI access, and any
+   required organization policy approval.
+2. Create a **fine-grained personal access token** with the **Copilot Requests**
+   account permission. Do not grant repository write access to this token.
+3. Add it under repository **Settings > Secrets and variables > Actions** as
+   `COPILOT_GITHUB_TOKEN`. Never put the value in source code, comments, or logs.
+4. Merge the agent and workflow into the PR target branch. The workflow loads
+   its agent and repository guide from the PR's base commit, so that target
+   branch must contain these files before automatic reviews can succeed.
+5. Open or update a non-draft PR from a branch in this repository. Look for the
+   **Copilot PR review** Actions run and its bot comment.
+
+This repository currently has a personal-account owner, so the workflow uses a
+PAT rather than organization-billed Copilot `GITHUB_TOKEN` authentication.
+The normal Actions token publishes the comment; it is not the Copilot token.
+Copilot usage is billed against the token owner's plan and limits. Rotate the
+secret before its token expires. Missing/expired tokens or exhausted usage fail
+the workflow visibly instead of producing a successful-looking review.
+
+## Behavior and safeguards
+
+- Fork PRs, drafts, and Dependabot-triggered runs are skipped. Review those
+  changes manually; do not switch to `pull_request_target` to expose the secret.
+- The review job has only `contents: read` and `pull-requests: read`; a separate
+  publishing job has only `pull-requests: write` and never receives the Copilot
+  secret.
+- Only trusted base-branch configuration is checked out. PR code is retrieved
+  as diff text, never checked out, installed, built, or executed.
+- Copilot runs in an isolated temporary directory with a fresh configuration
+  directory, no tools, no built-in MCP servers, and no implicit custom
+  instructions or repository hooks copied from the checkout.
+- The agent receives the base branch's repository guide and the entire diff.
+  Diffs over 60,000 UTF-8 bytes or prompts over 100,000 bytes fail explicitly;
+  input is never silently truncated. Split oversized PRs or review them manually.
+- One marked bot comment is created and updated, with the reviewed commit SHA.
+  Concurrent runs are cancelled, and a changed, closed, or draft PR is checked
+  again before publishing so known-stale reviews are not posted.
+- Output must include Findings, Verification, and Limitations sections. Empty,
+  malformed, or oversized reviews fail rather than being posted as a clean bill
+  of health. Findings are advisory, not an approval or a branch-protection gate.
+- This is a diff-only AI review, not GitHub's native Copilot code review.
+  Unchanged source, binary content, and runtime behavior are not independently
+  inspected. Existing CI and human review remain necessary.
+
+You can also select **PR Reviewer** in Copilot's custom-agent picker and supply a
+diff manually. It intentionally has no tools in either mode.
+
+## Maintenance and verification
+
+The CLI version and action commit SHAs are pinned in the workflow. Update them
+deliberately and verify CLI flags before upgrading. Agent changes take effect
+only after they reach the target branch.
+
+Validate the workflow with `actionlint .github/workflows/copilot-pr-review.yml`
+and run the standard repository checks from [AGENTS.md](../AGENTS.md). A full
+end-to-end check requires the secret and a real PR: confirm that a new push
+updates the same comment, draft/fork runs are skipped, and authentication
+failures leave a failed Actions run. No local test can establish that the
+repository secret or Copilot billing is configured correctly.
+
+To disable automation, remove or disable **Copilot PR review** in Actions.
+Removing the token alone intentionally causes eligible review runs to fail.
+
+References:
+
+- [Copilot CLI in Actions](https://docs.github.com/en/copilot/how-tos/copilot-cli/automate-copilot-cli/automate-with-actions)
+- [Programmatic CLI options](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-programmatic-reference)
+- [Custom agent configuration](https://docs.github.com/en/copilot/reference/custom-agents-configuration)
