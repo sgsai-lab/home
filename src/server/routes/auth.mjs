@@ -184,7 +184,10 @@ export async function requireReauth(ctx, user, session, input) {
     throw new HttpError(403, 'REAUTH_FAILED', 'That password is not correct.');
   }
   if (typeof input.code === 'string' && input.code) {
-    if (user.mfa?.enabled && await checkSecondFactor(ctx, user, { code: input.code })) return;
+    if (user.mfa?.enabled) {
+      if (await checkSecondFactor(ctx, user, { code: input.code })) return;
+      await recordMfaFailure(user);
+    }
     throw new HttpError(403, 'REAUTH_FAILED', 'That code is not correct.');
   }
   if (!user.password_hash && !user.mfa?.enabled && session.session_id) {

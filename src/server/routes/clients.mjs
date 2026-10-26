@@ -250,12 +250,19 @@ export async function acceptInviteForUser(invite, user) {
   const { before } = await updateDoc('invites', invite.id, (current) => (current && !current.accepted_at ? { ...current, accepted_at: acceptedAt, accepted_by: user.id } : undefined));
   if (!before || before.accepted_at) throw new HttpError(410, 'INVITE_CONSUMED', 'This invitation has already been used.');
   const id = membershipId(invite.client_id, user.id);
-  const existing = await getDoc('memberships', id);
-  // Accepting never downgrades someone who is already a member.
-  const role = existing?.status === 'active' && roleAtLeast(existing.role, invite.role) ? existing.role : invite.role;
-  await setDoc('memberships', id, {
-    client_id: invite.client_id, user_id: user.id, role, status: 'active', invited_by: invite.invited_by, joined_at: existing?.joined_at ?? new Date().toISOString()
-  });
+  let role;
+  try {
+    const existing = await getDoc('memberships', id);
+    // Accepting never downgrades someone who is already a member.
+    role = existing?.status === 'active' && roleAtLeast(existing.role, invite.role) ? existing.role : invite.role;
+    await setDoc('memberships', id, {
+      client_id: invite.client_id, user_id: user.id, role, status: 'active', invited_by: invite.invited_by, joined_at: existing?.joined_at ?? new Date().toISOString()
+    });
+  } catch (error) {
+    // The invite was claimed first so it cannot be used twice; release the claim so the user can retry.
+    await updateDoc('invites', invite.id, (current) => (current?.accepted_at === acceptedAt && current.accepted_by === user.id ? { ...current, accepted_at: null, accepted_by: null } : undefined)).catch(() => {});
+    throw error;
+  }
   if (!user.default_client_id) await updateUser(user.id, { default_client_id: invite.client_id });
   return role;
 }

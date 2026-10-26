@@ -145,11 +145,11 @@ async function attach(ctx, asset) {
 
 async function detach(ctx, asset) {
   if (asset.purpose === 'logo') {
-    await updateDoc('clients', asset.owner_id, (client) => (client?.branding?.logo_asset_id === asset.id ? { ...client, branding: { ...client.branding, logo_asset_id: null } } : undefined));
+    await updateDoc('clients', asset.owner_id, (client) => (client?.branding?.logo_asset_id === asset.id ? { ...client, branding: { ...client.branding, logo_asset_id: null }, updated_at: new Date().toISOString() } : undefined));
   } else if (asset.purpose === 'cover') {
-    await updateDoc('projects', asset.owner_id, (project) => (project?.cover_asset_id === asset.id ? { ...project, cover_asset_id: null } : undefined));
+    await updateDoc('projects', asset.owner_id, (project) => (project?.cover_asset_id === asset.id ? { ...project, cover_asset_id: null, version: (project.version ?? 1) + 1, updated_at: new Date().toISOString() } : undefined));
   } else if (asset.purpose === 'icon') {
-    const { after } = await updateDoc('products', asset.owner_id, (product) => (product?.icon_asset_id === asset.id ? { ...product, icon_asset_id: null } : undefined));
+    const { after } = await updateDoc('products', asset.owner_id, (product) => (product?.icon_asset_id === asset.id ? { ...product, icon_asset_id: null, updated_at: new Date().toISOString() } : undefined));
     if (after) await syncPublicIcon(ctx.deps.storage, after);
   }
 }
@@ -201,9 +201,9 @@ async function listAssets(ctx) {
 async function deleteAsset(ctx) {
   const { user, asset } = await loadAsset(ctx, 'admin');
   ctx.limit('mutations', user.id);
+  await detach(ctx, asset);
   if (ctx.deps.storage.configured) await ctx.deps.storage.remove(asset.status === 'ready' ? asset.gcs_object : asset.gcs_pending_object ?? asset.gcs_object);
   await deleteDoc('assets', asset.id);
-  await detach(ctx, asset);
   await ctx.audit('asset.deleted', { type: 'asset', id: asset.id }, { actorId: user.id, clientId: asset.client_id, diff: { purpose: asset.purpose } });
   return ctx.send(200, { ok: true });
 }

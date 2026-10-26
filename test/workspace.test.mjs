@@ -269,11 +269,12 @@ test('launch links: client apps require a member launch token, events are record
   assert.equal(open.status, 302);
   assert.equal(new URL(open.headers.get('location')).searchParams.get('utm_medium'), 'link');
 
-  await call(baseUrl, `/api/v1/products/${portal.id}`, { method: 'PATCH', token: admin.token, body: { status: 'retired' } });
+  await call(baseUrl, `/api/v1/products/${portal.id}`, { method: 'PATCH', token: admin.token, body: { status: 'retired', name: 'Portal & Co' } });
   const retired = await call(baseUrl, '/go/learning-portal');
   assert.equal(retired.status, 410);
   assert.match(retired.data, /retired/);
-  assert.match(retired.data, /office@riverside\.example/);
+  assert.match(retired.data, /href="mailto:office@riverside\.example"/);
+  assert.match(retired.data, /Portal &#38; Co is no longer available/, 'product names are escaped');
   assert.equal((await call(baseUrl, '/go/does-not-exist')).status, 404);
   assert.equal((await call(baseUrl, '/go/%3Cscript%3E')).status, 404);
 });

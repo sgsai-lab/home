@@ -71,7 +71,9 @@ test('sitemap, robots, analytics allowlists and Lighthouse cover exactly the ind
   const { ANALYTICS_PATHS } = await import('../src/server/server.mjs');
   assert.deepEqual([...ANALYTICS_PATHS].sort(), indexed, 'ANALYTICS_PATHS in src/server/server.mjs');
   const app = await readFile(path.join(root, 'public/assets/js/app.js'), 'utf8');
-  const browserPaths = JSON.parse(app.match(/const ANALYTICS_PATHS = new Set\((\[[^\]]+\])\)/)[1].replaceAll("'", '"')).sort();
+  const declaration = app.match(/const ANALYTICS_PATHS = new Set\((\[[^\]]+\])\)/);
+  assert.ok(declaration, 'ANALYTICS_PATHS declaration not found in public/assets/js/app.js');
+  const browserPaths = [...declaration[1].matchAll(/['"]([^'"]+)['"]/g)].map((match) => match[1]).sort();
   assert.deepEqual(browserPaths, indexed, 'ANALYTICS_PATHS in public/assets/js/app.js');
 
   const lighthouse = JSON.parse(await readFile(path.join(root, 'lighthouserc.json'), 'utf8')).ci.collect.url.map((url) => new URL(url).pathname).sort();

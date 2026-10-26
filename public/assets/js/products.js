@@ -7,6 +7,9 @@ const SECTOR = { business: 'Business', education: 'Education' };
 const catalogList = document.querySelector('#catalog-list');
 const productList = document.querySelector('#product-list');
 
+
+// Catalog values become link and image targets: allow only same-origin paths and https URLs.
+const safeUrl = (value) => (typeof value === 'string' && /^(\/(?!\/)|https:\/\/)/.test(value) ? value : null);
 function text(tagName, className, value) {
   const element = document.createElement(tagName);
   if (className) element.className = className;
@@ -60,8 +63,8 @@ function card(item, { notify }) {
   const article = document.createElement('article');
   article.className = 'product-card';
   const heading = document.createElement('div');
-  if (item.icon_url) {
-    const icon = Object.assign(document.createElement('img'), { src: item.icon_url, alt: '', width: 48, height: 48, loading: 'lazy', className: 'product-icon' });
+  if (safeUrl(item.icon_url)) {
+    const icon = Object.assign(document.createElement('img'), { src: safeUrl(item.icon_url), alt: '', width: 48, height: 48, loading: 'lazy', className: 'product-icon' });
     heading.append(icon);
   }
   heading.append(text('h2', '', item.name));
@@ -75,9 +78,9 @@ function card(item, { notify }) {
   if (item.summary) copy.append(text('p', '', item.summary));
   if (item.availability) copy.append(text('p', '', `Availability: ${item.availability}`));
   if (item.audience) copy.append(text('p', '', `For whom: ${item.audience}`));
-  if (item.launch_path && item.status !== 'planned') {
+  if (safeUrl(item.launch_path) && item.status !== 'planned') {
     const open = text('a', 'button button-primary', `Open ${item.name} ↗`);
-    open.href = item.launch_path;
+    open.href = safeUrl(item.launch_path);
     open.target = '_blank';
     open.rel = 'noopener';
     copy.append(open);

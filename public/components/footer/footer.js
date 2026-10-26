@@ -11,14 +11,15 @@ if (!window.sgsUpdatesFormBound) {
     if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-updates-form')) return;
     event.preventDefault();
     const status = form.querySelector('[role="status"]');
+    const submit = form.querySelector('[type="submit"]');
     const setStatus = (text, state) => {
+      if (!status) return;
       status.textContent = text;
       status.dataset.state = state;
     };
     if (!form.reportValidity()) return;
     const values = Object.fromEntries(new FormData(form).entries());
-    const submit = form.querySelector('[type="submit"]');
-    submit.disabled = true;
+    if (submit) submit.disabled = true;
     setStatus('Sending…', 'pending');
     try {
       const response = await fetch('/api/contact', {
@@ -40,7 +41,7 @@ if (!window.sgsUpdatesFormBound) {
     } catch (error) {
       setStatus(`${error instanceof Error ? error.message : 'Your request could not be sent.'} You can email hello@sgsaitechnology.com instead.`, 'error');
     } finally {
-      submit.disabled = false;
+      if (submit) submit.disabled = false;
     }
   });
 }

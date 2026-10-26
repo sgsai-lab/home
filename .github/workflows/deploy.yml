@@ -107,15 +107,21 @@ jobs:
             secret_args+=(--set-secrets "$secrets")
           fi
           # "|" delimiter (gcloud ^|^ syntax) because GOOGLE_CLIENT_IDS and similar values contain commas.
-          env_vars="GCP_PROJECT_ID=$GCP_PROJECT_ID|SMTP_HOST=$SMTP_HOST|SMTP_PORT=587|SMTP_SECURE=false|CONTACT_FROM=$CONTACT_FROM|CONTACT_TO=hello@sgsaitechnology.com"
+          env_vars=""
           add_env() {
             if [[ -z "$2" ]]; then return 0; fi
             if [[ "$2" == *"|"* ]]; then
               echo "$1 must not contain '|'." >&2
               exit 1
             fi
-            env_vars="$env_vars|$1=$2"
+            env_vars="${env_vars:+$env_vars|}$1=$2"
           }
+          add_env GCP_PROJECT_ID "$GCP_PROJECT_ID"
+          add_env SMTP_HOST "${SMTP_HOST:-}"
+          add_env SMTP_PORT 587
+          add_env SMTP_SECURE false
+          add_env CONTACT_FROM "${CONTACT_FROM:-}"
+          add_env CONTACT_TO hello@sgsaitechnology.com
           add_env GOOGLE_CLIENT_ID "${GOOGLE_CLIENT_ID:-}"
           add_env APPLE_CLIENT_ID "${APPLE_CLIENT_ID:-}"
           add_env SITE_ORIGIN "${SITE_ORIGIN:-}"

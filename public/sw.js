@@ -40,7 +40,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(fetch(request).then((response) => {
       if (response.ok && !url.pathname.startsWith('/go/') && SHELL.includes(url.pathname)) {
         const copy = response.clone();
-        caches.open(SHELL_CACHE).then((cache) => cache.put(request, copy));
+        caches.open(SHELL_CACHE).then((cache) => cache.put(request, copy)).catch(() => {});
       }
       return response;
     }).catch(async () => (await caches.match(request)) ?? caches.match('/offline/')));
@@ -52,7 +52,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(caches.open(SHELL_CACHE).then(async (cache) => {
       const cached = await cache.match(request);
       const network = fetch(request).then((response) => {
-        if (response.ok) cache.put(request, response.clone());
+        if (response.status === 200) cache.put(request, response.clone()).catch(() => {});
         return response;
       }).catch(() => cached);
       return cached ?? network;

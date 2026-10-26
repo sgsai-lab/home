@@ -47,3 +47,9 @@ test('the CSP allows only self plus the reviewed identity and storage origins', 
   assert.match(csp, /frame-ancestors 'none'/);
   assert.match(csp, /object-src 'none'/);
 });
+
+test('rate limits and the API see the real client, not the Cloud Run front end', () => {
+  assert.doesNotMatch(config, /X-Forwarded-For\s+\$proxy_add_x_forwarded_for/, 'appending $remote_addr would make every visitor share one address');
+  for (const zone of config.matchAll(/^limit_req_zone\s+(\S+)/gm)) assert.equal(zone[1], '$client_ip');
+  assert.match(config, /map \$http_x_forwarded_for \$client_ip \{/);
+});

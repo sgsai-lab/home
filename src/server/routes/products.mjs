@@ -267,8 +267,10 @@ async function launchStats(ctx) {
 
 // --- /go/{slug} launch links ----------------------------------------------------------
 
-function goPage(ctx, status, title, message) {
-  return html(ctx.response, status, `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${escapeHtml(title)} — SGS AI Technology</title><link rel="stylesheet" href="/assets/css/global.css"><link rel="stylesheet" href="/assets/css/account.css"></head><body><main id="main" class="auth-main"><div class="section-wrap"><div class="panel"><h1>${escapeHtml(title)}</h1><p>${message}</p><p><a class="button button-primary" href="/workspace/">Go to your workspace</a></p></div></div></main></body></html>`);
+/** `title`, `message` and `contactEmail` are plain text; everything is escaped here. */
+function goPage(ctx, status, title, message, contactEmail = null) {
+  const contact = contactEmail ? ` Contact <a href="mailto:${escapeHtml(contactEmail)}">${escapeHtml(contactEmail)}</a> for its replacement.` : '';
+  return html(ctx.response, status, `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${escapeHtml(title)} — SGS AI Technology</title><link rel="stylesheet" href="/assets/css/global.css"><link rel="stylesheet" href="/assets/css/account.css"></head><body><main id="main" class="auth-main"><div class="section-wrap"><div class="panel"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}${contact}</p><p><a class="button button-primary" href="/workspace/">Go to your workspace</a></p></div></div></main></body></html>`);
 }
 
 function withUtm(target, medium) {
@@ -285,8 +287,7 @@ async function go(ctx) {
   if (!product) return goPage(ctx, 404, 'App not found', 'This link does not point to an SGS AI app. Check the address, or open the app from your workspace.');
   if (product.status === 'retired') {
     const client = await getDoc('clients', product.client_id);
-    const contact = client?.contact?.email ? ` Contact <a href="mailto:${escapeHtml(client.contact.email)}">${escapeHtml(client.contact.email)}</a> for its replacement.` : '';
-    return goPage(ctx, 410, 'This app has been retired', `${escapeHtml(product.name)} is no longer available.${contact}`);
+    return goPage(ctx, 410, 'This app has been retired', `${product.name} is no longer available.`, client?.contact?.email);
   }
   const token = ctx.query.get('t');
   const record = token ? await consumeOneTimeToken('launch_tokens', token) : null;
@@ -297,7 +298,7 @@ async function go(ctx) {
   }
   const source = valid ? record.source : 'link';
   const target = product.launch_url || (source === 'ios' ? product.store_urls?.ios : product.store_urls?.android) || product.store_urls?.android || product.store_urls?.ios;
-  if (!target) return goPage(ctx, 404, 'Not available yet', `${escapeHtml(product.name)} does not have a launch address yet.`);
+  if (!target) return goPage(ctx, 404, 'Not available yet', `${product.name} does not have a launch address yet.`);
   const id = newId('lev');
   const now = Date.now();
   await setDoc('launch_events', id, {

@@ -126,6 +126,11 @@ async function checkPolicy(errors) {
       if (/\?v=\d/.test(await readFile(filename, 'utf8'))) {
         errors.add(`/${path.relative(root, filename)}: use ?v=__ASSET_VERSION__ (stamped by scripts/build.mjs) instead of a literal version`);
       }
+      if (filename.endsWith('.html')) {
+        for (const match of (await readFile(filename, 'utf8')).matchAll(/(?:href|src)="(\/[^"?#]+\.(?:css|js))"/g)) {
+          errors.add(`/${path.relative(root, filename)}: add ?v=__ASSET_VERSION__ to ${match[1]} so deploys refetch it`);
+        }
+      }
     }
   }
 }

@@ -43,9 +43,14 @@ export async function verifyPassword(password, stored) {
   if (typeof password !== 'string' || typeof stored !== 'string') return false;
   const [scheme, n, r, p, salt, expected] = stored.split('$');
   if (scheme !== 'scrypt' || !salt || !expected) return false;
-  const key = await scryptAsync(password.normalize('NFKC'), Buffer.from(salt, 'base64url'), KEY_LENGTH, {
-    N: Number(n), r: Number(r), p: Number(p), maxmem: SCRYPT.maxmem
-  });
+  // Stored parameters are not trusted: a foreign or corrupted hash must not choose the work factor.
+  if (Number(n) !== SCRYPT.N || Number(r) !== SCRYPT.r || Number(p) !== SCRYPT.p) return false;
+  let key;
+  try {
+    key = await scryptAsync(password.normalize('NFKC'), Buffer.from(salt, 'base64url'), KEY_LENGTH, SCRYPT);
+  } catch {
+    return false;
+  }
   const wanted = Buffer.from(expected, 'base64url');
   return wanted.length === key.length && timingSafeEqual(wanted, key);
 }
@@ -166,7 +171,9 @@ export function signState(payload, secret, ttlMs = 10 * 60 * 1000) {
 
 export function verifyState(state, secret) {
   if (!secret || typeof state !== 'string') return null;
-  const [body, signature] = state.split('.');
+  const parts = state.split('.');
+  if (parts.length !== 2) return null;
+  const [body, signature] = parts;
   if (!body || !signature) return null;
   if (!safeEqual(createHmac('sha256', secret).update(body).digest('base64url'), signature)) return null;
   try {

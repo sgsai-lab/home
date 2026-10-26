@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { account, call, PASSWORD, start, tokenFrom } from './helpers.mjs';
-import { totpCode } from '../src/server/security.mjs';
+import { hashPassword, totpCode, verifyPassword } from '../src/server/security.mjs';
 import { findUserByEmail, setMemoryFallbackAllowed, setFirestoreInstance, setFirestoreDisabled } from '../src/server/db.mjs';
 
 const signup = (baseUrl, body = {}) => call(baseUrl, '/api/v1/auth/signup', {
@@ -298,4 +298,28 @@ test('app-link association files are generated from configuration and 404 until 
   const { baseUrl: unconfigured } = await start(t);
   assert.equal((await call(unconfigured, '/.well-known/assetlinks.json')).status, 404);
   assert.equal((await call(unconfigured, '/.well-known/apple-app-site-association')).status, 404);
+});
+
+test('wrong codes during re-authentication count towards the MFA lockout', async (t) => {
+  const { baseUrl } = await start(t);
+  const { token } = await account(baseUrl, 'grace@example.com');
+  const { secret } = (await call(baseUrl, '/api/v1/auth/mfa/totp/setup', { method: 'POST', token })).data;
+  await call(baseUrl, '/api/v1/auth/mfa/totp/confirm', { method: 'POST', token, body: { code: totpCode(secret) } });
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    assert.equal((await call(baseUrl, '/api/v1/users/me', { method: 'DELETE', token, body: { code: '000000' } })).data.error.code, 'REAUTH_FAILED');
+  }
+  const locked = await call(baseUrl, '/api/v1/users/me', { method: 'DELETE', token, body: { code: totpCode(secret, Date.now() + 30_000) } });
+  assert.equal(locked.status, 429);
+  assert.equal(locked.data.error.code, 'MFA_LOCKED');
+  assert.ok(await findUserByEmail('grace@example.com'), 'the account was not deleted');
+});
+
+test('password hashes with foreign or malformed parameters fail closed instead of erroring', async () => {
+  const stored = await hashPassword(PASSWORD);
+  assert.equal(await verifyPassword(PASSWORD, stored), true);
+  const [, , , , salt, key] = stored.split('$');
+  assert.equal(await verifyPassword(PASSWORD, `scrypt$1048576$8$1$${salt}$${key}`), false, 'expensive parameters are refused');
+  assert.equal(await verifyPassword(PASSWORD, `scrypt$3$8$1$${salt}$${key}`), false, 'invalid parameters are refused');
+  assert.equal(await verifyPassword(PASSWORD, 'scrypt$garbage'), false);
 });
