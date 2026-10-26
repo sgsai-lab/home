@@ -50,22 +50,30 @@ This plan turns the SGS AI website from a marketing site with a half-wired accou
 
 ## 5. Architecture decisions
 
-### ADR-002 (proposed): Firestore first, Postgres later; `home` owns `/api/v1` for the web hub
-- **Context.** `home` runs a Node API with Firestore + in-memory fallback. `backend-api` (FastAPI) has decided on Postgres and backend-owned auth (`backend-api#7`, ADR-001) and `infrastructure#8` provisions Cloud SQL. The web frontend was written against the `backend-api` contract (`/auth/signup`, `/auth/mfa/*`, `/users`, `/projects`) that `home` never implemented. Two backends and two databases for one product is the current risk.
-- **Decision (to confirm).** For the next 6 weeks, `home`'s Node API implements the full contract on **Firestore** so web and mobile ship against one live backend. `backend-api` keeps the same URL contract and error envelope so `API_UPSTREAM` can be switched later. Postgres/Cloud SQL is deferred; `infrastructure#8` is paused until ADR-002 is accepted.
-- **Consequences.** `backend-api#15/#16` (projects/products CRUD) must adopt the client-scoped model below. Mobile (`mobile-app#7`) authenticates with the `/api/v1/auth/*` endpoints, not the Firebase Auth SDK, unless the owners decide otherwise in the ADR review.
+### ADR-002 (accepted 2026-10-27): Firestore first; `home` owns `/api/v1`
+Full text with sequence diagrams: [ADR-002](../adr/0002-firestore-first-data-platform.md). Summary of the nine decisions:
+
+1. Hub users are **client staff only**; students and a client's customers never get hub accounts.
+2. Sector is **per project**; a client carries `primary_sector` for display and defaults.
+3. Mobile authenticates with **`home` tokens** through `/api/v1/auth/*` (Google Sign-In on device for the ID token; no Firebase Auth SDK).
+4. **`home`'s Node API is the system of record for `/api/v1`** for six weeks; `backend-api` pauses feature work (API-07…16) and keeps CI/deploy; Cloud SQL (`infrastructure#8`) paused.
+5. **Firestore native mode** in the Cloud Run GCP project, API-only access, Rules deny client SDKs.
+6. **Private media bucket + signed URLs; public product icons copied to `sgsai-public-assets-{env}`.**
+7. `/go/{slug}` for client-visibility products **requires sign-in**; mobile uses a single-use 60 s launch token.
+8. Mobile: internal build Week 7 (Dec 2026); **private beta Q1 2027** as published on `/products/`.
+9. The founder approves and administers; repo owners are informed through linked issues.
 
 ### Data model (Firestore, metadata only)
 
 ```text
 users/{userId}                      existing + default_client_id
-clients/{clientId}                  name, slug, sector: business|education, status: prospect|active|paused|closed,
+clients/{clientId}                  name, slug, primary_sector: business|education (display/default only), status: prospect|active|paused|closed,
                                     branding{logo_asset_id, primary_color}, contact{email, phone, website},
                                     created_by, created_at, updated_at
 clients/{clientId}/members/{userId} role: owner|admin|member|viewer, status: invited|active|removed,
                                     invited_by, joined_at           (collection-group query "memberships" for "my clients")
 invites/{inviteId}                  client_id, email, role, token_hash, expires_at (TTL), accepted_at
-projects/{projectId}                client_id, name, slug, sector, status: draft|discovery|in_progress|on_hold|delivered|archived,
+projects/{projectId}                client_id, name, slug, sector: business|education (authoritative), status: draft|discovery|in_progress|on_hold|delivered|archived,
                                     summary, start_date, end_date, tags[], owner_user_id, cover_asset_id,
                                     sector_profile{ business: {engagement_type, department} | education: {institution_type, programme, cohort, academic_year} },
                                     milestones[{title, due, done}] (≤ 20), deleted_at (soft delete, 30 days)
@@ -101,9 +109,9 @@ All errors use `{ "error": { "code", "message", "details" } }`; all mutations ar
 
 ## 6. Phases and milestones
 
-Weeks are the existing sprint convention (`week-N` labels, `Week N - …` milestones). Weeks 1–2 are done. Proposed new milestones must be created in every repo before filing.
+Weeks are the existing sprint convention (`week-N` labels, `Week N - …` milestones). Weeks 1–2 are done. Milestones and `week-3`…`week-8` labels exist in all four repos.
 
-| Phase | Milestone (proposed) | Goal | Exit criteria |
+| Phase | Milestone | Goal | Exit criteria |
 | --- | --- | --- | --- |
 | 0 · Stabilise | **Week 3 - Auth & Core APIs** (exists in `backend-api`; add to others) | No public flow returns 404; ADR-002 accepted | WEB-12…WEB-21 closed; ADR-002 merged; CSP-clean console on every page |
 | 1 · Workspaces | **Week 4 - Client Workspaces** | Admin can create a client and invite people; invitee signs in and sees their workspace | WEB-24…WEB-27, INF-13 closed |
@@ -192,10 +200,8 @@ Prefixes continue the existing numbering: `WEB-12+` (`home`), `INF-12+` (`infras
 | [API-18](https://github.com/sgsai-lab/backend-api/issues/23) | backend-api | Align projects/products modules with the client-scoped model and ADR-002 | decision | P1 | 3 |
 | [API-19](https://github.com/sgsai-lab/backend-api/issues/24) | backend-api | Spike: Firestore → Postgres migration path (export, dual-read, cut-over) | chore | P2, stretch | 8 |
 
-## 10. Open questions for the founder
+## 10. Decisions log
 
-1. Do clients' end users (e.g. students, a client's customers) ever sign in to the SGS hub, or only the client's staff? (Affects privacy, data model and app store review.)
-2. Should a client be able to belong to both sectors, or is sector per project only?
-3. Who approves ADR-002, and is pausing Cloud SQL (`infrastructure#8`) acceptable?
-4. Mobile auth: backend-owned tokens (ADR-001) or Firebase Auth SDK (current `mobile-app` README)?
-5. Is the Q1 2027 private beta date on `/products/` still the target for the mobile hub?
+All five open questions were answered by the founder on 2026-10-27 and recorded in [ADR-002](../adr/0002-firestore-first-data-platform.md). Issues edited to match: home #45, #48, #55, #57, #58, #63, #67, #72; infrastructure #12, #14; backend-api #23; mobile-app #7 (re-titled), #21, #22, #23. Decision comments posted on backend-api #7–#17, infrastructure #8, mobile-app #1 and #4.
+
+Remaining item for the repo owners (not a blocker): choose how to park backend-api #8–#17 (a `Paused` milestone or clearing the milestone) so the board stops showing them as in progress.
