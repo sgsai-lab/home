@@ -9,6 +9,24 @@ document.querySelectorAll('link[data-async-stylesheet]').forEach((preload) => {
   preload.remove();
 });
 
+// Replaced at build time with a hash of the public files (scripts/build.mjs) so fragments refetch after every change.
+const ASSET_VERSION = '__ASSET_VERSION__';
+
+// Must match ANALYTICS_PATHS in src/server/server.mjs (test/build.test.mjs enforces it).
+const ANALYTICS_PATHS = new Set(['/', '/vision/', '/services/', '/products/', '/roadmap/', '/about/', '/contact/', '/privacy/', '/terms/']);
+
+if (ANALYTICS_PATHS.has(window.location.pathname)) {
+  const pageView = JSON.stringify({ path: window.location.pathname });
+  if (!navigator.sendBeacon('/api/analytics', new Blob([pageView], { type: 'application/json' }))) {
+    fetch('/api/analytics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: pageView,
+      keepalive: true
+    }).catch(() => {});
+  }
+}
+
 const components = [
   { id: 'header-mount', path: 'components/header/header', hasCss: true, hasJs: false },
   { id: 'nav-mount', path: 'components/nav/nav', hasCss: true, hasJs: true },
@@ -27,7 +45,7 @@ async function loadComponent(comp) {
   if (!container) return;
 
   try {
-    const response = await fetch(`/${comp.path}.html?v=7`);
+    const response = await fetch(`/${comp.path}.html?v=${ASSET_VERSION}`);
     if (!response.ok) return;
 
     container.innerHTML = await response.text();
@@ -35,13 +53,13 @@ async function loadComponent(comp) {
     if (comp.hasCss) {
       const link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = `/${comp.path}.css?v=7`;
+      link.href = `/${comp.path}.css?v=${ASSET_VERSION}`;
       document.head.appendChild(link);
     }
 
     if (comp.hasJs) {
       const script = document.createElement('script');
-      script.src = `/${comp.path}.js?v=7`;
+      script.src = `/${comp.path}.js?v=${ASSET_VERSION}`;
       script.defer = true;
       document.body.appendChild(script);
     }

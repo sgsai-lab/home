@@ -1,3 +1,20 @@
+/* Self-hosted variable fonts (SIL OFL 1.1, licences in /assets/fonts/). Third-party font hosts are blocked by the CSP. */
+@font-face {
+  font-family: "DM Sans";
+  font-style: normal;
+  font-weight: 100 1000;
+  font-display: swap;
+  src: url("/assets/fonts/dm-sans-latin.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("/assets/fonts/manrope-latin.woff2") format("woff2");
+}
+
 :root {
   --ink: #0b0b0f;
   --muted: #5d6170;
@@ -485,3 +502,78 @@ main#main:not(.auth-main) { padding-top: 0 !important; }
 body .about-page,
 body .services-page,
 body .vision-page { padding-top: 0 !important; margin-top: 0 !important; }
+
+/* Spam honeypot fields: present for bots, invisible and unreachable for people. */
+.form-trap {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Inline SVG icons (replace the CSP-blocked icon font). */
+.icon {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+/* Page shell and utilities. Utilities use !important because they replace inline styles. */
+.page-main {
+  padding-top: 5px;
+  padding-bottom: 80px;
+}
+
+.u-overflow-x-hidden { overflow-x: hidden !important; }
+.u-text-center { text-align: center !important; }
+.u-text-soft { color: #a2a9b8 !important; }
+.u-inline-block { display: inline-block !important; }
+.u-inline-flex { display: inline-flex !important; }
+.u-m-0 { margin: 0 !important; }
+.u-mt-15 { margin-top: 15px !important; }
+.u-mt-20 { margin-top: 20px !important; }
+.u-mt-50 { margin-top: 50px !important; }
+.u-mt-60 { margin-top: 60px !important; }
+.u-mb-15 { margin-bottom: 15px !important; }
+.u-mb-35 { margin-bottom: 35px !important; }
+.u-mb-40 { margin-bottom: 40px !important; }
+.u-pb-60 { padding-bottom: 60px !important; }
+
+.button.button-on-dark {
+  background: #fff;
+  color: var(--ink);
+}
+
+/* 404 page */
+.not-found {
+  display: flex;
+  min-height: 70vh;
+  align-items: center;
+  justify-content: center;
+  padding-top: 150px;
+  padding-bottom: 120px;
+  text-align: center;
+}
+
+.not-found-code {
+  margin: 0;
+  background: linear-gradient(100deg, #7538c4 5%, #128fc7 48%, #10b990 94%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-family: var(--display);
+  font-size: clamp(80px, 15vw, 180px);
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.not-found-title {
+  margin: 10px 0 30px;
+  font-family: var(--display);
+  font-size: 32px;
+}

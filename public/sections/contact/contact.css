@@ -259,3 +259,28 @@
     padding: 0 26px 35px;
   }
 }
+
+.form-consent {
+  margin-top: 4px;
+}
+
+.consent-label {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.consent-label input {
+  width: auto;
+  margin-top: 3px;
+  accent-color: var(--purple);
+}
+
+.consent-label a {
+  color: var(--purple);
+  text-decoration: underline;
+}

@@ -15,8 +15,10 @@ COPY --from=builder /app/dist/ /usr/share/nginx/html/
 COPY --from=builder /app/src/server/ /app/src/server/
 COPY --from=builder /app/node_modules/ /app/node_modules/
 
+# Production never falls back to the per-process memory store: Firestore failures return 503.
 ENV API_UPSTREAM=http://127.0.0.1:3000 \
-    NGINX_ENVSUBST_FILTER=API_UPSTREAM
+    NGINX_ENVSUBST_FILTER=API_UPSTREAM \
+    ALLOW_MEMORY_DB_FALLBACK=false
 
 EXPOSE 8080
 USER nginx

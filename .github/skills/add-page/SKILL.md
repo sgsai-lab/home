@@ -19,12 +19,12 @@ Pages are static folders: `/foo/` is served from `public/foo/index.html` (Nginx 
    - Public page: classic script in `public/assets/js/<name>.js`, loaded with `defer`.
    - Account page: ES module in `public/assets/js/<route>.js`. Start from the pattern in `public/assets/js/projects.js`: `import { api, describeError, requireUser, handleSubmit, showStatus, h } from '/assets/js/auth.js';`, then wrap logic in `async function main() { const user = await requireUser(); ... }` and end with `main().catch((error) => showStatus(document.getElementById('page-status'), describeError(error)));`. No top-level `await`: `npm run build` (terser) fails on it.
 5. Wire it up (public pages only, skip what does not apply):
-   - Navigation: add `<a href="/<route>">` to `public/components/nav/nav.html`, then bump the `?v=7` fragment version in `public/assets/js/app.js`.
+   - Navigation: add `<a href="/<route>/">` (trailing slash) to `public/components/nav/nav.html`. Asset versions are stamped by the build.
    - Footer links: `public/components/footer/footer.html`.
    - SEO: add a `<url>` to `public/sitemap.xml`.
-   - Analytics: add `'/<route>/'` to `ANALYTICS_PATHS` in `src/server/server.mjs`.
+   - Analytics: add `'/<route>/'` to `ANALYTICS_PATHS` in `src/server/server.mjs` and `public/assets/js/app.js`.
    - Quality budget: add `http://127.0.0.1:4173/<route>/` to `lighthouserc.json`.
-   - Account pages instead get `<meta name="robots" content="noindex">` and stay out of the sitemap.
+   - Account pages instead get `<meta name="robots" content="noindex">`, a `Disallow:` line in `public/robots.txt`, and stay out of the sitemap. `test/build.test.mjs` checks all of these lists against the routes.
 6. Verify (see the verify-and-ship skill): `npm run lint && npm test && npm run build && npm run check:dist`, then open `npm run preview` at `http://127.0.0.1:4173/<route>/` and check header, nav, footer, mobile width, and keyboard focus.
 
 ## Rules

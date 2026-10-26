@@ -207,7 +207,7 @@ function deviceLabel(session) {
 }
 
 async function loadSessions() {
-  const sessions = await api('/auth/sessions');
+  const { items: sessions } = await api('/auth/sessions');
   $('sessions-body').replaceChildren(...sessions.map((session) => {
     const button = h('button', {
       type: 'button',
@@ -221,7 +221,7 @@ async function loadSessions() {
     });
     return h('tr', {},
       h('td', { text: deviceLabel(session) }),
-      h('td', { text: session.ip ?? '—' }),
+      h('td', { text: session.device }),
       h('td', { text: formatDate(session.started_at) }),
       h('td', { text: formatDate(session.last_used_at) }),
       h('td', {}, button));

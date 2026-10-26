@@ -6,7 +6,7 @@ argument-hint: "Component or section name and where it should appear"
 
 # Add a component or section
 
-`public/assets/js/app.js` holds a `components` array. For each entry whose mount `id` exists on the page, it fetches `/<path>.html?v=7`, injects it, then appends `/<path>.css?v=7` and `/<path>.js?v=7` when `hasCss`/`hasJs` is true. The header loads first (the nav mount lives inside it); the rest load in parallel. `scripts/check-links.mjs` parses this array, so keep its exact shape.
+`public/assets/js/app.js` holds a `components` array. For each entry whose mount `id` exists on the page, it fetches `/<path>.html?v=<ASSET_VERSION>`, injects it, then appends `/<path>.css` and `/<path>.js` (same version) when `hasCss`/`hasJs` is true. The header loads first (the nav mount lives inside it); the rest load in parallel. `scripts/check-links.mjs` parses this array, so keep its exact shape.
 
 ## Procedure
 
@@ -21,7 +21,7 @@ argument-hint: "Component or section name and where it should appear"
    Order matters only for the header (index 0).
 4. Add `<div id="<name>-mount"></div>` where it should render, e.g. in `public/index.html` for sections.
 5. Component script: it runs right after injection, so query its own markup at top level (see `public/sections/contact/contact.js`). Do not wait for `DOMContentLoaded`. Guard against missing elements.
-6. Cache-busting: whenever a fragment's HTML/CSS/JS changes, bump `v=7` → `v=8` in `app.js` (all three URLs) and in the `global.css`/`app.js` links across `public/**/*.html`, so returning visitors do not mix old and new files. Search for `?v=7` to update them together.
+6. Cache-busting is automatic: `scripts/build.mjs` replaces `__ASSET_VERSION__` (in `app.js` and every `?v=__ASSET_VERSION__` link) with a hash of `public/`. Never write a literal `?v=<number>`; lint rejects it.
 7. Verify: `npm run lint` (link check confirms each declared `.html/.css/.js` exists), `npm run build && npm run check:dist`, then preview every page that has the mount at desktop and mobile width.
 
 ## Rules

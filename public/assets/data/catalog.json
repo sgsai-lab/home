@@ -1,0 +1,15 @@
+{
+  "note": "SGS AI Technology's own announced products. Client apps published as public come from /api/v1/catalog.",
+  "items": [
+    {
+      "name": "SGS AI mobile application",
+      "slug": null,
+      "kind": "android",
+      "status": "planned",
+      "sector": null,
+      "summary": "One place for the business and education apps SGS AI Technology builds with you: sign in, choose your organisation and open the service you need.",
+      "availability": "Targeting a Q1 2027 private beta",
+      "audience": "Staff of organisations that run projects with SGS AI Technology."
+    }
+  ]
+}

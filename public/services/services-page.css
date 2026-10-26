@@ -293,3 +293,16 @@
   .srv-approach { padding: 40px 20px; }
   .dev-card { padding: 25px; }
 }
+
+.dev-form-status {
+  margin-top: 12px;
+  color: var(--muted);
+}
+
+.dev-form-status[data-state="success"] {
+  color: #128a5f;
+}
+
+.dev-form-status[data-state="error"] {
+  color: #b42318;
+}

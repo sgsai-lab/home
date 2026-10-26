@@ -41,9 +41,18 @@ jobs:
       - name: Validate deployed page links and dynamic fragments
         run: npm run check:dist
 
-      # Temporarily disabled: re-enable once the budgets in lighthouserc.json are stable in CI.
-      # - name: Enforce Lighthouse CI budgets
-      #   run: npm run lighthouse
+      # Mobile profile, median of 3 runs; every category must score >= 90 (lighthouserc.json).
+      - name: Enforce Lighthouse CI budgets
+        run: npm run lighthouse
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci/
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Build and smoke-test container image
         uses: ./.github/actions/container-check

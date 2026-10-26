@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f9fc">
+  <meta name="robots" content="noindex">
+  <title>Manage workspace — SGS AI Technology</title>
+  <meta name="description" content="Manage a client workspace: details, people and apps.">
+  <link rel="icon" type="image/x-icon" href="/logo/favicon.ico">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="preload" href="/assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/dm-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/css/global.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/assets/css/account.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/assets/css/hub.css?v=__ASSET_VERSION__">
+  <script src="/assets/js/app.js?v=__ASSET_VERSION__" defer></script>
+  <script type="module" src="/assets/js/admin-client.js?v=__ASSET_VERSION__"></script>
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <div id="header-mount"></div>
+  <div id="nav-mount"></div>
+
+  <main id="main" class="auth-main">
+    <div class="section-wrap">
+      <p><a class="small-link" id="back-link" href="/workspace/">← Back to workspace</a></p>
+      <h1 id="client-title" class="page-title">Workspace</h1>
+      <p id="page-status" class="form-status" role="alert" hidden></p>
+
+      <div class="tabs" role="tablist" aria-label="Workspace settings">
+        <button id="tab-overview" role="tab" type="button" aria-selected="true" aria-controls="panel-overview">Overview</button>
+        <button id="tab-people" role="tab" type="button" aria-selected="false" aria-controls="panel-people" tabindex="-1">People</button>
+        <button id="tab-apps" role="tab" type="button" aria-selected="false" aria-controls="panel-apps" tabindex="-1">Apps</button>
+        <button id="tab-activity" role="tab" type="button" aria-selected="false" aria-controls="panel-activity" tabindex="-1">Activity</button>
+      </div>
+
+      <div id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
+        <section class="panel" aria-labelledby="details-heading">
+          <h2 id="details-heading">Details</h2>
+          <form id="client-form" class="stack" novalidate>
+            <div class="grid-2">
+              <label class="field">Name
+                <input name="name" type="text" required maxlength="120">
+              </label>
+              <label class="field">Primary sector
+                <select name="primary_sector">
+                  <option value="business">Business</option>
+                  <option value="education">Education</option>
+                </select>
+              </label>
+            </div>
+            <div class="grid-2">
+              <label class="field">Contact email
+                <input name="contact_email" type="email" maxlength="254">
+              </label>
+              <label class="field">Contact phone
+                <input name="contact_phone" type="tel" maxlength="40">
+              </label>
+            </div>
+            <div class="grid-2">
+              <label class="field">Website
+                <input name="contact_website" type="url" maxlength="500" placeholder="https://">
+              </label>
+              <label class="field">Brand colour
+                <input name="primary_color" type="color" value="#7538c4">
+              </label>
+            </div>
+            <label id="status-field" class="field" hidden>Status
+              <select name="status">
+                <option value="prospect">Prospect</option>
+                <option value="active">Active</option>
+                <option value="paused">Paused</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <div class="row-actions">
+              <button class="button button-primary" type="submit">Save details</button>
+              <a id="projects-link" class="button button-secondary" href="/projects/">Manage projects</a>
+            </div>
+          </form>
+          <p id="client-status" class="form-status" role="status" hidden></p>
+        </section>
+        <section class="panel" aria-labelledby="logo-heading">
+          <h2 id="logo-heading">Logo</h2>
+          <div class="hub-identity">
+            <div id="logo-preview" class="hub-logo" aria-hidden="true"></div>
+            <div id="logo-upload"></div>
+          </div>
+        </section>
+      </div>
+
+      <div id="panel-people" role="tabpanel" aria-labelledby="tab-people" hidden>
+        <section class="panel" aria-labelledby="invite-heading">
+          <h2 id="invite-heading">Invite someone</h2>
+          <form id="invite-form" class="inline-form" novalidate>
+            <label class="field">Email
+              <input name="email" type="email" required maxlength="254">
+            </label>
+            <label class="field">Role
+              <select name="role">
+                <option value="member">Member</option>
+                <option value="viewer">Viewer</option>
+                <option value="admin">Admin</option>
+                <option value="owner">Owner</option>
+              </select>
+            </label>
+            <button class="button button-primary" type="submit">Send invitation</button>
+          </form>
+          <p id="invite-status" class="form-status" role="status" hidden></p>
+          <h3>Pending invitations</h3>
+          <ul id="invite-list" class="team-list"></ul>
+        </section>
+        <section class="panel" aria-labelledby="members-heading">
+          <h2 id="members-heading">Members</h2>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
+              <tbody id="member-body"></tbody>
+            </table>
+          </div>
+          <p id="members-status" class="form-status" role="status" hidden></p>
+        </section>
+      </div>
+
+      <div id="panel-apps" role="tabpanel" aria-labelledby="tab-apps" hidden>
+        <section class="panel" aria-labelledby="product-heading">
+          <h2 id="product-heading">Add an app or service</h2>
+          <form id="product-form" class="stack" novalidate>
+            <div class="grid-2">
+              <label class="field">Name
+                <input name="name" type="text" required maxlength="120">
+              </label>
+              <label class="field">Kind
+                <select name="kind">
+                  <option value="pwa">Web app (PWA)</option>
+                  <option value="web">Website</option>
+                  <option value="service">Service</option>
+                  <option value="android">Android app</option>
+                  <option value="ios">iOS app</option>
+                </select>
+              </label>
+            </div>
+            <div class="grid-2">
+              <label class="field">Launch address
+                <input name="launch_url" type="url" maxlength="500" placeholder="https://">
+              </label>
+              <label class="field">Link name (optional)
+                <input name="slug" type="text" maxlength="60" pattern="[a-z0-9-]+" placeholder="learning-portal">
+              </label>
+            </div>
+            <div class="grid-2">
+              <label class="field">Google Play link
+                <input name="android" type="url" maxlength="500" placeholder="https://play.google.com/...">
+              </label>
+              <label class="field">App Store link
+                <input name="ios" type="url" maxlength="500" placeholder="https://apps.apple.com/...">
+              </label>
+            </div>
+            <label class="field">Summary
+              <textarea name="summary" maxlength="1000"></textarea>
+            </label>
+            <div class="grid-2">
+              <label class="field">Project
+                <select name="project_id"><option value="">Not linked</option></select>
+              </label>
+              <label class="field">Status
+                <select name="status">
+                  <option value="planned">Planned</option>
+                  <option value="beta">Beta</option>
+                  <option value="live">Live</option>
+                  <option value="retired">Retired</option>
+                </select>
+              </label>
+            </div>
+            <label id="visibility-field" class="field" hidden>Visibility
+              <select name="visibility">
+                <option value="client">Workspace members only</option>
+                <option value="public">Public (listed on sgsaitechnology.com)</option>
+              </select>
+            </label>
+            <div class="row-actions">
+              <button id="product-submit" class="button button-primary" type="submit">Add app</button>
+              <button id="product-cancel" class="button button-secondary" type="button" hidden>Cancel</button>
+            </div>
+          </form>
+          <p id="product-status" class="form-status" role="status" hidden></p>
+        </section>
+        <section class="panel" aria-labelledby="products-heading">
+          <h2 id="products-heading">Apps and services</h2>
+          <ul id="product-list" class="card-grid"></ul>
+          <p id="products-status" class="form-status" role="status" hidden></p>
+        </section>
+      </div>
+
+      <div id="panel-activity" role="tabpanel" aria-labelledby="tab-activity" hidden>
+        <section class="panel" aria-labelledby="activity-heading">
+          <h2 id="activity-heading">Recent activity</h2>
+          <p class="hint">Changes to this workspace in the last 90 days. Visible to owners.</p>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>When</th><th>Who</th><th>What</th></tr></thead>
+              <tbody id="activity-body"></tbody>
+            </table>
+          </div>
+          <p id="activity-status" class="form-status" role="status" hidden></p>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+</body>
+</html>

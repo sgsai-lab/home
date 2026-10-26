@@ -136,7 +136,7 @@ test('without GOOGLE_CLIENT_ID, Google sign-in is unavailable instead of trustin
   assert.equal((await response.json()).error.code, 'PROVIDER_NOT_CONFIGURED');
 });
 
-test('the refresh cookie restores the session for "Continue as" and rotates on every use', async (t) => {
+test('the refresh cookie restores the session, rotates on every use, and reuse revokes the family', async (t) => {
   const baseUrl = await start(t);
   const { refresh: original } = await signInWithGoogle(baseUrl);
   assert.ok(original);
@@ -156,8 +156,10 @@ test('the refresh cookie restores the session for "Continue as" and rotates on e
   const missing = await post(baseUrl, '/api/v1/auth/token/refresh');
   assert.equal(missing.status, 401);
 
+  // Reusing a spent token signals theft, so the whole session family (including the rotated token) is revoked.
   const next = await post(baseUrl, '/api/v1/auth/token/refresh', undefined, { cookie: `sgsai_refresh=${rotated}` });
-  assert.equal(next.status, 200);
+  assert.equal(next.status, 401);
+  assert.equal((await me(baseUrl, accessToken)).status, 401);
 });
 
 test('sign-out revokes the access token and the refresh cookie', async (t) => {
@@ -219,10 +221,27 @@ test('Google account linking requires a verified token not owned by another user
   const linked = await post(baseUrl, '/api/v1/auth/google/link', { id_token: signJwt(googleClaims({ sub: 'google-sub-ada' })), nonce: 'nonce-1' }, auth);
   assert.equal(linked.status, 200);
 
+  // Google is this account's only sign-in method, so unlinking needs a password first.
+  const lockedOut = await fetch(`${baseUrl}/api/v1/auth/google/link`, { method: 'DELETE', headers: auth });
+  assert.equal(lockedOut.status, 409);
+  assert.equal((await post(baseUrl, '/api/v1/auth/password/set', { new_password: 'correct horse battery' }, auth)).status, 200);
   const unlinked = await fetch(`${baseUrl}/api/v1/auth/google/link`, { method: 'DELETE', headers: auth });
   assert.equal(unlinked.status, 200);
 
   const sessions = await fetch(`${baseUrl}/api/v1/auth/sessions`, { headers: auth });
   assert.equal(sessions.status, 200);
   assert.equal((await sessions.json()).items.length, 1);
+});
+
+test('Google sign-in discards credentials of an unverified account registered with the same email', async (t) => {
+  const baseUrl = await start(t, { sendEmail: async () => {}, env: { ADMIN_EMAILS: 'ada@example.com' } });
+  const signup = await post(baseUrl, '/api/v1/auth/signup', { full_name: 'Mallory', email: 'ada@example.com', password: 'attacker password 1', accept_terms: true });
+  assert.equal(signup.status, 201);
+  assert.equal((await post(baseUrl, '/api/v1/auth/login', { email: 'ada@example.com', password: 'attacker password 1' })).status, 403);
+
+  const owner = await signInWithGoogle(baseUrl);
+  assert.equal(owner.body.user.role, 'admin');
+  assert.equal(owner.body.user.has_password, false, 'the pre-registered password was discarded');
+  const attacker = await post(baseUrl, '/api/v1/auth/login', { email: 'ada@example.com', password: 'attacker password 1' });
+  assert.equal(attacker.status, 401);
 });

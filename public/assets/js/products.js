@@ -1,82 +1,119 @@
-// Keep product claims and availability together; publish only confirmed details.
-const products = [
-  {
-    name: 'SGS AI mobile application',
-    status: 'In development',
-    platforms: ['Mobile'],
-    availability: 'Targeting a Q1 2027 private beta',
-    problem: 'Product-specific details are being developed and will be shared when confirmed.',
-    audience: 'Business and education are our initial areas of focus; this application’s audience has not yet been announced.'
-  }
-];
+// Products page: public client apps from the catalog API, plus SGS AI's own announced products.
+// A committed fallback (/assets/data/catalog.json) keeps the page useful if the API is unavailable.
+const KIND = { pwa: 'Web app', web: 'Website', android: 'Android', ios: 'iOS', service: 'Service' };
+const STATUS = { planned: 'In development', beta: 'Beta', live: 'Live' };
+const SECTOR = { business: 'Business', education: 'Education' };
 
+const catalogList = document.querySelector('#catalog-list');
 const productList = document.querySelector('#product-list');
 
-function createTextElement(tagName, className, text) {
+function text(tagName, className, value) {
   const element = document.createElement(tagName);
   if (className) element.className = className;
-  element.textContent = text;
+  element.textContent = value;
   return element;
 }
 
+let formCount = 0;
+
 function createNotifyForm(productName) {
+  formCount += 1;
+  const id = (name) => `product-${name}-${formCount}`;
   const form = document.createElement('form');
   form.className = 'contact-form product-form';
+  form.method = 'post';
   form.dataset.source = 'product-updates';
-  form.noValidate = false;
-  const emailField = document.createElement('div');
-  emailField.className = 'field';
-  emailField.innerHTML = '<label for="product-email">Email for updates</label><input id="product-email" name="email" type="email" autocomplete="email" maxlength="254" required>';
-  const nameField = document.createElement('div');
-  nameField.className = 'field';
-  nameField.innerHTML = '<label for="product-name">Name <span>(optional)</span></label><input id="product-name" name="name" autocomplete="name" maxlength="100">';
-  const trap = document.createElement('div');
-  trap.className = 'form-trap';
-  trap.setAttribute('aria-hidden', 'true');
-  trap.innerHTML = '<label for="product-website">Leave this field empty</label><input id="product-website" name="website" tabindex="-1" autocomplete="off">';
-  const company = document.createElement('input');
-  company.type = 'hidden';
-  company.name = 'company';
-  const message = document.createElement('input');
-  message.type = 'hidden';
-  message.name = 'message';
-  message.value = `Please send me updates about ${productName}.`;
+
+  const field = (labelText, input, className = 'field') => {
+    const wrapper = document.createElement('div');
+    wrapper.className = className;
+    const label = text('label', '', labelText);
+    label.htmlFor = input.id;
+    wrapper.append(label, input);
+    return wrapper;
+  };
+  const email = Object.assign(document.createElement('input'), { id: id('email'), name: 'email', type: 'email', autocomplete: 'email', maxLength: 254, required: true });
+  const name = Object.assign(document.createElement('input'), { id: id('name'), name: 'name', autocomplete: 'name', maxLength: 100 });
+  const trap = Object.assign(document.createElement('input'), { id: id('website'), name: 'website', tabIndex: -1, autocomplete: 'off' });
+  const trapWrapper = field('Leave this field empty', trap, 'form-trap');
+  trapWrapper.setAttribute('aria-hidden', 'true');
+  const message = Object.assign(document.createElement('input'), { type: 'hidden', name: 'message', value: `Please send me updates about ${productName}.` });
+  const consent = Object.assign(document.createElement('input'), { id: id('consent'), name: 'consent', type: 'checkbox', required: true });
   const consentField = document.createElement('div');
   consentField.className = 'field field-full field-checkbox';
-  consentField.innerHTML = '<input id="product-consent" name="consent" type="checkbox" required><label for="product-consent">I agree that SGS AI Technology may use my email to respond to this product update request.</label>';
-  const actionField = document.createElement('div');
-  actionField.className = 'field field-full';
-  actionField.innerHTML = '<button class="button button-primary" type="submit">Request updates <span aria-hidden="true">↗</span></button><p class="form-status" role="status" aria-live="polite"></p><p class="form-fallback">Prefer email? <a href="mailto:hello@sgsaitechnology.com">Contact us directly</a>.</p>';
-  form.append(emailField, nameField, trap, company, message, consentField, actionField);
-  form.addEventListener('submit', (event) => {
-    const consent = form.querySelector('#product-consent');
-    if (consent.checked) return;
-    event.preventDefault();
-    consent.setCustomValidity('Please agree before requesting product updates.');
-    consent.reportValidity();
-  });
-  form.querySelector('#product-consent').addEventListener('change', (event) => event.currentTarget.setCustomValidity(''));
+  const consentLabel = text('label', '', 'I agree that SGS AI Technology may use my email to respond to this product update request.');
+  consentLabel.htmlFor = consent.id;
+  consentField.append(consent, consentLabel);
+  const actions = document.createElement('div');
+  actions.className = 'field field-full';
+  const submit = text('button', 'button button-primary', 'Request updates ↗');
+  submit.type = 'submit';
+  const status = text('p', 'form-status', '');
+  status.setAttribute('role', 'status');
+  status.setAttribute('aria-live', 'polite');
+  actions.append(submit, status);
+  form.append(field('Email for updates', email), field('Name (optional)', name), trapWrapper, message, consentField, actions);
   return form;
 }
 
-if (productList && products.length) {
-  productList.replaceChildren(...products.map((product) => {
-    const card = document.createElement('article');
-    card.className = 'product-card';
-    card.append(createTextElement('h2', '', product.name));
-    card.append(createTextElement('span', 'status-badge', product.status));
-    const meta = document.createElement('ul');
-    meta.className = 'product-meta';
-    for (const platform of product.platforms) meta.append(createTextElement('li', '', platform));
-    card.append(meta);
-    const details = document.createElement('div');
-    details.className = 'product-copy';
-    details.append(createTextElement('p', '', `Availability: ${product.availability}`));
-    details.append(createTextElement('p', '', `Problem: ${product.problem}`));
-    details.append(createTextElement('p', '', `For whom: ${product.audience}`));
-    card.append(details, createNotifyForm(product.name));
-    return card;
-  }));
-} else if (productList) {
-  productList.replaceChildren(createTextElement('p', 'empty-products', 'There are no products announced at this time. Please check back for updates.'));
+function card(item, { notify }) {
+  const article = document.createElement('article');
+  article.className = 'product-card';
+  const heading = document.createElement('div');
+  if (item.icon_url) {
+    const icon = Object.assign(document.createElement('img'), { src: item.icon_url, alt: '', width: 48, height: 48, loading: 'lazy', className: 'product-icon' });
+    heading.append(icon);
+  }
+  heading.append(text('h2', '', item.name));
+  article.append(heading, text('span', 'status-badge', STATUS[item.status] ?? item.status));
+  const meta = document.createElement('ul');
+  meta.className = 'product-meta';
+  for (const value of [KIND[item.kind], SECTOR[item.sector]].filter(Boolean)) meta.append(text('li', '', value));
+  article.append(meta);
+  const copy = document.createElement('div');
+  copy.className = 'product-copy';
+  if (item.summary) copy.append(text('p', '', item.summary));
+  if (item.availability) copy.append(text('p', '', `Availability: ${item.availability}`));
+  if (item.audience) copy.append(text('p', '', `For whom: ${item.audience}`));
+  if (item.launch_path && item.status !== 'planned') {
+    const open = text('a', 'button button-primary', `Open ${item.name} ↗`);
+    open.href = item.launch_path;
+    open.target = '_blank';
+    open.rel = 'noopener';
+    copy.append(open);
+  }
+  article.append(copy);
+  if (notify) article.append(createNotifyForm(item.name));
+  return article;
 }
+
+async function fetchJson(url) {
+  const response = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!response.ok) throw new Error(`${url} answered ${response.status}`);
+  return response.json();
+}
+
+async function main() {
+  const [own, published] = await Promise.allSettled([fetchJson('/assets/data/catalog.json'), fetchJson('/api/v1/catalog')]);
+  const ownItems = own.status === 'fulfilled' ? own.value.items : [];
+  const clientItems = published.status === 'fulfilled' ? published.value.items : [];
+  const available = clientItems.filter((item) => item.status !== 'planned');
+  const upcoming = [...ownItems, ...clientItems.filter((item) => item.status === 'planned')];
+
+  if (available.length && catalogList) {
+    catalogList.replaceChildren(...available.map((item) => card(item, { notify: false })));
+    document.querySelector('#catalog-section').hidden = false;
+  }
+  if (productList) {
+    productList.replaceChildren(...(upcoming.length
+      ? upcoming.map((item) => card(item, { notify: true }))
+      : [text('p', 'empty-products', 'There are no products announced at this time. Please check back for updates.')]));
+    if (published.status === 'rejected') {
+      productList.append(text('p', 'timeline-note', 'Some product information could not be loaded right now. Please refresh later.'));
+    }
+  }
+}
+
+main().catch(() => {
+  productList?.replaceChildren(text('p', 'empty-products', 'Product information could not be loaded. Please refresh the page or email hello@sgsaitechnology.com.'));
+});

@@ -1,0 +1,19 @@
+{
+  "indexes": [
+    { "collectionGroup": "memberships", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "user_id", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }] },
+    { "collectionGroup": "memberships", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }] },
+    { "collectionGroup": "memberships", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "role", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }] },
+    { "collectionGroup": "users", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "provider", "order": "ASCENDING" }, { "fieldPath": "provider_id", "order": "ASCENDING" }] },
+    { "collectionGroup": "invites", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "email", "order": "ASCENDING" }] },
+    { "collectionGroup": "assets", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "owner_id", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }] },
+    { "collectionGroup": "audit_log", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "action", "order": "ASCENDING" }] }
+  ],
+  "fieldOverrides": [
+    { "collectionGroup": "audit_log", "fieldPath": "diff", "indexes": [] },
+    { "collectionGroup": "audit_log", "fieldPath": "user_agent", "indexes": [] },
+    { "collectionGroup": "user_sessions", "fieldPath": "user_agent", "indexes": [] },
+    { "collectionGroup": "projects", "fieldPath": "milestones", "indexes": [] },
+    { "collectionGroup": "projects", "fieldPath": "summary", "indexes": [] },
+    { "collectionGroup": "users", "fieldPath": "mfa", "indexes": [] }
+  ]
+}

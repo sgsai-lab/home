@@ -10,7 +10,7 @@
   <div class="footer-grid section-wrap">
     <div class="footer-col brand-col">
       <a class="footer-brand" href="/" aria-label="SGS AI Technology home">
-        <img src="/logo/footer_logo.webp.png" alt="SGS AI Technology" class="footer-logo-img" loading="lazy" decoding="async" />
+        <img src="/logo/footer_logo.webp.png" alt="SGS AI Technology" class="footer-logo-img" width="600" height="400" loading="lazy" decoding="async" />
       </a>
       <p class="brand-mission">Building what’s next, with AI that works for you. We connect strategy, engineering, and imagination.</p>
     </div>
@@ -18,16 +18,16 @@
     <div class="footer-col">
       <h4>Explore</h4>
       <a href="/">Home</a>
-      <a href="/vision">Vision</a>
-      <a href="/services">Services</a>
+      <a href="/vision/">Vision</a>
+      <a href="/services/">Services</a>
       <a href="/projects/">Projects</a>
-      <a href="/roadmap">Roadmap</a>
-      <a href="/about">About us</a>
+      <a href="/roadmap/">Roadmap</a>
+      <a href="/about/">About us</a>
     </div>
 
     <div class="footer-col">
       <h4>Contact</h4>
-      <a href="/contact">Start a conversation</a>
+      <a href="/contact/">Start a conversation</a>
       <a href="tel:8123879595">8123879595</a>
       <a href="mailto:hello@sgsaitechnology.com">hello@sgsaitechnology.com</a>
     </div>
@@ -35,9 +35,21 @@
     <div class="footer-col newsletter-col">
       <h4>Stay Updated</h4>
       <p>Get the latest AI insights delivered to your inbox.</p>
-      <form class="footer-form" onsubmit="event.preventDefault();">
-        <input type="email" placeholder="Email address" required>
-        <button type="submit">→</button>
+      <form class="footer-form" method="post" data-updates-form data-message="Please send me SGS AI Technology updates." novalidate>
+        <div class="footer-form-row">
+          <label class="visually-hidden" for="footer-email">Email address</label>
+          <input type="email" id="footer-email" name="email" placeholder="Email address" autocomplete="email" maxlength="254" required>
+          <button type="submit" aria-label="Subscribe to updates">→</button>
+        </div>
+        <label class="footer-consent">
+          <input type="checkbox" id="footer-consent" name="consent" required>
+          <span>Email me updates. <a href="/privacy/">Privacy notice</a></span>
+        </label>
+        <div class="form-trap" aria-hidden="true">
+          <label for="footer-website">Leave this field empty</label>
+          <input type="text" id="footer-website" name="website" tabindex="-1" autocomplete="off">
+        </div>
+        <p class="footer-form-status" role="status" aria-live="polite"></p>
       </form>
     </div>
   </div>
@@ -46,8 +58,8 @@
     <div class="footer-bottom-left">
       <span>© <span id="year">2026</span> SGS AI Technology. All rights reserved.</span>
       <div class="footer-legal-links">
-        <a href="/privacy">Privacy Policy</a>
-        <a href="/terms">Terms of Service</a>
+        <a href="/privacy/">Privacy Policy</a>
+        <a href="/terms/">Terms of Service</a>
       </div>
     </div>
     <div class="footer-bottom-right">
