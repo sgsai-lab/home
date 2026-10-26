@@ -177,6 +177,7 @@ jobs:
     timeout-minutes: 5
     permissions:
       pull-requests: write
+      issues: write
     steps:
       - name: Download review
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -210,11 +211,29 @@ jobs:
                 throw new Error(`Copilot review is missing the required heading: ${heading}`);
               }
             }
+            // The review derives from untrusted diff content. Neutralize @mentions and #N
+            // cross-references outside code fences so the bot cannot be used to notify or
+            // backlink arbitrary users, issues, and PRs.
+            const neutralizeLine = line => line
+              .replace(/(^|[^\w`/])@([A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)/g, '$1@\u200b$2')
+              .replace(/(^|[^`&#])#(\d+)\b/g, '$1#\u200b$2');
+            const neutralize = text => {
+              let fenceMarker = null;
+              return text.split('\n').map(line => {
+                const fence = line.match(/^(`{3,}|~{3,})/)?.[1];
+                if (fence) {
+                  if (!fenceMarker) fenceMarker = fence;
+                  else if (fence[0] === fenceMarker[0] && fence.length >= fenceMarker.length) fenceMarker = null;
+                  return line;
+                }
+                return fenceMarker ? line : neutralizeLine(line);
+              }).join('\n');
+            };
             const marker = '<!-- sgsai-copilot-pr-review -->';
             const body = [
               marker,
               `# Copilot PR review\n\nReviewed commit: \`${pr.head.sha}\``,
-              review,
+              neutralize(review),
               '---\nAI-generated advisory review. Human review and CI are still required.'
             ].join('\n\n');
             const comments = await github.paginate(github.rest.issues.listComments, {
@@ -232,4 +251,96 @@ jobs:
               await github.rest.issues.createComment({
                 ...context.repo, issue_number: pr.number, body
               });
+            }
+
+            // File (or refresh) one tracking issue per PR for Critical/High/Medium findings.
+            const trackedSeverities = ['Critical', 'High', 'Medium'];
+            // Fence-aware scan: fix snippets may contain lines that look like headings.
+            const findingBlocks = [];
+            let fenceMarker = null;
+            let inFindings = false;
+            for (const line of review.split('\n')) {
+              // A fence closes only with the same character and at least the opening length.
+              const fence = line.match(/^(`{3,}|~{3,})/)?.[1];
+              if (fence) {
+                if (!fenceMarker) fenceMarker = fence;
+                else if (fence[0] === fenceMarker[0] && fence.length >= fenceMarker.length) fenceMarker = null;
+              }
+              const inFence = fenceMarker !== null;
+              if (!inFence && /^## /.test(line)) {
+                inFindings = line === '## Findings';
+                continue;
+              }
+              if (!inFindings) continue;
+              if (!inFence && line.startsWith('### ')) findingBlocks.push([line]);
+              else if (findingBlocks.length) findingBlocks.at(-1).push(line);
+            }
+            const tracked = findingBlocks.flatMap(lines => {
+              // The path is interpolated into a Markdown link, so allow only plain path characters.
+              const match = lines[0].match(/^### (Critical|High|Medium|Low): ([A-Za-z0-9_.@+/-]+):(\d+(?:-\d+)?)\s*$/);
+              if (!match) {
+                core.warning(`Unparseable finding heading skipped: ${lines[0]}`);
+                return [];
+              }
+              const [, severity, file, line] = match;
+              return trackedSeverities.includes(severity)
+                ? [{ severity, file, line, block: lines.join('\n').trim() }]
+                : [];
+            });
+            const issueMarker = `<!-- sgsai-copilot-pr-review-issue:${pr.number} -->`;
+            // No creator filter and marker matched anywhere: survives token changes and body edits.
+            const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+              ...context.repo, state: 'open', per_page: 100
+            });
+            const existingIssue = openIssues.find(issue =>
+              !issue.pull_request && issue.body?.includes(issueMarker)
+            );
+            if (tracked.length === 0) {
+              if (existingIssue) {
+                await github.rest.issues.createComment({
+                  ...context.repo, issue_number: existingIssue.number,
+                  body: `No Critical, High, or Medium findings remain at commit \`${pr.head.sha}\`. Closing automatically.`
+                });
+                await github.rest.issues.update({
+                  ...context.repo, issue_number: existingIssue.number, state: 'closed', state_reason: 'completed'
+                });
+              }
+              return;
+            }
+            const counts = trackedSeverities
+              .map(severity => [severity, tracked.filter(finding => finding.severity === severity).length])
+              .filter(([, count]) => count > 0)
+              .map(([severity, count]) => `${count} ${severity}`)
+              .join(', ');
+            const locations = tracked.map(finding =>
+              `- **${finding.severity}** [\`${finding.file}:${finding.line}\`](${pr.head.repo.html_url}/blob/${pr.head.sha}/${finding.file}#L${finding.line.split('-')[0]})`
+            ).join('\n');
+            const issueBody = [
+              issueMarker,
+              `Automated Copilot review of #${pr.number} found **${counts}** finding(s) at commit \`${pr.head.sha}\`.`,
+              `Each finding below includes the file, new-side line number, and a suggested fix. The body is refreshed on every reviewed push and the issue closes automatically when no Critical, High, or Medium findings remain.`,
+              `## Locations\n\n${locations}`,
+              `## Findings\n\n${tracked.map(finding => neutralize(finding.block)).join('\n\n')}`,
+              '---\nAI-generated advisory findings. Verify each one before changing code.'
+            ].join('\n\n');
+            // Truncate instead of failing: the review text derives from the diff and the
+            // PR comment is already posted. Truncate on a line boundary so no fence is split.
+            const bodyLimit = 60000;
+            const truncationNote = '\n\n---\n**Truncated:** the full findings are in the PR review comment.';
+            const finalBody = Buffer.byteLength(issueBody, 'utf8') <= bodyLimit
+              ? issueBody
+              : Buffer.from(issueBody, 'utf8').subarray(0, bodyLimit - Buffer.byteLength(truncationNote, 'utf8'))
+                  .toString('utf8').replace(/[^\n]*$/, '') + truncationNote;
+            const title = `Copilot review findings for PR #${pr.number}: ${neutralizeLine(pr.title ?? '')}`.slice(0, 250);
+            const assignees = pr.user?.type === 'User' ? [pr.user.login] : [];
+            if (existingIssue) {
+              await github.rest.issues.update({
+                ...context.repo, issue_number: existingIssue.number, title, body: finalBody, assignees
+              });
+              core.notice(`Updated findings issue #${existingIssue.number}.`);
+            } else {
+              const { data: created } = await github.rest.issues.create({
+                ...context.repo, title, body: finalBody, assignees
+              });
+              core.notice(`Created findings issue #${created.number}.`);
             }
