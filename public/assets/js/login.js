@@ -4,7 +4,8 @@ import { setupProviders } from '/assets/js/auth-providers.js';
 const NOTICES = {
   'password-reset': 'Your password has been updated. Sign in with your new password.',
   'signed-out-everywhere': 'You have been signed out of all sessions.',
-  'account-deleted': 'Your account has been deleted.'
+  'account-deleted': 'Your account has been deleted.',
+  'account-ready': 'Your account is ready. Sign in to open your workspace.'
 };
 
 const params = new URLSearchParams(location.search);
@@ -43,7 +44,16 @@ handleSubmit(emailForm, statusEl, async ({ email }) => {
 
 handleSubmit(loginForm, statusEl, async ({ email, password }) => {
   if (!password) throw new ApiError(0, 'CLIENT', 'Enter your password.');
-  const result = await api('/auth/login', { auth: false, method: 'POST', body: { email, password } });
+  let result;
+  try {
+    result = await api('/auth/login', { auth: false, method: 'POST', body: { email, password } });
+  } catch (error) {
+    if (error.code === 'EMAIL_NOT_VERIFIED') {
+      await api('/auth/verify-email/resend', { auth: false, method: 'POST', body: { email } }).catch(() => {});
+      throw new ApiError(403, error.code, `Verify your email address first. We have sent a new link to ${email}.`);
+    }
+    throw error;
+  }
   loginForm.elements.password.value = '';
   finish(result);
 });

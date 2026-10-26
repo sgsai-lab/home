@@ -219,9 +219,9 @@
   transform: translateX(10px);
   color: white;
 }
-.not-do-list li i {
+.not-do-list li .icon {
+  flex-shrink: 0;
   color: #f4a34d;
-  font-size: 14px;
   margin-top: 4px;
 }
 .not-do-list li:last-child {

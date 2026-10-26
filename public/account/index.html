@@ -8,14 +8,13 @@
   <title>Account — SGS AI Technology</title>
   <meta name="description" content="Manage your SGS AI Technology account.">
   <link rel="icon" type="image/x-icon" href="/logo/favicon.ico">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/global.css?v=7">
-  <link rel="stylesheet" href="/assets/css/account.css">
-  <script src="/assets/js/app.js?v=7" defer></script>
-  <script src="/vendor/qrcode.js" defer></script>
-  <script type="module" src="/assets/js/account.js"></script>
+  <link rel="preload" href="/assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/dm-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/css/global.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/assets/css/account.css?v=__ASSET_VERSION__">
+  <script src="/assets/js/app.js?v=__ASSET_VERSION__" defer></script>
+  <script src="/vendor/qrcode.js?v=__ASSET_VERSION__" defer></script>
+  <script type="module" src="/assets/js/account.js?v=__ASSET_VERSION__"></script>
 </head>
 <body>
   <a href="#main" class="skip-link">Skip to content</a>
@@ -147,7 +146,7 @@
         <div class="table-scroll">
           <table class="data-table">
             <thead>
-              <tr><th>Device</th><th>IP address</th><th>Signed in</th><th>Last active</th><th>Actions</th></tr>
+              <tr><th>Device</th><th>Type</th><th>Signed in</th><th>Last active</th><th>Actions</th></tr>
             </thead>
             <tbody id="sessions-body"></tbody>
           </table>

@@ -21,6 +21,11 @@ function invalid(provider) {
   return new CredentialError('INVALID_CREDENTIAL', `${provider} sign-in could not be verified. Please try again.`);
 }
 
+// Accepts one audience or several (web, Android and iOS clients share one backend).
+function audienceList(clientId) {
+  return (Array.isArray(clientId) ? clientId : [clientId]).filter(Boolean);
+}
+
 function requireNonce(payload, nonce, provider) {
   if (nonce !== undefined && payload.nonce !== nonce) throw invalid(provider);
 }
@@ -35,12 +40,13 @@ function keyIdOf(idToken) {
 
 /** Verifies Google Identity Services ID tokens (signature, issuer, audience, expiry, nonce). */
 export function createGoogleVerifier({ clientId, client = new OAuth2Client() }) {
+  const audience = audienceList(clientId);
   return async (idToken, nonce) => {
-    if (!clientId) throw notConfigured('Google');
+    if (!audience.length) throw notConfigured('Google');
     if (typeof idToken !== 'string' || idToken.split('.').length !== 3) throw invalid('Google');
     let payload;
     try {
-      payload = (await client.verifyIdToken({ idToken, audience: clientId })).getPayload();
+      payload = (await client.verifyIdToken({ idToken, audience })).getPayload();
     } catch {
       throw invalid('Google');
     }
@@ -72,13 +78,14 @@ export function createAppleVerifier({ clientId, fetchKeys = fetchAppleKeys, clie
     return cache.certs;
   }
 
+  const audience = audienceList(clientId);
   return async (idToken, nonce) => {
-    if (!clientId) throw notConfigured('Apple');
+    if (!audience.length) throw notConfigured('Apple');
     if (typeof idToken !== 'string' || idToken.split('.').length !== 3) throw invalid('Apple');
     let payload;
     try {
       const certs = await certsFor(keyIdOf(idToken));
-      payload = (await client.verifySignedJwtWithCertsAsync(idToken, certs, clientId, [APPLE_ISSUER])).getPayload();
+      payload = (await client.verifySignedJwtWithCertsAsync(idToken, certs, audience, [APPLE_ISSUER])).getPayload();
     } catch {
       throw invalid('Apple');
     }

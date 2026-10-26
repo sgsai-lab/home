@@ -23,13 +23,14 @@ docker build -t sgs-ai-website:local .
 bash scripts/check-container.sh sgs-ai-website:local
 ```
 
-For static preview, run `npm run preview` and open <http://localhost:4173>. Contact and account APIs are not implemented by this preview. For same-origin integration, run:
+For static preview, run `npm run preview` and open <http://localhost:4173>. The preview has no API: account, workspace and catalog calls fail there. For same-origin integration, run the container. `FIRESTORE_DISABLED=true` runs the API on its in-memory store (data is lost on restart):
 
 ```sh
 docker run --rm --name sgs-ai-website -p 8080:8080 \
   -e SMTP_HOST -e SMTP_PORT -e SMTP_SECURE -e SMTP_USER -e SMTP_PASS \
   -e CONTACT_FROM -e CONTACT_TO \
   -e GOOGLE_CLIENT_ID -e APPLE_CLIENT_ID -e GCP_PROJECT_ID \
+  -e FIRESTORE_DISABLED=true -e ADMIN_EMAILS=you@example.com -e SITE_ORIGIN=http://localhost:8080 \
   sgs-ai-website:local
 ```
 
@@ -44,9 +45,31 @@ SMTP settings and operational limitations are documented in [README.md](../READM
 - `API_UPSTREAM` defaults to `http://127.0.0.1:3000` for `/api/v1/`. Override only for an intentional alternate backend reachable from the container.
 - `API_PORT` configures the standalone Node listener. Keep the container API on 3000 unless the Nginx configuration and startup readiness check are changed together.
 
+### Client hub (ADR-002)
+
+Set these as repository variables; the deploy workflow passes the non-empty ones to Cloud Run. Values containing `|` are rejected. Secrets are referenced by Secret Manager name and mounted with `--set-secrets`.
+
+| Variable | Required for | Notes |
+| --- | --- | --- |
+| `SITE_ORIGIN` | Email links, launch URLs | Default `https://www.sgsaitechnology.com` |
+| `ADMIN_EMAILS` | First SGS admin | Comma-separated; grants `admin` on the next verified sign-in |
+| `GOOGLE_CLIENT_IDS` | Mobile Google sign-in | Extra audiences (Android, iOS) besides `GOOGLE_CLIENT_ID` |
+| `APPLE_CLIENT_IDS` | Apple on iOS and Android | Extra audiences: iOS bundle id and the Apple Services ID |
+| `APPLE_ANDROID_PACKAGES` | Apple on Android | Allowed Android packages for the callback relay |
+| `APPLE_STATE_SECRET_SECRET` | Apple on Android | Secret Manager name of the HMAC key for the callback `state` |
+| `MFA_ENCRYPTION_KEY_SECRET` | Two-factor authentication | Secret Manager name of a 32-byte base64 key (`openssl rand -base64 32`). Rotating it disables existing 2FA enrolments |
+| `MEDIA_BUCKET` | Uploads, logos, deliverables | Private bucket (INF-12) |
+| `PUBLIC_ASSETS_BUCKET` | Public product icons | Public-read bucket (INF-12) |
+| `ANDROID_CERT_SHA256` | Android App Links | Comma-separated signing certificate fingerprints (Play App Signing and upload key) |
+| `APPLE_TEAM_ID` | iOS Universal Links | 10-character team id |
+
+Optional overrides read by the API: `ANDROID_APP_PACKAGES` and `IOS_BUNDLE_IDS` (default `com.sgsaitechnology.app`), `FIRESTORE_DATABASE` (non-default database, e.g. a restore), `FIRESTORE_DISABLED` and `ALLOW_MEMORY_DB_FALLBACK` (local development only; the image sets the fallback to `false`).
+
+Features whose configuration is missing answer `503` (or `404` for the association files) instead of failing silently. See [the runbook](runbook-firestore-gcs.md) for Firestore and Cloud Storage operations and [the API reference](api.md) for endpoints.
+
 ## CI and release
 
-[Website CI](../.github/workflows/ci.yml) is the single pull-request workflow. Its `validate-and-build` job installs locked dependencies, runs lint and tests, builds the site, checks built links, and builds and smoke-tests the image; the Lighthouse budget step is currently commented out. Its `review` and `publish-review` jobs run the [automatic Copilot PR review](copilot-review.md) on eligible pull requests.
+[Website CI](../.github/workflows/ci.yml) is the single pull-request workflow. Its `validate-and-build` job installs locked dependencies, runs lint and tests, builds the site, checks built links, enforces the Lighthouse budgets (mobile, median of three runs, every category ≥ 90; reports are uploaded as the `lighthouse-reports` artifact), and builds and smoke-tests the image. Its `review` and `publish-review` jobs run the [automatic Copilot PR review](copilot-review.md) on eligible pull requests.
 
 Shared steps live in composite actions under [.github/actions/](../.github/actions/): `setup` (pinned Node.js from `.nvmrc`, npm cache, and a `node_modules` cache keyed on `package-lock.json` so repeat runs skip `npm ci`; optionally a cached Copilot CLI) and `container-check` (image build plus `scripts/check-container.sh`). Change workflow setup in those actions rather than in individual workflows.
 
@@ -56,7 +79,7 @@ Retain the last known-good image and revision. Review changes to Nginx, the Dock
 
 ## Post-deployment checks
 
-Verify the homepage, nested routes, navigation, shared assets, branded 404 status, and `/api/config`. Exercise contact/account flows only with approved test data and configured providers. Check Cloud Run startup logs, revision health, HTTP errors, and latency. Confirm DNS and certificates using the infrastructure guide before directing new traffic.
+Verify the homepage, nested routes, navigation, shared assets, branded 404 status, `/api/config`, `/api/readyz` (`database: firestore`), and that `curl -I` on a sub-page shows the CSP and `X-Frame-Options` headers. Exercise contact/account flows only with approved test data and configured providers. Check Cloud Run startup logs, revision health, HTTP errors, and latency. Confirm DNS and certificates using the infrastructure guide before directing new traffic.
 
 The current Nginx content security policy and cache rules are preserved. Browser integrations must be checked under the actual container headers; a static preview alone cannot verify those policies.
 

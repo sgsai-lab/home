@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f9fc">
+  <meta name="robots" content="noindex">
+  <title>Workspace — SGS AI Technology</title>
+  <meta name="description" content="Your projects and apps with SGS AI Technology.">
+  <link rel="icon" type="image/x-icon" href="/logo/favicon.ico">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="preload" href="/assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/dm-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/css/global.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/assets/css/account.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/assets/css/hub.css?v=__ASSET_VERSION__">
+  <script src="/assets/js/app.js?v=__ASSET_VERSION__" defer></script>
+  <script type="module" src="/assets/js/workspace.js?v=__ASSET_VERSION__"></script>
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <div id="header-mount"></div>
+  <div id="nav-mount"></div>
+
+  <main id="main" class="auth-main">
+    <div class="section-wrap">
+      <p id="page-status" class="form-status" role="alert" hidden></p>
+      <p id="offline-banner" class="offline-banner" role="status" hidden>You are offline. Showing your workspace as it was last loaded.</p>
+      <div id="install-banner" class="install-banner" hidden>
+        <span>Add your SGS AI workspace to your home screen for one-tap access to your apps.</span>
+        <span class="row-actions">
+          <button id="install-app" class="button button-primary button-small" type="button">Install</button>
+          <button id="install-dismiss" class="link-button" type="button">Not now</button>
+        </span>
+      </div>
+
+      <section id="no-workspace" class="panel" aria-labelledby="no-workspace-heading" hidden>
+        <h1 id="no-workspace-heading" class="page-title">Your workspace</h1>
+        <div class="empty-state">
+          <p>You are not part of a client workspace yet. When SGS AI Technology starts a project with your organisation, your administrator will invite you here.</p>
+          <a class="button button-primary" href="/contact/">Talk to SGS AI Technology</a>
+        </div>
+      </section>
+
+      <div id="workspace" hidden>
+        <header class="hub-header">
+          <div class="hub-identity">
+            <div id="client-logo" class="hub-logo" aria-hidden="true"></div>
+            <div>
+              <h1 id="client-name">Workspace</h1>
+              <p id="client-meta"></p>
+            </div>
+          </div>
+          <div class="hub-tools">
+            <label id="switcher-field" class="field" hidden>Workspace
+              <select id="client-switcher"></select>
+            </label>
+            <a id="manage-link" class="button button-secondary button-small" href="/admin/clients/" hidden>Manage workspace</a>
+          </div>
+        </header>
+
+        <section class="panel" aria-labelledby="apps-heading">
+          <div class="section-head">
+            <h2 id="apps-heading">Apps and services</h2>
+            <span class="hint">Opens in a new tab</span>
+          </div>
+          <ul id="app-list" class="card-grid"></ul>
+        </section>
+
+        <section class="panel" aria-labelledby="projects-heading">
+          <div class="section-head">
+            <h2 id="projects-heading">Projects</h2>
+            <a id="projects-manage" class="small-link" href="/projects/" hidden>Manage projects</a>
+          </div>
+          <ul id="project-list" class="card-grid"></ul>
+        </section>
+
+        <section class="panel" aria-labelledby="team-heading">
+          <h2 id="team-heading">Team</h2>
+          <ul id="team-list" class="team-list"></ul>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+</body>
+</html>

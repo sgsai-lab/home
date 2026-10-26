@@ -5,16 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f8f9fc">
   <meta name="robots" content="noindex">
-  <title>User management — SGS AI Technology</title>
-  <meta name="description" content="Administer SGS AI Technology user accounts.">
+  <title>Admin console — SGS AI Technology</title>
+  <meta name="description" content="Administer SGS AI Technology client workspaces and user accounts.">
   <link rel="icon" type="image/x-icon" href="/logo/favicon.ico">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/global.css?v=7">
-  <link rel="stylesheet" href="/assets/css/account.css">
-  <script src="/assets/js/app.js?v=7" defer></script>
-  <script type="module" src="/assets/js/admin-users.js"></script>
+  <link rel="preload" href="/assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/dm-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/css/global.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/assets/css/account.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/assets/css/hub.css?v=__ASSET_VERSION__">
+  <script src="/assets/js/app.js?v=__ASSET_VERSION__" defer></script>
+  <script type="module" src="/assets/js/admin-users.js?v=__ASSET_VERSION__"></script>
+  <script type="module" src="/assets/js/admin-clients.js?v=__ASSET_VERSION__"></script>
 </head>
 <body>
   <a href="#main" class="skip-link">Skip to content</a>
@@ -23,8 +24,62 @@
 
   <main id="main" class="auth-main">
     <div class="section-wrap">
-      <h1 class="page-title">User management</h1>
+      <h1 class="page-title">Admin console</h1>
       <p id="page-status" class="form-status" role="alert" hidden></p>
+
+      <section class="panel" aria-labelledby="new-client-heading">
+        <h2 id="new-client-heading">New client workspace</h2>
+        <p class="hint">You become an owner of the workspace. Invite the client's staff from the workspace's People tab.</p>
+        <form id="client-create-form" class="inline-form" novalidate>
+          <label class="field">Organisation name
+            <input name="name" type="text" required maxlength="120">
+          </label>
+          <label class="field">Primary sector
+            <select name="primary_sector">
+              <option value="business">Business</option>
+              <option value="education">Education</option>
+            </select>
+          </label>
+          <label class="field">Contact email
+            <input name="contact_email" type="email" maxlength="254">
+          </label>
+          <button class="button button-primary" type="submit">Create workspace</button>
+        </form>
+        <p id="client-create-status" class="form-status" role="status" hidden></p>
+      </section>
+
+      <section class="panel" aria-labelledby="clients-heading">
+        <h2 id="clients-heading">Client workspaces</h2>
+        <form id="client-filter-form" class="inline-form" novalidate>
+          <label class="field">Search
+            <input name="q" type="search" maxlength="100" placeholder="Organisation name">
+          </label>
+          <label class="field">Sector
+            <select name="sector">
+              <option value="">Any</option>
+              <option value="business">Business</option>
+              <option value="education">Education</option>
+            </select>
+          </label>
+          <label class="field">Status
+            <select name="status">
+              <option value="">Any</option>
+              <option value="prospect">Prospect</option>
+              <option value="active">Active</option>
+              <option value="paused">Paused</option>
+              <option value="closed">Closed</option>
+            </select>
+          </label>
+          <button class="button button-secondary" type="submit">Apply</button>
+        </form>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead><tr><th>Organisation</th><th>Sector</th><th>Status</th><th>Members</th><th>Actions</th></tr></thead>
+            <tbody id="clients-body"></tbody>
+          </table>
+        </div>
+        <p id="clients-status" class="form-status" role="status" hidden></p>
+      </section>
 
       <section class="panel" aria-labelledby="invite-heading">
         <h2 id="invite-heading">Invite a user</h2>

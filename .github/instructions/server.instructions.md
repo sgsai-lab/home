@@ -5,10 +5,12 @@ applyTo: "src/server/**,test/**"
 
 # Server conventions
 
-- Plain `node:http`; all routes are `if (pathname === ...)` branches inside `createRequestHandler()` in `src/server/server.mjs`, ending with the 404 response. Keep the injectable options (`env`, `allowRequest`, `sendMail`, `recordPageView`) for testability.
-- Respond only via `respond(response, status, body)` (JSON, `no-store`, `nosniff`). `/api/v1/*` errors use `{ error: { code, message } }`; unsupported methods return 405 with an `Allow` header.
-- Parse bodies with `readJson` (12 KB limit) and sanitize every string with `sanitizeText(value, maxLength)`. Never echo secrets or env values.
-- Authenticated routes: `getSession(getBearerToken(request))`, return 401 `UNAUTHORIZED` when missing, then `getUserById(session.user_id)`. No admin routes exist yet; `requireUser({ admin: true })` in the browser only hides UI, so any admin-only route must itself return 403 `FORBIDDEN` unless `user.role === 'admin'`.
-- Persistence lives in `src/server/db.mjs`: each function tries Firestore (`getFirestore()`), logs and falls back to `memoryStore` on failure. Add new collections the same way and clear them in `resetInMemoryDb()`.
-- Tests use `node:test` + `assert/strict`, call `setFirestoreDisabled(true)`, start `createServer(...)` on port 0, close it in `t.after`, and inject fakes instead of real SMTP/Google/Firestore.
-- Non-`/api/v1/` paths need a matching `location` in `config/nginx.conf`.
+- Plain `node:http`, no framework. `createRequestHandler()` in `src/server/server.mjs` handles the legacy endpoints (`/api/contact`, `/api/config`, `/api/analytics`, `/api/readyz`, `/.well-known/*`) and dispatches `/api/v1/*` and `/go/*` through the router (`createRouter` in `http.mjs`) to route tables in `src/server/routes/*.mjs` (`[method, '/api/v1/things/:id', handler]`).
+- Handlers receive `ctx`: `ctx.auth()` (401 unless an active user), `ctx.admin()` (403 unless SGS admin), `ctx.optionalAuth()`, `ctx.body()` (JSON object, 12 KB), `ctx.limit(name, key)` (429), `ctx.audit(action, target, { actorId, clientId, diff })`, `ctx.send(status, body, headers)`, `ctx.params`, `ctx.query`, `ctx.client` (`web|android|ios`).
+- Errors: `throw new HttpError(status, CODE, message, details)`; the dispatcher renders `{ error: { code, message, details, request_id } }`, maps `DatabaseUnavailableError` to 503 and anything else to 500 with a logged request id. Unsupported methods get 405 with `Allow` automatically.
+- Validate with `Checker` from `validation.mjs` (collects every field problem), sanitize strings (`sanitizeText`), and allow only `https://` URLs.
+- Tenancy: load the resource, then `requireMembership(user, resource.client_id, minRole)` from `authz.mjs`. Other tenants get 404. Only SGS admins (`role === 'admin'`) cross tenants.
+- Persistence: use the generic helpers in `db.mjs` (`getDoc`, `setDoc`, `updateDoc` for read-modify-write in a transaction, `queryDocs` with equality filters, `deleteWhere`, single-use token helpers). Store tokens only as SHA-256 digests. A numeric `expires_at` adds the `expire_at` TTL field automatically.
+- Never log secrets, tokens, codes or email bodies. Use `log()` from `http.mjs` for structured JSON logs.
+- Tests: `node:test` + `assert/strict` with `test/helpers.mjs` (`start` disables Firestore and rate limits, injects `sendEmail` and a fake storage; `account` creates a signed-in user; `call` returns `{ status, data, headers }`). Use `realLimits: true` only for throttling tests. Cover tenant isolation with a negative test.
+- Non-`/api/v1/` paths need a matching `location` in `config/nginx.conf` (and never `add_header` inside a location).

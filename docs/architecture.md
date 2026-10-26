@@ -34,9 +34,17 @@ The loader preserves existing hash navigation behavior: product, vision, about, 
 
 ## API and persistence
 
-[The API](../src/server/server.mjs) exposes HTTP handler/server factories for tests and starts a loopback listener when executed directly. It handles contact submissions, analytics, public provider configuration, and the implemented account endpoints. [The persistence adapter](../src/server/db.mjs) owns user/session persistence and test substitution. Moving these modules does not change their exports or endpoint contracts.
+[The API](../src/server/server.mjs) is the system of record for the client hub ([ADR-002](adr/0002-firestore-first-data-platform.md)) and serves the website and the mobile app. `createRequestHandler()` answers the legacy endpoints (contact, analytics, provider configuration, readiness, app-link association files) and dispatches `/api/v1/*` and `/go/*` through a small router to [route tables](../src/server/routes/) for authentication, users, workspaces (clients, memberships, invites), projects, products and launch links, assets and the audit log. Each request gets a context with authentication, rate limiting, auditing and a request id; errors share one envelope. See the [API reference](api.md).
 
-The included container runs the API on port 3000 and Nginx on port 8080. Nginx routes `/api/contact`, `/api/analytics`, and `/api/config` to the local API; `/api/v1/` uses `API_UPSTREAM`, which defaults to that same API. The standalone preview is not an API proxy.
+[The persistence layer](../src/server/db.mjs) is a generic Firestore repository with an in-memory implementation for tests and local work; production disables the fallback so outages surface as `503`. Binaries never pass through the API: browsers and the app upload to and read from Cloud Storage with V4 signed URLs ([storage adapter](../src/server/storage.mjs)). Collections, TTLs and indexes are described in the [data model](data-model.md).
+
+Tenancy: every workspace document carries `client_id`, and handlers authorise with `requireMembership()` ([authz](../src/server/authz.mjs)): roles viewer < member < admin < owner, with SGS administrators acting as owners everywhere. Other tenants' resources answer `404`.
+
+The included container runs the API on port 3000 and Nginx on port 8080. Nginx routes `/api/contact`, `/api/analytics`, `/api/config`, `/api/readyz`, `/go/` and the two `/.well-known/` association files to the local API; `/api/v1/` uses `API_UPSTREAM`, which defaults to that same API (ADR-002 keeps the contract identical so it can later point at `backend-api`). The standalone preview is not an API proxy.
+
+## Client hub in the browser
+
+Signed-in pages are ES modules on top of `auth.js` (API client with token refresh) and `hub.js` (labels, workspace selection, signed-URL cache). `/workspace/` is the launcher: apps open through `/go/{slug}`, and client-only apps bounce through `/workspace/launch/`, which signs the visitor in and returns with a single-use launch token. The site is an installable PWA: [sw.js](../public/sw.js) caches only the shell (never API responses or launch links), and the workspace keeps an offline snapshot of names and links that is cleared on sign-out.
 
 ## Build and deployment boundary
 

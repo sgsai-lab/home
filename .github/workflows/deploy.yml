@@ -75,22 +75,64 @@ jobs:
           CONTACT_FROM: ${{ vars.CONTACT_FROM }}
           SMTP_USER_SECRET: ${{ vars.SMTP_USER_SECRET }}
           SMTP_PASS_SECRET: ${{ vars.SMTP_PASS_SECRET }}
+          # Client hub (ADR-002). All optional: features that need them report 503 until set.
+          SITE_ORIGIN: ${{ vars.SITE_ORIGIN }}
+          ADMIN_EMAILS: ${{ vars.ADMIN_EMAILS }}
+          GOOGLE_CLIENT_IDS: ${{ vars.GOOGLE_CLIENT_IDS }}
+          APPLE_CLIENT_IDS: ${{ vars.APPLE_CLIENT_IDS }}
+          APPLE_ANDROID_PACKAGES: ${{ vars.APPLE_ANDROID_PACKAGES }}
+          MEDIA_BUCKET: ${{ vars.MEDIA_BUCKET }}
+          PUBLIC_ASSETS_BUCKET: ${{ vars.PUBLIC_ASSETS_BUCKET }}
+          MFA_ENCRYPTION_KEY_SECRET: ${{ vars.MFA_ENCRYPTION_KEY_SECRET }}
+          APPLE_STATE_SECRET_SECRET: ${{ vars.APPLE_STATE_SECRET_SECRET }}
+          ANDROID_CERT_SHA256: ${{ vars.ANDROID_CERT_SHA256 }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
-          secret_args=()
+          secrets=""
           if [[ -n "$SMTP_USER_SECRET" && -n "$SMTP_PASS_SECRET" ]]; then
-            secret_args+=(--set-secrets "SMTP_USER=$SMTP_USER_SECRET:latest,SMTP_PASS=$SMTP_PASS_SECRET:latest")
+            secrets="SMTP_USER=$SMTP_USER_SECRET:latest,SMTP_PASS=$SMTP_PASS_SECRET:latest"
           elif [[ -n "$SMTP_USER_SECRET" || -n "$SMTP_PASS_SECRET" ]]; then
             echo "Set both SMTP_USER_SECRET and SMTP_PASS_SECRET, or leave both unset." >&2
             exit 1
           fi
-          env_vars="GCP_PROJECT_ID=$GCP_PROJECT_ID,SMTP_HOST=$SMTP_HOST,SMTP_PORT=587,SMTP_SECURE=false,CONTACT_FROM=$CONTACT_FROM,CONTACT_TO=hello@sgsaitechnology.com"
-          if [[ -n "${GOOGLE_CLIENT_ID:-}" ]]; then
-            env_vars="$env_vars,GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID"
+          if [[ -n "${MFA_ENCRYPTION_KEY_SECRET:-}" ]]; then
+            secrets="${secrets:+$secrets,}MFA_ENCRYPTION_KEY=$MFA_ENCRYPTION_KEY_SECRET:latest"
           fi
-          if [[ -n "${APPLE_CLIENT_ID:-}" ]]; then
-            env_vars="$env_vars,APPLE_CLIENT_ID=$APPLE_CLIENT_ID"
+          if [[ -n "${APPLE_STATE_SECRET_SECRET:-}" ]]; then
+            secrets="${secrets:+$secrets,}APPLE_STATE_SECRET=$APPLE_STATE_SECRET_SECRET:latest"
           fi
+          secret_args=()
+          if [[ -n "$secrets" ]]; then
+            secret_args+=(--set-secrets "$secrets")
+          fi
+          # "|" delimiter (gcloud ^|^ syntax) because GOOGLE_CLIENT_IDS and similar values contain commas.
+          env_vars=""
+          add_env() {
+            if [[ -z "$2" ]]; then return 0; fi
+            if [[ "$2" == *"|"* ]]; then
+              echo "$1 must not contain '|'." >&2
+              exit 1
+            fi
+            env_vars="${env_vars:+$env_vars|}$1=$2"
+          }
+          add_env GCP_PROJECT_ID "$GCP_PROJECT_ID"
+          add_env SMTP_HOST "${SMTP_HOST:-}"
+          add_env SMTP_PORT 587
+          add_env SMTP_SECURE false
+          add_env CONTACT_FROM "${CONTACT_FROM:-}"
+          add_env CONTACT_TO hello@sgsaitechnology.com
+          add_env GOOGLE_CLIENT_ID "${GOOGLE_CLIENT_ID:-}"
+          add_env APPLE_CLIENT_ID "${APPLE_CLIENT_ID:-}"
+          add_env SITE_ORIGIN "${SITE_ORIGIN:-}"
+          add_env ADMIN_EMAILS "${ADMIN_EMAILS:-}"
+          add_env GOOGLE_CLIENT_IDS "${GOOGLE_CLIENT_IDS:-}"
+          add_env APPLE_CLIENT_IDS "${APPLE_CLIENT_IDS:-}"
+          add_env APPLE_ANDROID_PACKAGES "${APPLE_ANDROID_PACKAGES:-}"
+          add_env MEDIA_BUCKET "${MEDIA_BUCKET:-}"
+          add_env PUBLIC_ASSETS_BUCKET "${PUBLIC_ASSETS_BUCKET:-}"
+          add_env ANDROID_CERT_SHA256 "${ANDROID_CERT_SHA256:-}"
+          add_env APPLE_TEAM_ID "${APPLE_TEAM_ID:-}"
           gcloud run deploy sgs-ai-website \
             --project "$GCP_PROJECT_ID" \
             --region "$GCP_REGION" \
@@ -101,5 +143,5 @@ jobs:
             --memory 256Mi \
             --service-account "$GCP_RUNTIME_SERVICE_ACCOUNT" \
             --ingress all \
-            --set-env-vars "$env_vars" \
+            --set-env-vars "^|^$env_vars" \
             "${secret_args[@]}"

@@ -43,6 +43,8 @@ export function clearSession() {
   currentUser = null;
   sessionStorage.removeItem(SESSION_KEY);
   localStorage.removeItem(SIGNED_IN_HINT_KEY);
+  // The workspace keeps an offline snapshot; never leave it behind on a shared device.
+  localStorage.removeItem('sgsai.workspace.snapshot');
 }
 
 export function hasSessionHint() {
@@ -116,7 +118,7 @@ export function getCurrentUser({ reload = false } = {}) {
   return currentUser;
 }
 
-export function safeNext(value, fallback = '/projects/') {
+export function safeNext(value, fallback = '/workspace/') {
   if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return fallback;
   return value;
 }
@@ -139,7 +141,7 @@ export async function requireUser({ admin = false } = {}) {
     throw error;
   }
   if (admin && user.role !== 'admin') {
-    location.replace('/projects/');
+    location.replace('/workspace/');
     return new Promise(() => {});
   }
   return user;

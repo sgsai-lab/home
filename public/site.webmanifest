@@ -1,19 +1,21 @@
 {
+  "id": "/workspace/",
   "name": "SGS AI Technology",
   "short_name": "SGS AI",
-  "icons": [
-    {
-      "src": "/logo/android-chrome-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/logo/android-chrome-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ],
+  "description": "Your projects and apps with SGS AI Technology.",
+  "start_url": "/workspace/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
   "theme_color": "#f8f9fc",
   "background_color": "#f8f9fc",
-  "display": "standalone"
+  "categories": ["business", "education", "productivity"],
+  "icons": [
+    { "src": "/logo/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/logo/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "My workspace", "url": "/workspace/", "icons": [{ "src": "/logo/android-chrome-192x192.png", "sizes": "192x192" }] },
+    { "name": "My account", "url": "/account/", "icons": [{ "src": "/logo/android-chrome-192x192.png", "sizes": "192x192" }] }
+  ]
 }

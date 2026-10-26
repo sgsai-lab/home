@@ -40,26 +40,24 @@
 
   
   
-  <link rel="preload" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" as="style">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="/assets/css/global.css?v=7">
-  <link rel="stylesheet" href="/sections/contact/contact.css">
-  <script src="/assets/js/app.js?v=7" defer></script>
-  <script defer data-domain="sgsaitechnology.com" src="https://plausible.io/js/script.js"></script>
+  <link rel="preload" href="/assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/dm-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/css/global.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/sections/contact/contact.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/contact/contact-page.css?v=__ASSET_VERSION__">
+  <script src="/assets/js/app.js?v=__ASSET_VERSION__" defer></script>
+  <script src="/sections/contact/contact.js?v=__ASSET_VERSION__" defer></script>
 </head>
 <body>
   <a href="#main" class="skip-link">Skip to content</a>
   <div class="announcement">
-    <span class="announcement-dot" aria-hidden="true"></span> Building what’s next, with AI that works for you <a href="/contact">Let’s talk <span aria-hidden="true">↗</span></a>
+    <span class="announcement-dot" aria-hidden="true"></span> Building what’s next, with AI that works for you <a href="/contact/">Let’s talk <span aria-hidden="true">↗</span></a>
   </div>
   
   <div id="header-mount"></div>
   <div id="nav-mount"></div>
 
-  <main id="main" style="padding-top: 5px; padding-bottom: 80px;">
+  <main class="page-main" id="main">
     <div class="section-wrap">
       
       <div class="contact-page-layout">
@@ -69,41 +67,39 @@
           <p>Whether you have a project in mind, need more information about our services, or just want to say hello, we're ready to listen.</p>
         </div>
 
-        <div class="contact-card form-layout" style="margin-top: 50px; background: white; box-shadow: 0 15px 40px rgba(0,0,0,0.04); border-radius: 20px; overflow: hidden; border: 1px solid var(--line);">
+        <div class="contact-card form-layout contact-shell">
           <!-- Contact Details Sidebar -->
-          <div class="contact-details-sidebar" style="padding: 60px; background: #f8f9fc; position: relative; z-index: 2; border-right: 1px solid var(--line);">
+          <div class="contact-details-sidebar contact-sidebar">
             <p class="section-kicker">CONTACT DETAILS</p>
-            <h2 style="font-family: var(--display); font-size: 38px; margin: 15px 0 40px; color: var(--ink);">Reach out to us.</h2>
+            <h2 class="contact-title">Reach out to us.</h2>
             
-            <div class="detail-item" style="margin-bottom: 35px;">
-              <h4 style="font-family: 'DM Mono', monospace; font-size: 10px; color: #788195; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px;">Email Us</h4>
-              <a href="mailto:hello@sgsaitechnology.com" style="font-weight: 600; font-size: 15px; color: var(--purple); transition: color 0.3s ease;">hello@sgsaitechnology.com</a>
+            <div class="detail-item u-mb-35">
+              <h4 class="detail-label">Email Us</h4>
+              <a class="detail-link detail-link-accent" href="mailto:hello@sgsaitechnology.com">hello@sgsaitechnology.com</a>
             </div>
 
-            <div class="detail-item" style="margin-bottom: 35px;">
-              <h4 style="font-family: 'DM Mono', monospace; font-size: 10px; color: #788195; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px;">Call Us</h4>
-              <a href="tel:+918123879595" style="font-weight: 600; font-size: 15px; color: var(--ink); transition: color 0.3s ease;">+91&nbsp;81238&nbsp;79595</a>
+            <div class="detail-item u-mb-35">
+              <h4 class="detail-label">Call Us</h4>
+              <a class="detail-link" href="tel:+918123879595">+91&nbsp;81238&nbsp;79595</a>
             </div>
 
-            <div class="detail-item" style="margin-bottom: 40px;">
-              <h4 style="font-family: 'DM Mono', monospace; font-size: 10px; color: #788195; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px;">Business Hours</h4>
-              <p style="font-size: 14px; color: var(--muted); margin: 0; line-height: 1.6;">Mon - Fri: 9:00 AM - 6:00 PM<br>Sat - Sun: Closed</p>
+            <div class="detail-item u-mb-40">
+              <h4 class="detail-label">Business Hours</h4>
+              <p class="detail-text">Mon - Fri: 9:00 AM - 6:00 PM<br>Sat - Sun: Closed</p>
             </div>
 
             <div class="detail-item">
-              <h4 style="font-family: 'DM Mono', monospace; font-size: 10px; color: #788195; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 15px;">Connect</h4>
-              <div style="display: flex; gap: 20px;">
-                <a href="#" aria-label="SGS AI Technology on LinkedIn" style="color: var(--ink); font-size: 20px; transition: color 0.3s ease;" onmouseover="this.style.color='var(--purple)'" onmouseout="this.style.color='var(--ink)'"><i class="fa-brands fa-linkedin" aria-hidden="true"></i></a>
-                <a href="#" aria-label="SGS AI Technology on X" style="color: var(--ink); font-size: 20px; transition: color 0.3s ease;" onmouseover="this.style.color='var(--purple)'" onmouseout="this.style.color='var(--ink)'"><i class="fa-brands fa-twitter" aria-hidden="true"></i></a>
-                <a href="#" aria-label="SGS AI Technology on GitHub" style="color: var(--ink); font-size: 20px; transition: color 0.3s ease;" onmouseover="this.style.color='var(--purple)'" onmouseout="this.style.color='var(--ink)'"><i class="fa-brands fa-github" aria-hidden="true"></i></a>
+              <h4 class="detail-label detail-label-spaced">Connect</h4>
+              <div class="social-links">
+                <a class="detail-link" href="https://github.com/sgsai-lab" rel="noopener">GitHub</a>
               </div>
             </div>
           </div>
           
           <!-- Contact Form -->
-          <div class="contact-form-container" style="background: white; padding: 60px;">
-            <h3 style="font-size: 28px; margin-bottom: 30px; font-family: var(--display); color: var(--ink);">Send a message</h3>
-            <form id="contactPageForm" class="contact-form" novalidate>
+          <div class="contact-form-container contact-form-pane">
+            <h3 class="contact-form-title">Send a message</h3>
+            <form id="contactPageForm" class="contact-form" method="post" novalidate>
               <div class="form-group">
                 <label for="cp-name">Name <span aria-hidden="true">*</span></label>
                 <input type="text" id="cp-name" name="name" required placeholder="Jane Doe">
@@ -136,7 +132,19 @@
                 <span class="error-msg" id="cp-message-error">Please enter a message.</span>
               </div>
               
-              <button type="submit" class="button button-primary submit-btn" style="margin-top: 20px;">
+              <div class="form-group form-consent">
+                <label class="consent-label">
+                  <input type="checkbox" id="cp-consent" name="consent" required>
+                  <span>I agree that SGS AI Technology may use these details to reply to my enquiry, as described in the <a href="/privacy/">privacy notice</a>.</span>
+                </label>
+                <span class="error-msg" id="cp-consent-error">Please confirm so we can reply.</span>
+              </div>
+              <div class="form-trap" aria-hidden="true">
+                <label for="cp-website">Leave this field empty</label>
+                <input type="text" id="cp-website" name="website" tabindex="-1" autocomplete="off">
+              </div>
+
+              <button type="submit" class="button button-primary submit-btn u-mt-20">
                 <span class="btn-text">Send Message</span>
                 <span class="btn-loader"></span>
               </button>

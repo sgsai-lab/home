@@ -1,4 +1,17 @@
 User-agent: *
 Allow: /
+# Signed-in and account pages also carry <meta name="robots" content="noindex">.
+Disallow: /account/
+Disallow: /admin/
+Disallow: /projects/
+Disallow: /workspace/
+Disallow: /login/
+Disallow: /signup/
+Disallow: /forgot-password/
+Disallow: /reset-password/
+Disallow: /verify-email/
+Disallow: /offline/
+Disallow: /go/
+Disallow: /api/
 
 Sitemap: https://www.sgsaitechnology.com/sitemap.xml

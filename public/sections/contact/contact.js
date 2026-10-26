@@ -28,9 +28,11 @@ document.addEventListener('DOMContentLoaded', () => {
       return re.test(String(email).toLowerCase());
     };
 
+    // International numbers (E.164 allows up to 15 digits), e.g. +91 81238 79595 or (555) 123-4567.
     const validatePhone = (phone) => {
-      const re = /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/im;
-      return re.test(String(phone));
+      const value = String(phone).trim();
+      const digits = value.replace(/\D/g, '');
+      return /^\+?[\d\s().-]+$/.test(value) && digits.length >= 7 && digits.length <= 15;
     };
 
     form.addEventListener('submit', async (e) => {
@@ -47,6 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const phoneInput = form.querySelector('input[name="phone"]');
       const subjectInput = form.querySelector('input[name="subject"]');
       const msgInput = form.querySelector('textarea[name="message"]');
+      const consentInput = form.querySelector('input[name="consent"]');
+      const trapInput = form.querySelector('input[name="website"]');
 
       // Validate Name
       if (!nameInput.value.trim()) {
@@ -95,6 +99,14 @@ document.addEventListener('DOMContentLoaded', () => {
         clearError(msgInput);
       }
 
+      // The API requires explicit consent before it emails the enquiry.
+      if (!consentInput.checked) {
+        showError(consentInput, 'Please confirm so we can reply.');
+        isValid = false;
+      } else {
+        clearError(consentInput);
+      }
+
       if (isValid) {
         submitBtn.disabled = true;
         submitBtn.classList.add('is-loading');
@@ -106,9 +118,16 @@ document.addEventListener('DOMContentLoaded', () => {
             body: JSON.stringify({
               name: nameInput.value.trim(),
               email: emailInput.value.trim(),
-              phone: phoneInput.value.trim(),
-              subject: subjectInput.value.trim(),
-              message: msgInput.value.trim()
+              // The API stores one message field, so subject and phone travel inside it.
+              message: [
+                `Subject: ${subjectInput.value.trim()}`,
+                phoneInput.value.trim() ? `Phone: ${phoneInput.value.trim()}` : '',
+                '',
+                msgInput.value.trim()
+              ].filter((line, index) => line || index === 2).join('\n'),
+              consent: true,
+              website: trapInput ? trapInput.value : '',
+              source: 'contact'
             })
           });
 
@@ -137,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Clear error on input
     form.querySelectorAll('input, textarea').forEach(input => {
-      input.addEventListener('input', () => clearError(input));
+      input.addEventListener(input.type === 'checkbox' ? 'change' : 'input', () => clearError(input));
     });
   });
 })();

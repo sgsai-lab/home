@@ -7,6 +7,8 @@ const form = document.getElementById('signup-form');
 const done = document.getElementById('signup-done');
 const statusEl = document.getElementById('status');
 let signedUpEmail = '';
+const inviteToken = new URLSearchParams(location.search).get('invite');
+const next = inviteToken ? `/workspace/join/?token=${encodeURIComponent(inviteToken)}` : '/workspace/';
 
 function showStep(step) {
   for (const element of [identifyStep, form, done]) element.hidden = element !== step;
@@ -29,10 +31,15 @@ handleSubmit(form, statusEl, async ({ full_name: fullName, email, password, acce
   const user = await api('/auth/signup', {
     auth: false,
     method: 'POST',
-    body: { full_name: fullName.trim(), email, password, accept_terms: true }
+    body: { full_name: fullName.trim(), email, password, accept_terms: true, ...(inviteToken ? { invite_token: inviteToken } : {}) }
   });
   signedUpEmail = user.email;
   form.reset();
+  if (!user.verification_required) {
+    // Accepted invitations verify the address, so the account is ready to sign in.
+    location.replace(`/login/?notice=account-ready&next=${encodeURIComponent('/workspace/')}`);
+    return;
+  }
   document.getElementById('signup-email').textContent = signedUpEmail;
   showStep(done);
 });
@@ -66,10 +73,10 @@ const providers = setupProviders({
       return;
     }
     storeTokens(result);
-    location.replace('/projects/');
+    location.replace(next);
   }
 });
 
-offerContinueAs(document.getElementById('continue-card'), [identifyStep], '/projects/')
+offerContinueAs(document.getElementById('continue-card'), [identifyStep], next)
   .catch(() => false)
   .then((signedIn) => (signedIn ? undefined : providers.offerGoogleOneTap()));

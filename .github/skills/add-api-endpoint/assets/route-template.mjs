@@ -1,36 +1,46 @@
-// Template: insert inside createRequestHandler() in src/server/server.mjs, before the final 404.
-// Replace widgets/Widget names; add listWidgets/createWidget to src/server/db.mjs and import them.
+// Template: a route table entry in src/server/routes/<area>.mjs (register the table in server.mjs).
+// Replace widget/Widget names.
+import { HttpError } from '../http.mjs';
+import { getDoc, newId, queryDocs, setDoc, updateDoc } from '../db.mjs';
+import { requireMembership } from '../authz.mjs';
+import { Checker } from '../validation.mjs';
 
-    if (pathname === '/api/v1/widgets') {
-      const session = await getSession(getBearerToken(request));
-      if (!session) {
-        return respond(response, 401, { error: { code: 'UNAUTHORIZED', message: 'Sign in to continue.' } });
-      }
-      const user = await getUserById(session.user_id);
-      if (!user) {
-        return respond(response, 401, { error: { code: 'UNAUTHORIZED', message: 'User not found.' } });
-      }
+async function listWidgets(ctx) {
+  const { user } = await ctx.auth();
+  const clientId = ctx.query.get('client_id');
+  await requireMembership(user, clientId);
+  const items = await queryDocs('widgets', { where: [['client_id', '==', clientId]] });
+  return ctx.send(200, { items, total: items.length });
+}
 
-      if (request.method === 'GET') {
-        const items = await listWidgets(user.id);
-        return respond(response, 200, { items, total: items.length });
-      }
+async function createWidget(ctx) {
+  const { user } = await ctx.auth();
+  ctx.limit('mutations', user.id);
+  const check = new Checker(await ctx.body());
+  const clientId = check.text('client_id', { required: true, max: 80 });
+  const name = check.text('name', { required: true, max: 120 });
+  check.done();
+  await requireMembership(user, clientId, 'admin');
+  const widget = { id: newId('wdg'), client_id: clientId, name, created_at: new Date().toISOString() };
+  await setDoc('widgets', widget.id, widget);
+  await ctx.audit('widget.created', { type: 'widget', id: widget.id }, { actorId: user.id, clientId });
+  return ctx.send(201, widget);
+}
 
-      if (request.method === 'POST') {
-        let input;
-        try {
-          input = await readJson(request);
-        } catch (err) {
-          return respond(response, err.statusCode ?? 400, { error: { code: 'BAD_REQUEST', message: err.message } });
-        }
-        const name = sanitizeText(input?.name, 120);
-        if (!name) {
-          return respond(response, 400, { error: { code: 'VALIDATION_ERROR', message: 'Enter a name.' } });
-        }
-        const widget = await createWidget({ userId: user.id, name });
-        return respond(response, 201, widget);
-      }
+async function renameWidget(ctx) {
+  const { user } = await ctx.auth();
+  const widget = await getDoc('widgets', ctx.params.id);
+  if (!widget) throw new HttpError(404, 'NOT_FOUND', 'Widget not found.');
+  await requireMembership(user, widget.client_id, 'admin');
+  const check = new Checker(await ctx.body());
+  const name = check.text('name', { required: true, max: 120 });
+  check.done();
+  const { after } = await updateDoc('widgets', widget.id, (current) => current && { ...current, name });
+  return ctx.send(200, after);
+}
 
-      response.setHeader('Allow', 'GET, POST');
-      return respond(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' } });
-    }
+export const widgetRoutes = [
+  ['GET', '/api/v1/widgets', listWidgets],
+  ['POST', '/api/v1/widgets', createWidget],
+  ['PATCH', '/api/v1/widgets/:id', renameWidget]
+];

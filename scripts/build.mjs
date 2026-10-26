@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { cp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +13,19 @@ const output = path.join(root, 'dist');
 await rm(output, { recursive: true, force: true });
 await cp(source, output, { recursive: true });
 
+// One cache-busting version for every `?v=__ASSET_VERSION__` reference: a hash of all public
+// files, so any change to a page, fragment, stylesheet or script refetches everything.
+async function hashTree(directory, hash) {
+  const entries = (await readdir(directory, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
+  for (const entry of entries) {
+    const filename = path.join(directory, entry.name);
+    if (entry.isDirectory()) await hashTree(filename, hash);
+    else hash.update(path.relative(source, filename)).update(await readFile(filename));
+  }
+  return hash;
+}
+const assetVersion = (await hashTree(source, createHash('sha256'))).digest('hex').slice(0, 10);
+
 async function minifyTree(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const filename = path.join(directory, entry.name);
@@ -19,7 +33,8 @@ async function minifyTree(directory) {
       await minifyTree(filename);
       continue;
     }
-    const source = await readFile(filename, 'utf8');
+    if (!/\.(html|css|js)$/.test(filename)) continue;
+    const source = (await readFile(filename, 'utf8')).replaceAll('__ASSET_VERSION__', assetVersion);
     if (filename.endsWith('.html')) {
       const html = source.replace(
         /<link\b(?=[^>]*\brel=["']stylesheet["'])(?=[^>]*\bhref=["']https?:\/\/)[^>]*>/gi,
@@ -45,4 +60,4 @@ async function minifyTree(directory) {
 }
 
 await minifyTree(output);
-console.log(`Built minified site in ${output}`);
+console.log(`Built minified site in ${output} (asset version ${assetVersion})`);

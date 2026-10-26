@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f9fc">
+  <meta name="robots" content="noindex">
+  <title>Join a workspace — SGS AI Technology</title>
+  <meta name="description" content="Accept an invitation to an SGS AI Technology workspace.">
+  <link rel="icon" type="image/x-icon" href="/logo/favicon.ico">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="preload" href="/assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/dm-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/css/global.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/assets/css/account.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/assets/css/hub.css?v=__ASSET_VERSION__">
+  <script src="/assets/js/app.js?v=__ASSET_VERSION__" defer></script>
+  <script type="module" src="/assets/js/join.js?v=__ASSET_VERSION__"></script>
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <div id="header-mount"></div>
+  <div id="nav-mount"></div>
+
+  <main id="main" class="auth-main">
+    <div class="section-wrap">
+      <section class="panel auth-card" aria-labelledby="join-heading">
+        <h1 id="join-heading" class="page-title">Join a workspace</h1>
+        <p id="invite-summary" class="hint">Checking your invitation…</p>
+        <div id="join-signed-in" class="stack" hidden>
+          <p>Signed in as <strong id="join-email"></strong>.</p>
+          <button id="accept-invite" class="button button-primary" type="button">Accept invitation</button>
+          <button id="switch-account" class="link-button" type="button">Use a different account</button>
+        </div>
+        <div id="join-signed-out" class="stack" hidden>
+          <a id="join-signup" class="button button-primary" href="/signup/">Create my account</a>
+          <a id="join-login" class="button button-secondary" href="/login/">I already have an account</a>
+        </div>
+        <p id="status" class="form-status" role="alert" hidden></p>
+      </section>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+</body>
+</html>

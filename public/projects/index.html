@@ -8,13 +8,13 @@
   <title>Projects — SGS AI Technology</title>
   <meta name="description" content="Start and manage your SGS AI Technology projects.">
   <link rel="icon" type="image/x-icon" href="/logo/favicon.ico">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/global.css?v=7">
-  <link rel="stylesheet" href="/assets/css/account.css">
-  <script src="/assets/js/app.js?v=7" defer></script>
-  <script type="module" src="/assets/js/projects.js"></script>
+  <link rel="preload" href="/assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/dm-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/css/global.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/assets/css/account.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/assets/css/hub.css?v=__ASSET_VERSION__">
+  <script src="/assets/js/app.js?v=__ASSET_VERSION__" defer></script>
+  <script type="module" src="/assets/js/projects.js?v=__ASSET_VERSION__"></script>
 </head>
 <body>
   <a href="#main" class="skip-link">Skip to content</a>
@@ -24,32 +24,44 @@
   <main id="main" class="auth-main">
     <div class="section-wrap">
       <h1 class="page-title">Projects</h1>
-
-      <div id="verify-banner" class="banner" hidden>
-        <span>Verify your email address to start and edit projects.</span>
-        <a class="button button-secondary button-small" href="/account/">Go to account</a>
-      </div>
+      <p class="hint">Business engagements and education programmes SGS AI Technology runs with your organisation.</p>
       <p id="page-status" class="form-status" role="alert" hidden></p>
 
-      <section class="panel" aria-labelledby="editor-heading">
+      <section id="editor" class="panel" aria-labelledby="editor-heading" hidden>
         <h2 id="editor-heading">Start a new project</h2>
         <form id="project-form" class="stack" novalidate>
           <div class="grid-2">
+            <label class="field">Workspace
+              <select name="client_id" required></select>
+            </label>
             <label class="field">Name
               <input name="name" type="text" required maxlength="120">
+            </label>
+          </div>
+          <div class="grid-2">
+            <label class="field">Sector
+              <select name="sector">
+                <option value="business">Business</option>
+                <option value="education">Education</option>
+              </select>
             </label>
             <label class="field">Status
               <select name="status">
                 <option value="draft">Draft</option>
-                <option value="active">Active</option>
+                <option value="discovery">Discovery</option>
+                <option value="in_progress">In progress</option>
                 <option value="on_hold">On hold</option>
-                <option value="completed">Completed</option>
+                <option value="delivered">Delivered</option>
                 <option value="archived">Archived</option>
               </select>
             </label>
           </div>
-          <label class="field">Description
-            <textarea name="description" maxlength="5000"></textarea>
+          <fieldset id="profile-fields" class="stack">
+            <legend id="profile-legend">Details</legend>
+            <div id="profile-inputs" class="grid-2"></div>
+          </fieldset>
+          <label class="field">Summary
+            <textarea name="summary" maxlength="2000"></textarea>
           </label>
           <div class="grid-2">
             <label class="field">Start date
@@ -60,7 +72,11 @@
             </label>
           </div>
           <label class="field">Tags (comma separated, up to 20)
-            <input name="tags" type="text" maxlength="700" placeholder="ai, education, pilot">
+            <input name="tags" type="text" maxlength="700" placeholder="pilot, lms">
+          </label>
+          <label id="template-field" class="field-check">
+            <input name="use_template" type="checkbox" checked>
+            <span>Start with the standard milestones for this sector</span>
           </label>
           <div class="row-actions">
             <button id="submit-project" class="button button-primary" type="submit">Create project</button>
@@ -71,37 +87,44 @@
       </section>
 
       <section class="panel" aria-labelledby="list-heading">
-        <h2 id="list-heading">My projects</h2>
+        <h2 id="list-heading">All projects</h2>
         <form id="filter-form" class="inline-form" novalidate>
           <label class="field">Search
-            <input name="q" type="search" maxlength="100" placeholder="Name or description">
+            <input name="q" type="search" maxlength="100" placeholder="Name, summary or tag">
+          </label>
+          <label class="field">Workspace
+            <select name="client_id"><option value="">All</option></select>
+          </label>
+          <label class="field">Sector
+            <select name="sector">
+              <option value="">Any</option>
+              <option value="business">Business</option>
+              <option value="education">Education</option>
+            </select>
           </label>
           <label class="field">Status
             <select name="status">
               <option value="">Any</option>
               <option value="draft">Draft</option>
-              <option value="active">Active</option>
+              <option value="discovery">Discovery</option>
+              <option value="in_progress">In progress</option>
               <option value="on_hold">On hold</option>
-              <option value="completed">Completed</option>
+              <option value="delivered">Delivered</option>
               <option value="archived">Archived</option>
             </select>
           </label>
-          <label class="field">Tag
-            <input name="tag" type="text" maxlength="32">
-          </label>
           <label class="field">Sort
             <select name="sort">
-              <option value="-created_at">Newest first</option>
-              <option value="created_at">Oldest first</option>
               <option value="-updated_at">Recently updated</option>
+              <option value="-created_at">Newest first</option>
               <option value="name">Name A–Z</option>
-              <option value="-name">Name Z–A</option>
+              <option value="start_date">Start date</option>
             </select>
           </label>
           <button class="button button-secondary" type="submit">Apply</button>
         </form>
 
-        <ul id="project-list" class="project-list"></ul>
+        <ul id="project-list" class="card-grid"></ul>
         <div class="pager">
           <button id="prev-page" class="button button-secondary button-small" type="button">Previous</button>
           <span id="page-info"></span>

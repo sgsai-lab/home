@@ -2,7 +2,8 @@ import { access, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../public');
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const sourceRoot = path.join(repoRoot, 'public');
 const root = process.argv[2]
   ? path.resolve(process.argv[2])
   : sourceRoot;
@@ -52,6 +53,86 @@ async function resolvePageFile(pathname) {
     }
   }
   return candidates[0];
+}
+
+// --- Content Security Policy guard -----------------------------------------------------
+// Production serves the CSP from config/nginx.conf; anything it would block is a lint error here,
+// because `npm run preview` and Lighthouse run without Nginx and would not show the violation.
+function parseCsp(nginxConfig) {
+  const policy = nginxConfig.match(/Content-Security-Policy "([^"]+)"/)?.[1];
+  if (!policy) throw new Error('config/nginx.conf has no Content-Security-Policy header.');
+  return new Map(policy.split(';').map((part) => part.trim().split(/\s+/)).filter((tokens) => tokens[0]).map(([name, ...sources]) => [name, sources]));
+}
+
+function allowedBy(csp, directive, url) {
+  const sources = csp.get(directive) ?? csp.get('default-src') ?? [];
+  return sources.some((source) => {
+    if (!source.startsWith('https://')) return false;
+    const [host, ...rest] = source.slice(8).split('/');
+    const prefix = rest.length ? `/${rest.join('/')}` : '/';
+    const hostMatches = host.startsWith('*.') ? url.hostname.endsWith(host.slice(1)) : url.hostname === host;
+    return url.protocol === 'https:' && hostMatches && url.pathname.startsWith(prefix);
+  });
+}
+
+async function collectFiles(directory, extensions, found = []) {
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const filename = path.join(directory, entry.name);
+    if (entry.isDirectory()) await collectFiles(filename, extensions, found);
+    else if (extensions.some((extension) => entry.name.endsWith(extension))) found.push(filename);
+  }
+  return found;
+}
+
+const DIRECTIVE_BY_TAG = { script: 'script-src', img: 'img-src', iframe: 'frame-src', video: 'media-src', audio: 'media-src', source: 'media-src' };
+
+async function checkPolicy(errors) {
+  const csp = parseCsp(await readFile(path.join(repoRoot, 'config/nginx.conf'), 'utf8'));
+  for (const filename of await collectFiles(root, ['.html'])) {
+    const where = `/${path.relative(root, filename)}`;
+    const html = await readFile(filename, 'utf8');
+    if (/\sstyle=["']/i.test(html)) errors.add(`${where}: inline style attributes are blocked by the CSP; use a class`);
+    if (/\son[a-z]+=["']/i.test(html)) errors.add(`${where}: inline event handlers are blocked by the CSP; use an external script`);
+    if (/<style[\s>]/i.test(html)) errors.add(`${where}: <style> blocks are blocked by the CSP; use a stylesheet`);
+    for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+      if (!/\bsrc=/i.test(match[1]) && !/type=["']application\/ld\+json["']/i.test(match[1]) && match[2].trim()) {
+        errors.add(`${where}: inline scripts are blocked by the CSP; use an external script`);
+      }
+    }
+    for (const match of html.matchAll(/<(script|link|img|iframe|video|audio|source)\b([^>]*?)\b(src|href)=(["'])(https?:\/\/[^"']+)\4([^>]*)>/gi)) {
+      const [, tag, before, , , href, after] = match;
+      const attributes = `${before} ${after}`;
+      let directive = DIRECTIVE_BY_TAG[tag.toLowerCase()];
+      if (tag.toLowerCase() === 'link') {
+        const rel = attributes.match(/\brel=["']([^"']+)["']/i)?.[1] ?? '';
+        if (/stylesheet/.test(rel) || /as=["']style["']/i.test(attributes)) directive = 'style-src';
+        else if (/as=["']font["']/i.test(attributes)) directive = 'font-src';
+        else if (/as=["']script["']/i.test(attributes)) directive = 'script-src';
+        else if (/preconnect|dns-prefetch/.test(rel)) directive = 'connect-src';
+        else continue;
+      }
+      if (!allowedBy(csp, directive, new URL(href))) errors.add(`${where}: ${href} is blocked by the CSP (${directive}); self-host it or update config/nginx.conf`);
+    }
+  }
+  for (const filename of await collectFiles(root, ['.css'])) {
+    const css = await readFile(filename, 'utf8');
+    for (const match of css.matchAll(/(?:url\(\s*["']?|@import\s+["'])(https?:\/\/[^"')\s]+)/gi)) {
+      const directive = /\.(woff2?|ttf|otf)(\?|$)/i.test(match[1]) ? 'font-src' : /@import/i.test(match[0]) ? 'style-src' : 'img-src';
+      if (!allowedBy(csp, directive, new URL(match[1]))) errors.add(`/${path.relative(root, filename)}: ${match[1]} is blocked by the CSP (${directive})`);
+    }
+  }
+  if (root === sourceRoot) {
+    for (const filename of await collectFiles(root, ['.html', '.js', '.css'])) {
+      if (/\?v=\d/.test(await readFile(filename, 'utf8'))) {
+        errors.add(`/${path.relative(root, filename)}: use ?v=__ASSET_VERSION__ (stamped by scripts/build.mjs) instead of a literal version`);
+      }
+      if (filename.endsWith('.html')) {
+        for (const match of (await readFile(filename, 'utf8')).matchAll(/(?:href|src)="(\/[^"?#]+\.(?:css|js))"/g)) {
+          errors.add(`/${path.relative(root, filename)}: add ?v=__ASSET_VERSION__ to ${match[1]} so deploys refetch it`);
+        }
+      }
+    }
+  }
 }
 
 function resolveTarget(source, href) {
@@ -106,6 +187,10 @@ for (const document of documents) {
       continue;
     }
     if (!target || target.api) continue;
+    if (/^<a\b/i.test(match[0]) && target.pathname !== '/' && !target.pathname.endsWith('/') && !path.extname(target.pathname)) {
+      // Nginx answers slash-less routes with a 301; link to the canonical URL directly.
+      errors.add(`${document.sourcePath}: link to ${href} without a trailing slash`);
+    }
 
     const targetFile = await resolvePageFile(target.pathname);
     if (!targetFile) {
@@ -129,6 +214,8 @@ for (const document of documents) {
     }
   }
 }
+
+await checkPolicy(errors);
 
 if (errors.size) {
   console.error([...errors].sort().join('\n'));

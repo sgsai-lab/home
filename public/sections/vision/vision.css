@@ -140,8 +140,9 @@
   font-weight: 700;
   letter-spacing: 0.07em;
 }
-.approach-center i {
-  font-style: normal;
+.approach-center .icon {
+  display: block;
+  margin: 6px auto 0;
   color: #19b68c;
 }
 .visual-note {

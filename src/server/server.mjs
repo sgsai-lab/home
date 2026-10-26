@@ -1,112 +1,38 @@
 import { createServer as createHttpServer } from 'node:http';
-import { randomBytes } from 'node:crypto';
-import nodemailer from 'nodemailer';
 import {
-  consumeRefreshToken,
-  createOrUpdateUserFromProvider,
-  deleteRefreshToken,
-  deleteSession,
-  deleteUserSessions,
-  findUserByProvider,
-  getSession,
-  getUserById,
-  saveRefreshToken,
-  saveSession,
-  updateUser
-} from './db.mjs';
-import { CredentialError, createAppleVerifier, createGoogleVerifier } from './identity.mjs';
+  createRateLimiter,
+  createRouter,
+  clientAddress,
+  clientKind,
+  getBearerToken,
+  HttpError,
+  log,
+  newRequestId,
+  readJson,
+  readJsonBody,
+  respond,
+  respondError,
+  sanitizeText,
+  unauthorized
+} from './http.mjs';
+import { checkDatabase, DatabaseUnavailableError, getSession, getUserById } from './db.mjs';
+import { createAppleVerifier, createGoogleVerifier } from './identity.mjs';
+import { sendNotification, sendTransactionalEmail } from './mail.mjs';
+import { createGcsStorage } from './storage.mjs';
+import { writeAudit } from './audit.mjs';
+import { authRoutes } from './routes/auth.mjs';
+import { userRoutes } from './routes/users.mjs';
+import { clientRoutes } from './routes/clients.mjs';
+import { projectRoutes } from './routes/projects.mjs';
+import { productRoutes, goRoutes } from './routes/products.mjs';
+import { assetRoutes } from './routes/assets.mjs';
+import { auditRoutes } from './routes/audit.mjs';
 
-const BODY_LIMIT = 12 * 1024;
+export { createRateLimiter, sanitizeText };
+
 const FIELD_LIMITS = { name: 100, email: 254, company: 120, message: 5000 };
-const ANALYTICS_PATHS = new Set(['/', '/vision/', '/products/', '/roadmap/', '/about/', '/contact/', '/privacy/', '/terms/']);
-const ACCESS_TOKEN_TTL_SECONDS = 60 * 60;
-const REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
-const REFRESH_COOKIE = 'sgsai_refresh';
-
-function readCookie(request, name) {
-  for (const part of String(request.headers.cookie ?? '').split(';')) {
-    const separator = part.indexOf('=');
-    if (separator > 0 && part.slice(0, separator).trim() === name) return part.slice(separator + 1).trim() || null;
-  }
-  return null;
-}
-
-function refreshCookie(value, maxAge) {
-  return `${REFRESH_COOKIE}=${value}; Path=/api/v1/auth; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}`;
-}
-
-function clearRefreshCookie(response) {
-  response.setHeader('Set-Cookie', refreshCookie('', 0));
-}
-
-function publicUser(user) {
-  return {
-    id: user.id,
-    email: user.email,
-    full_name: user.full_name,
-    avatar_url: user.avatar_url,
-    role: user.role,
-    email_verified: user.email_verified,
-    created_at: user.created_at
-  };
-}
-
-/** Issues a short-lived bearer token plus a rotating HttpOnly refresh cookie. */
-async function issueSession(response, userId) {
-  const accessToken = randomBytes(32).toString('base64url');
-  const refreshToken = randomBytes(32).toString('base64url');
-  await saveSession({ token: accessToken, userId, expiresAt: Date.now() + ACCESS_TOKEN_TTL_SECONDS * 1000 });
-  await saveRefreshToken({ token: refreshToken, userId, expiresAt: Date.now() + REFRESH_TOKEN_TTL_SECONDS * 1000 });
-  response.setHeader('Set-Cookie', refreshCookie(refreshToken, REFRESH_TOKEN_TTL_SECONDS));
-  return { access_token: accessToken, token_type: 'bearer', expires_in: ACCESS_TOKEN_TTL_SECONDS };
-}
-
-function credentialFailure(response, error, provider) {
-  if (error instanceof CredentialError && error.code === 'PROVIDER_NOT_CONFIGURED') {
-    return respond(response, 503, { error: { code: error.code, message: `${provider} sign-in is not available right now.` } });
-  }
-  if (!(error instanceof CredentialError)) console.error(`${provider} credential verification error.`);
-  return respond(response, 401, { error: { code: 'INVALID_CREDENTIAL', message: `${provider} sign-in could not be verified. Please try again.` } });
-}
-
-async function readCredential(request, response) {
-  if (request.method !== 'POST') {
-    response.setHeader('Allow', 'POST');
-    respond(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' } });
-    return null;
-  }
-  let input;
-  try {
-    input = await readJson(request);
-  } catch (err) {
-    respond(response, err.statusCode ?? 400, { error: { code: 'BAD_REQUEST', message: err.message } });
-    return null;
-  }
-  if (typeof input?.id_token !== 'string' || !input.id_token) {
-    respond(response, 400, { error: { code: 'BAD_REQUEST', message: 'Missing id_token.' } });
-    return null;
-  }
-  return { idToken: input.id_token, nonce: typeof input.nonce === 'string' ? input.nonce : undefined, input };
-}
-
-function getBearerToken(request) {
-  const auth = request.headers.authorization;
-  if (typeof auth === 'string' && auth.startsWith('Bearer ')) {
-    return auth.slice(7).trim();
-  }
-  return null;
-}
-
-export function sanitizeText(value, maximumLength) {
-  return String(value ?? '')
-    .normalize('NFKC')
-    .replace(/[\u0000-\u001f\u007f]/g, ' ')
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/[<>]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, maximumLength);
-}
+// Must stay in sync with analyticsPaths in public/assets/js/script.js (test/build.test.mjs enforces it).
+export const ANALYTICS_PATHS = new Set(['/', '/vision/', '/services/', '/products/', '/roadmap/', '/about/', '/contact/', '/privacy/', '/terms/']);
 
 export function validateSubmission(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return { error: 'Invalid form submission.' };
@@ -129,103 +55,121 @@ export function validateSubmission(input) {
   return { submission };
 }
 
-export function createRateLimiter({ limit = 10, windowMs = 15 * 60 * 1000, now = Date.now } = {}) {
-  const requests = new Map();
-  return (key) => {
-    const timestamp = now();
-    const recent = (requests.get(key) ?? []).filter((time) => timestamp - time < windowMs);
-    if (recent.length >= limit) {
-      requests.set(key, recent);
-      return false;
-    }
-    recent.push(timestamp);
-    requests.set(key, recent);
-    if (requests.size > 10000) {
-      for (const [address, times] of requests) {
-        if (times.every((time) => timestamp - time >= windowMs)) requests.delete(address);
-      }
-    }
-    return true;
+/** Comma-separated audiences plus the single legacy variable. */
+export function audiences(...values) {
+  return [...new Set(values.flatMap((value) => String(value ?? '').split(',')).map((value) => value.trim()).filter(Boolean))];
+}
+
+function listOf(value, fallback = '') {
+  return String(value || fallback).split(',').map((item) => item.trim()).filter(Boolean);
+}
+
+/**
+ * Android App Links / iOS Universal Links for /go/* (ADR-002 §7). Generated from configuration
+ * so signing fingerprints and the Apple team id are never hard-coded; 404 until configured.
+ */
+export function appLinks(env, pathname) {
+  if (pathname.endsWith('assetlinks.json')) {
+    const fingerprints = listOf(env.ANDROID_CERT_SHA256).map((value) => value.toUpperCase());
+    if (!fingerprints.length) return null;
+    return listOf(env.ANDROID_APP_PACKAGES, 'com.sgsaitechnology.app').map((packageName) => ({
+      relation: ['delegate_permission/common.handle_all_urls'],
+      target: { namespace: 'android_app', package_name: packageName, sha256_cert_fingerprints: fingerprints }
+    }));
+  }
+  const teamId = String(env.APPLE_TEAM_ID ?? '').trim();
+  if (!/^[A-Z0-9]{10}$/.test(teamId)) return null;
+  const appIDs = listOf(env.IOS_BUNDLE_IDS, 'com.sgsaitechnology.app').map((bundle) => `${teamId}.${bundle}`);
+  return { applinks: { details: [{ appIDs, components: [{ '/': '/go/*', comment: 'SGS AI launch links' }] }] } };
+}
+
+function createLimiters(overrides = {}) {
+  const minute = 60 * 1000;
+  return {
+    auth: createRateLimiter({ limit: 10, windowMs: 15 * minute }),
+    authEmail: createRateLimiter({ limit: 10, windowMs: 15 * minute }),
+    mfa: createRateLimiter({ limit: 10, windowMs: 15 * minute }),
+    mutations: createRateLimiter({ limit: 60, windowMs: 10 * minute }),
+    invites: createRateLimiter({ limit: 10, windowMs: 60 * minute }),
+    uploads: createRateLimiter({ limit: 20, windowMs: 60 * minute }),
+    launch: createRateLimiter({ limit: 120, windowMs: minute }),
+    ...overrides
   };
 }
 
-function clientAddress(request) {
-  const forwarded = request.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string' && forwarded.trim()) {
-    // Cloud Load Balancing appends the connecting client address to this header.
-    return forwarded.split(',').at(-1).trim();
-  }
-  return request.socket.remoteAddress ?? 'unknown';
-}
+const router = createRouter([...authRoutes, ...userRoutes, ...clientRoutes, ...projectRoutes, ...productRoutes, ...assetRoutes, ...auditRoutes, ...goRoutes]);
 
-function respond(response, status, body) {
-  response.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store',
-    'X-Content-Type-Options': 'nosniff'
-  });
-  response.end(JSON.stringify(body));
-}
-
-async function readJson(request) {
-  const chunks = [];
-  let size = 0;
-  for await (const chunk of request) {
-    size += chunk.length;
-    if (size > BODY_LIMIT) throw Object.assign(new Error('Request body is too large.'), { statusCode: 413 });
-    chunks.push(chunk);
-  }
-  try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
-  } catch {
-    throw Object.assign(new Error('Invalid JSON request.'), { statusCode: 400 });
-  }
-}
-
-function smtpIsConfigured(env) {
-  return Boolean(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS && env.CONTACT_FROM);
-}
-
-async function sendNotification(submission, env) {
-  if (!smtpIsConfigured(env)) throw new Error('Email delivery is not configured.');
-  const port = Number(env.SMTP_PORT || 587);
-  const transporter = nodemailer.createTransport({
-    host: env.SMTP_HOST,
-    port,
-    secure: env.SMTP_SECURE === 'true' || port === 465,
-    auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
-    connectionTimeout: 5000,
-    greetingTimeout: 5000,
-    socketTimeout: 10000
-  });
-  const lines = [
-    `Source: ${submission.source}`,
-    `Name: ${submission.name || '(not provided)'}`,
-    `Email: ${submission.email}`,
-    `Company: ${submission.company || '(not provided)'}`,
-    '',
-    submission.message
-  ];
-  await transporter.sendMail({
-    from: env.CONTACT_FROM,
-    to: env.CONTACT_TO || 'hello@sgsaitechnology.com',
-    replyTo: submission.email,
-    subject: submission.source === 'product-updates' ? 'Website product update request' : 'Website contact enquiry',
-    text: lines.join('\n')
-  });
+function createContext({ request, response, url, params, deps, requestId }) {
+  let authenticated;
+  const ip = clientAddress(request);
+  const ctx = {
+    request,
+    response,
+    params,
+    deps,
+    env: deps.env,
+    requestId,
+    ip,
+    url,
+    query: url.searchParams,
+    client: clientKind(request),
+    userAgent: String(request.headers['user-agent'] ?? ''),
+    body: (options) => readJsonBody(request, options),
+    send: (status, body, headers) => respond(response, status, body, { 'X-Request-Id': requestId, ...headers }),
+    /** Resolves { session, user } or throws 401. Disabled and deleted accounts are rejected. */
+    auth() {
+      authenticated ??= (async () => {
+        const session = await getSession(getBearerToken(request));
+        if (!session) throw unauthorized();
+        const user = await getUserById(session.user_id);
+        if (!user || user.status !== 'active') throw unauthorized(user ? 'This account is not active.' : 'User not found.');
+        return { session, user };
+      })();
+      return authenticated;
+    },
+    async optionalAuth() {
+      if (!getBearerToken(request)) return null;
+      try {
+        return await ctx.auth();
+      } catch (error) {
+        if (error instanceof HttpError && error.status === 401) return null;
+        throw error;
+      }
+    },
+    async admin() {
+      const result = await ctx.auth();
+      if (result.user.role !== 'admin') throw new HttpError(403, 'FORBIDDEN', 'Administrator access is required.');
+      return result;
+    },
+    limit(name, key) {
+      if (!deps.limiters[name](`${name}:${key}`)) {
+        throw new HttpError(429, 'RATE_LIMITED', 'Too many requests. Please try again later.', [], { 'Retry-After': '60' });
+      }
+    },
+    audit(action, target, { clientId = null, diff = null, actorId } = {}) {
+      return writeAudit({ actorId, action, target, clientId, ip, userAgent: ctx.userAgent, requestId, diff });
+    }
+  };
+  return ctx;
 }
 
 export function createRequestHandler({
   env = process.env,
   allowRequest = createRateLimiter(),
   sendMail = sendNotification,
+  sendEmail = sendTransactionalEmail,
   recordPageView = (page) => console.log(JSON.stringify({ event: 'page_view', path: page, timestamp: new Date().toISOString() })),
-  verifyGoogleIdToken = createGoogleVerifier({ clientId: env.GOOGLE_CLIENT_ID }),
-  verifyAppleIdToken = createAppleVerifier({ clientId: env.APPLE_CLIENT_ID })
+  verifyGoogleIdToken = createGoogleVerifier({ clientId: audiences(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_IDS) }),
+  verifyAppleIdToken = createAppleVerifier({ clientId: audiences(env.APPLE_CLIENT_ID, env.APPLE_CLIENT_IDS) }),
+  storage = createGcsStorage(env),
+  limiters
 } = {}) {
+  const deps = { env, sendEmail, verifyGoogleIdToken, verifyAppleIdToken, storage, limiters: createLimiters(limiters) };
+
   return async (request, response) => {
-    const parsedUrl = new URL(request.url, 'http://localhost');
-    const pathname = parsedUrl.pathname;
+    const url = new URL(request.url, 'http://localhost');
+    const pathname = url.pathname;
+    const requestId = newRequestId(request);
 
     if (pathname === '/api/config') {
       if (request.method !== 'GET') {
@@ -233,6 +177,20 @@ export function createRequestHandler({
         return respond(response, 405, { error: 'Method not allowed.' });
       }
       return respond(response, 200, { googleClientId: env.GOOGLE_CLIENT_ID || null, appleClientId: env.APPLE_CLIENT_ID || null });
+    }
+
+    if (pathname === '/.well-known/assetlinks.json' || pathname === '/.well-known/apple-app-site-association') {
+      const body = appLinks(env, pathname);
+      if (!body) return respond(response, 404, { error: 'Not found.' });
+      return respond(response, 200, body, { 'Cache-Control': 'public, max-age=3600' });
+    }
+
+    if (pathname === '/api/readyz') {
+      try {
+        return respond(response, 200, { status: 'ok', database: await checkDatabase() });
+      } catch {
+        return respond(response, 503, { status: 'unavailable', database: 'firestore' });
+      }
     }
 
     if (pathname === '/api/analytics') {
@@ -284,216 +242,39 @@ export function createRequestHandler({
       }
     }
 
-    // Google Identity Services sign-in (button, One Tap, and automatic sign-in all post here)
-    if (pathname === '/api/v1/auth/google') {
-      const credential = await readCredential(request, response);
-      if (!credential) return undefined;
-      let payload;
-      try {
-        payload = await verifyGoogleIdToken(credential.idToken, credential.nonce);
-      } catch (error) {
-        return credentialFailure(response, error, 'Google');
+    const isApi = pathname.startsWith('/api/v1/');
+    if (!isApi && !pathname.startsWith('/go/')) return respond(response, 404, { error: 'Not found.' });
+
+    const started = Date.now();
+    let status = 500;
+    try {
+      const match = router(request.method, pathname);
+      if (!match) throw new HttpError(404, 'NOT_FOUND', 'Not found.');
+      if (match.error) throw match.error;
+      if (match.allowed) {
+        throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Method not allowed.', [], { Allow: match.allowed.join(', ') });
       }
-      if (!payload.email) return credentialFailure(response, new CredentialError('INVALID_CREDENTIAL'), 'Google');
-      // Accounts are matched by email, so only Google-verified addresses may sign in.
-      if (payload.email_verified !== true && payload.email_verified !== 'true') {
-        return respond(response, 403, { error: { code: 'EMAIL_NOT_VERIFIED', message: 'Verify your Google account email address, then try again.' } });
+      const ctx = createContext({ request, response, url, params: match.params, deps, requestId });
+      await match.handler(ctx);
+      status = response.statusCode;
+    } catch (error) {
+      if (response.headersSent) {
+        log('ERROR', 'Handler failed after responding', { request_id: requestId, path: pathname, error: error.message });
+        return undefined;
       }
-      const email = sanitizeText(payload.email, 254).toLowerCase();
-      const user = await createOrUpdateUserFromProvider({
-        provider: 'google',
-        providerId: String(payload.sub),
-        email,
-        name: sanitizeText(payload.name || payload.given_name, 120) || email.split('@')[0],
-        avatarUrl: typeof payload.picture === 'string' && payload.picture.startsWith('https://') ? payload.picture.slice(0, 500) : null,
-        emailVerified: true
-      });
-      return respond(response, 200, { ...(await issueSession(response, user.id)), user: publicUser(user) });
+      let failure = error;
+      if (error instanceof DatabaseUnavailableError) {
+        failure = new HttpError(503, 'SERVICE_UNAVAILABLE', 'The service is temporarily unavailable. Please try again shortly.', [], { 'Retry-After': '30' });
+      } else if (!(error instanceof HttpError)) {
+        log('ERROR', 'Unhandled API error', { request_id: requestId, path: pathname, method: request.method, error: error.message, stack: error.stack });
+        failure = new HttpError(500, 'INTERNAL', 'Something went wrong. Please try again.');
+      }
+      status = failure.status;
+      respondError(response, failure, requestId);
+    } finally {
+      if (status >= 500) log('WARNING', 'API request failed', { request_id: requestId, method: request.method, path: pathname, status, ms: Date.now() - started });
     }
-
-    // Sign in with Apple
-    if (pathname === '/api/v1/auth/apple') {
-      const credential = await readCredential(request, response);
-      if (!credential) return undefined;
-      let payload;
-      try {
-        payload = await verifyAppleIdToken(credential.idToken, credential.nonce);
-      } catch (error) {
-        return credentialFailure(response, error, 'Apple');
-      }
-      // Apple includes the email only on the first authorization; later sign-ins match by subject.
-      const email = sanitizeText(payload.email, 254).toLowerCase() || `${payload.sub}@privaterelay.appleid.com`;
-      const user = await createOrUpdateUserFromProvider({
-        provider: 'apple',
-        providerId: String(payload.sub),
-        email,
-        name: sanitizeText(credential.input.full_name, 120) || email.split('@')[0],
-        avatarUrl: null,
-        emailVerified: Boolean(payload.email)
-      });
-      return respond(response, 200, { ...(await issueSession(response, user.id)), user: publicUser(user) });
-    }
-
-    // Current user profile
-    if (pathname === '/api/v1/users/me') {
-      const token = getBearerToken(request);
-      const session = await getSession(token);
-      if (!session) {
-        return respond(response, 401, { error: { code: 'UNAUTHORIZED', message: 'Sign in to continue.' } });
-      }
-      const user = await getUserById(session.user_id);
-      if (!user) {
-        return respond(response, 401, { error: { code: 'UNAUTHORIZED', message: 'User not found.' } });
-      }
-
-      if (request.method === 'GET') {
-        return respond(response, 200, {
-          id: user.id,
-          email: user.email,
-          full_name: user.full_name,
-          avatar_url: user.avatar_url,
-          role: user.role,
-          email_verified: user.email_verified,
-          created_at: user.created_at
-        });
-      }
-
-      if (request.method === 'PATCH') {
-        let input;
-        try {
-          input = await readJson(request);
-        } catch (err) {
-          return respond(response, err.statusCode ?? 400, { error: { code: 'BAD_REQUEST', message: err.message } });
-        }
-        const updates = {};
-        if (input.full_name !== undefined) updates.full_name = sanitizeText(input.full_name, 120);
-        if (input.avatar_url !== undefined) updates.avatar_url = sanitizeText(input.avatar_url, 500) || null;
-        const updated = await updateUser(user.id, updates);
-        return respond(response, 200, {
-          id: updated.id,
-          email: updated.email,
-          full_name: updated.full_name,
-          avatar_url: updated.avatar_url,
-          role: updated.role,
-          email_verified: updated.email_verified,
-          created_at: updated.created_at
-        });
-      }
-
-      response.setHeader('Allow', 'GET, PATCH');
-      return respond(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' } });
-    }
-
-    // Refresh: exchanges the single-use HttpOnly refresh cookie for a new access token and cookie
-    if (pathname === '/api/v1/auth/token/refresh') {
-      if (request.method !== 'POST') {
-        response.setHeader('Allow', 'POST');
-        return respond(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' } });
-      }
-      const record = await consumeRefreshToken(readCookie(request, REFRESH_COOKIE));
-      const user = record ? await getUserById(record.user_id) : null;
-      if (!user) {
-        clearRefreshCookie(response);
-        return respond(response, 401, { error: { code: 'UNAUTHORIZED', message: 'Session expired. Sign in again.' } });
-      }
-      return respond(response, 200, await issueSession(response, user.id));
-    }
-
-    // Sign out
-    if (pathname === '/api/v1/auth/logout') {
-      if (request.method !== 'POST') {
-        response.setHeader('Allow', 'POST');
-        return respond(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' } });
-      }
-      const token = getBearerToken(request);
-      if (token) await deleteSession(token);
-      const refreshToken = readCookie(request, REFRESH_COOKIE);
-      if (refreshToken) await deleteRefreshToken(refreshToken);
-      clearRefreshCookie(response);
-      return respond(response, 200, { ok: true });
-    }
-
-    // Google account linking
-    if (pathname === '/api/v1/auth/google/link') {
-      const token = getBearerToken(request);
-      const session = await getSession(token);
-      if (!session) {
-        return respond(response, 401, { error: { code: 'UNAUTHORIZED', message: 'Sign in to continue.' } });
-      }
-      if (request.method === 'POST') {
-        const credential = await readCredential(request, response);
-        if (!credential) return undefined;
-        let payload;
-        try {
-          payload = await verifyGoogleIdToken(credential.idToken, credential.nonce);
-        } catch (error) {
-          return credentialFailure(response, error, 'Google');
-        }
-        const owner = await findUserByProvider('google', String(payload.sub));
-        if (owner && owner.id !== session.user_id) {
-          return respond(response, 409, { error: { code: 'ALREADY_LINKED', message: 'This Google account is already linked to another user.' } });
-        }
-        await updateUser(session.user_id, { google_linked: true, google_sub: String(payload.sub) });
-        return respond(response, 200, { ok: true });
-      }
-      if (request.method === 'DELETE') {
-        await updateUser(session.user_id, { google_linked: false, google_sub: null });
-        return respond(response, 200, { ok: true });
-      }
-      response.setHeader('Allow', 'POST, DELETE');
-      return respond(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' } });
-    }
-
-    // Sessions management
-    if (pathname === '/api/v1/auth/sessions') {
-      const token = getBearerToken(request);
-      const session = await getSession(token);
-      if (!session) {
-        return respond(response, 401, { error: { code: 'UNAUTHORIZED', message: 'Sign in to continue.' } });
-      }
-      return respond(response, 200, { items: [{ id: 'current', current: true, created_at: session.created_at, user_agent: request.headers['user-agent'] || 'Current Browser' }] });
-    }
-
-    if (pathname.startsWith('/api/v1/auth/sessions/')) {
-      const token = getBearerToken(request);
-      const session = await getSession(token);
-      if (!session) {
-        return respond(response, 401, { error: { code: 'UNAUTHORIZED', message: 'Sign in to continue.' } });
-      }
-      return respond(response, 200, { ok: true });
-    }
-
-    if (pathname === '/api/v1/auth/logout-all') {
-      if (request.method !== 'POST') {
-        response.setHeader('Allow', 'POST');
-        return respond(response, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' } });
-      }
-      const token = getBearerToken(request);
-      const session = await getSession(token);
-      if (!session) {
-        return respond(response, 401, { error: { code: 'UNAUTHORIZED', message: 'Sign in to continue.' } });
-      }
-      await deleteUserSessions(session.user_id);
-      clearRefreshCookie(response);
-      return respond(response, 200, { ok: true });
-    }
-
-    // MFA status
-    if (pathname === '/api/v1/auth/mfa') {
-      return respond(response, 200, { enabled: false, available: false });
-    }
-
-    // Projects list
-    if (pathname === '/api/v1/projects') {
-      const token = getBearerToken(request);
-      const session = await getSession(token);
-      if (!session) {
-        return respond(response, 401, { error: { code: 'UNAUTHORIZED', message: 'Sign in to continue.' } });
-      }
-      return respond(response, 200, { items: [], total: 0, page: 1, page_size: 10 });
-    }
-
-    return respond(response, 404, { error: 'Not found.' });
+    return undefined;
   };
 }
 
@@ -504,5 +285,5 @@ export function createServer(options) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const port = Number(process.env.API_PORT || 3000);
   const server = createServer();
-  server.listen(port, '127.0.0.1', () => console.log(`Contact API listening on 127.0.0.1:${port}`));
+  server.listen(port, '127.0.0.1', () => log('INFO', `API listening on 127.0.0.1:${port}`));
 }

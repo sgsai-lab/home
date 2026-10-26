@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f9fc">
+  <meta name="robots" content="noindex">
+  <title>Project — SGS AI Technology</title>
+  <meta name="description" content="Project milestones, deliverables and apps.">
+  <link rel="icon" type="image/x-icon" href="/logo/favicon.ico">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="preload" href="/assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/dm-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/css/global.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/assets/css/account.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/assets/css/hub.css?v=__ASSET_VERSION__">
+  <script src="/assets/js/app.js?v=__ASSET_VERSION__" defer></script>
+  <script type="module" src="/assets/js/project-detail.js?v=__ASSET_VERSION__"></script>
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <div id="header-mount"></div>
+  <div id="nav-mount"></div>
+
+  <main id="main" class="auth-main">
+    <div class="section-wrap">
+      <p><a class="small-link" id="back-link" href="/workspace/">← Back to workspace</a></p>
+      <p id="page-status" class="form-status" role="alert" hidden></p>
+      <article id="project" hidden>
+        <div id="project-cover"></div>
+        <header class="hub-header">
+          <div>
+            <p id="project-sector" class="section-kicker"></p>
+            <h1 id="project-name" class="page-title">Project</h1>
+            <p id="project-dates" class="hint"></p>
+          </div>
+          <div class="card-meta" id="project-badges"></div>
+        </header>
+        <p id="project-summary"></p>
+
+        <section class="panel" aria-labelledby="milestones-heading">
+          <h2 id="milestones-heading">Milestones</h2>
+          <ol id="milestone-list" class="milestones"></ol>
+          <p id="milestone-status" class="form-status" role="status" hidden></p>
+        </section>
+
+        <section class="panel" aria-labelledby="apps-heading">
+          <h2 id="apps-heading">Apps from this project</h2>
+          <ul id="app-list" class="card-grid"></ul>
+        </section>
+
+        <section class="panel" aria-labelledby="deliverables-heading">
+          <h2 id="deliverables-heading">Deliverables</h2>
+          <ul id="deliverable-list" class="team-list"></ul>
+          <div id="deliverable-upload"></div>
+          <p id="deliverable-status" class="form-status" role="status" hidden></p>
+        </section>
+
+        <section class="panel" aria-labelledby="team-heading">
+          <h2 id="team-heading">Team</h2>
+          <ul id="team-list" class="team-list"></ul>
+        </section>
+
+        <section id="cover-panel" class="panel" aria-labelledby="cover-heading" hidden>
+          <h2 id="cover-heading">Cover image</h2>
+          <div id="cover-upload"></div>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+</body>
+</html>
