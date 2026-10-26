@@ -22,6 +22,13 @@ function isCovered(file, patterns) {
     (pattern.endsWith('/**') && (file === pattern.slice(0, -3) || file.startsWith(pattern.slice(0, -2)))));
 }
 
+test('deploy path filter uses only patterns this guard can evaluate', async () => {
+  for (const pattern of deployPaths(await read('.github/workflows/deploy.yml'))) {
+    assert.ok(!pattern.startsWith('!') && !/[*?[\]{}]/.test(pattern.replace(/\/\*\*$/, '')),
+      `unsupported deploy path pattern "${pattern}": use exact paths or a trailing /**, or extend isCovered()`);
+  }
+});
+
 test('deploy path filter covers every input of the production image', async () => {
   const [workflow, dockerfile, packageJson, buildScript] = await Promise.all([
     read('.github/workflows/deploy.yml'),
@@ -42,6 +49,10 @@ test('deploy path filter covers every input of the production image', async () =
   assert.ok(buildEntry, `unexpected build script "${buildCommand}"; update this test and deploy paths`);
   const buildSource = buildScript.match(/path\.join\(root, '([^']+)'\)/)?.[1];
   assert.equal(buildSource, 'public', 'build source directory changed; update deploy paths');
+  const localImports = [...buildScript.matchAll(/\bfrom\s+['"](\.{1,2}\/[^'"]+)['"]|\bimport\(\s*['"](\.{1,2}\/[^'"]+)['"]/g)]
+    .map((match) => match[1] ?? match[2]);
+  assert.deepEqual(localImports, [],
+    `${buildEntry} imports local modules; add them to deploy paths and to this test`);
 
   const required = [
     ...shipped,
