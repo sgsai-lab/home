@@ -8,9 +8,13 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (filename) => readFile(path.join(root, filename), 'utf8');
 
 function deployPaths(workflow) {
-  const block = workflow.match(/^ {4}paths:\n((?: {6}- .+\n)+)/m);
+  // Tolerate any indentation, quoted patterns, and trailing comments.
+  const block = workflow.match(/^( +)paths:[ \t]*(?:#.*)?\n((?:\1 +(?:#.*|- .+)\n)+)/m);
   assert.ok(block, 'deploy.yml push trigger must declare a paths list');
-  return block[1].trim().split('\n').map((line) => line.replace(/^\s*-\s*/, '').trim());
+  return block[2].split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith('- '))
+    .map((line) => line.slice(2).replace(/\s+#.*$/, '').trim().replace(/^(['"])(.*)\1$/, '$2'));
 }
 
 function isCovered(file, patterns) {
