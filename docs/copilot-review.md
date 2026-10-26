@@ -60,7 +60,10 @@ the workflow visibly instead of producing a successful-looking review.
   push, and the issue is closed automatically with a comment when a later
   review has no remaining Critical/High/Medium findings. Low findings appear
   only in the PR comment. Findings whose heading does not match the format are
-  skipped with a workflow warning.
+  skipped with a workflow warning. Because review text derives from the diff,
+  `@mentions` and `#N`/`owner/repo#N` references outside code fences are
+  neutralized with a zero-width space in both the comment and the issue so the
+  bot identity cannot be used to notify or backlink arbitrary targets.
 - This is a diff-only AI review, not GitHub's native Copilot code review.
   Unchanged source, binary content, and runtime behavior are not independently
   inspected. Existing CI and human review remain necessary.
