@@ -55,8 +55,10 @@ diff manually. It intentionally has no tools in either mode.
 
 ## Maintenance and verification
 
-The CLI version and action commit SHAs are pinned in the workflow. Update them
-deliberately and verify CLI flags before upgrading. Agent changes take effect
+The CLI version and action commit SHAs are pinned in the workflow. The CLI
+install is cached by runner OS/arch and version, so bump the version in both the
+cache key and install command together. Update deliberately and verify CLI flags
+before upgrading. Agent changes take effect
 only after they reach the target branch.
 
 Validate the workflow with `actionlint .github/workflows/copilot-pr-review.yml`
