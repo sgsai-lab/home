@@ -26,6 +26,8 @@ dist/             Generated static site; not committed
 
 See [architecture and module boundaries](docs/architecture.md), [deployment and operations](docs/deployment.md), and [contribution guidelines](CONTRIBUTING.md).
 
+AI coding agents: start with [AGENTS.md](AGENTS.md), which links task skills in [.github/skills/](.github/skills/) and file-scoped rules in [.github/instructions/](.github/instructions/).
+
 ## Local development and checks
 
 Use Node.js 22, matching CI and the Docker builder. The version is recorded in [.nvmrc](.nvmrc) for version managers.
