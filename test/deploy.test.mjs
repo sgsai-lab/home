@@ -38,11 +38,17 @@ test('deploy path filter covers every input of the production image', async () =
   ]);
   const patterns = deployPaths(workflow);
 
-  // Files copied from the builder into the final image; dist/ and node_modules/ are generated.
-  const shipped = [...dockerfile.matchAll(/^COPY --from=builder \/app\/(\S+?)\/? /gm)]
-    .map((match) => match[1])
-    .filter((source) => !['dist', 'node_modules'].includes(source));
-  assert.ok(shipped.length > 0, 'expected COPY --from=builder lines in the Dockerfile');
+  // Every COPY source: builder outputs (/app/<path>) and direct context copies.
+  // dist/ and node_modules/ are generated; "." is the builder's full context.
+  const shipped = [...dockerfile.matchAll(/^COPY\s+(.+)$/gm)]
+    .flatMap((match) => {
+      const args = match[1].trim().split(/\s+/).filter((arg) => !arg.startsWith('--'));
+      const fromBuilder = /--from=builder\b/.test(match[1]);
+      return args.slice(0, -1).map((source) =>
+        (fromBuilder ? source.replace(/^\/app\//, '') : source).replace(/^\.\//, '').replace(/\/$/, ''));
+    })
+    .filter((source) => !['dist', 'node_modules', '.'].includes(source));
+  assert.ok(shipped.length > 0, 'expected COPY lines in the Dockerfile');
 
   const buildCommand = JSON.parse(packageJson).scripts.build;
   const buildEntry = buildCommand.match(/^node (\S+)$/)?.[1];
