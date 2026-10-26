@@ -258,7 +258,8 @@ jobs:
               else if (findingBlocks.length) findingBlocks.at(-1).push(line);
             }
             const tracked = findingBlocks.flatMap(lines => {
-              const match = lines[0].match(/^### (Critical|High|Medium|Low): (\S+?):(\d+(?:-\d+)?)\s*$/);
+              // The path is interpolated into a Markdown link, so allow only plain path characters.
+              const match = lines[0].match(/^### (Critical|High|Medium|Low): ([A-Za-z0-9_.@+/-]+):(\d+(?:-\d+)?)\s*$/);
               if (!match) {
                 core.warning(`Unparseable finding heading skipped: ${lines[0]}`);
                 return [];
