@@ -77,7 +77,7 @@ Run `bash scripts/check-container.sh sgs-ai-website:local` to verify the homepag
 
 ## GitHub Actions, Artifact Registry, and Cloud Run
 
-The PR workflow runs HTML/CSS/JavaScript checks, local-link validation, API tests, a minified build, and Lighthouse CI budgets. Image vulnerability scanning is currently skipped because the Trivy installer fails in GitHub Actions; restore scanning when its installation path is fixed. The `main` deployment workflow builds and pushes a tag equal to the full commit SHA, then deploys that image to Cloud Run with 0–5 instances and 256 MiB memory. It uses Workload Identity Federation (WIF); no service-account key is stored in GitHub.
+The single PR workflow ([Website CI](.github/workflows/ci.yml)) runs HTML/CSS/JavaScript checks, local-link validation, API tests, a minified build, the container smoke test, and the automatic Copilot PR review. The Lighthouse CI budget step is temporarily commented out. Shared setup (Node.js, cached `node_modules`, container build/check) lives in composite actions under `.github/actions/`. Image vulnerability scanning is currently skipped because the Trivy installer fails in GitHub Actions; restore scanning when its installation path is fixed. The `main` deployment workflow builds and pushes a tag equal to the full commit SHA, then deploys that image to Cloud Run with 0–5 instances and 256 MiB memory. It uses Workload Identity Federation (WIF); no service-account key is stored in GitHub.
 
 Provision the Artifact Registry, Cloud Run service, global HTTPS load balancer, reserved DNS address, managed TLS certificate, Secret Manager containers, and GitHub-to-GCP Workload Identity Federation with the checked-in [GCP infrastructure guide](infra/gcp/README.md) and [Terraform configuration](infra/gcp/terraform/). It documents the GitHub repository variables, SMTP setup, Squarespace DNS cutover, certificate validation, and rollback procedure. No GCP service-account keys or mail credentials belong in this repository.
 
@@ -111,7 +111,7 @@ gcloud run services update-traffic sgs-ai-website --region="$GCP_REGION" --to-re
 - Protect the actual default branch; require pull requests, appropriate reviewers, the CI check, and up-to-date branches.
 - Add a verified owner/team to `.github/CODEOWNERS`; the repository does not identify an authorized team, so no person/team is guessed here.
 - Require 2FA for organization/repository members and enable secret scanning plus push protection where eligible.
-- Enable Dependabot security updates and review its generated PRs (the checked-in Dependabot file only configures version updates).
+- Dependabot version updates are disabled (no `.github/dependabot.yml`); re-add that file to re-enable them. Decide separately whether to enable Dependabot security updates in repository settings.
 - Create the GitHub `production` environment, add approved production reviewers, and scope deployment variables/permissions appropriately.
 - Configure WIF trust conditions to this exact repository and `main` branch, review granted GCP IAM roles, and complete external INF-05/INF-07 prerequisites.
 - Set actual SMTP secrets in Secret Manager, grant the runtime identity access, and verify domain sender authentication.

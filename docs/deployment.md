@@ -46,7 +46,9 @@ SMTP settings and operational limitations are documented in [README.md](../READM
 
 ## CI and release
 
-[Website CI](../.github/workflows/ci.yml) installs locked dependencies, runs lint and tests, builds the site, checks built links, enforces Lighthouse budgets, and builds and smoke-tests the image.
+[Website CI](../.github/workflows/ci.yml) is the single pull-request workflow. Its `validate-and-build` job installs locked dependencies, runs lint and tests, builds the site, checks built links, and builds and smoke-tests the image; the Lighthouse budget step is currently commented out. Its `review` and `publish-review` jobs run the [automatic Copilot PR review](copilot-review.md) on eligible pull requests.
+
+Shared steps live in composite actions under [.github/actions/](../.github/actions/): `setup` (pinned Node.js from `.nvmrc`, npm cache, and a `node_modules` cache keyed on `package-lock.json` so repeat runs skip `npm ci`; optionally a cached Copilot CLI) and `container-check` (image build plus `scripts/check-container.sh`). Change workflow setup in those actions rather than in individual workflows.
 
 [Production deployment](../.github/workflows/deploy.yml) builds a commit-SHA-tagged image, runs the container smoke test, authenticates through Workload Identity Federation, pushes to Artifact Registry, and deploys Cloud Run through the `production` environment. Protect the default branch and require CI and production approval gates through repository settings. Deployment does not itself wait for the separate CI workflow; those protections are important.
 

@@ -1,0 +1,24 @@
+name: Build and smoke-test container
+description: >-
+  Builds the production image with the given tag and verifies it starts and
+  serves the site and API on the Cloud Run port. Shared by CI and deployment.
+
+inputs:
+  tag:
+    description: Full image tag to build and verify (for example sgs-ai-website:<sha>).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Build container image
+      shell: bash
+      env:
+        IMAGE_TAG: ${{ inputs.tag }}
+      run: docker build --tag "$IMAGE_TAG" .
+
+    - name: Verify container startup on Cloud Run port
+      shell: bash
+      env:
+        IMAGE_TAG: ${{ inputs.tag }}
+      run: bash scripts/check-container.sh "$IMAGE_TAG"

@@ -1,8 +1,9 @@
 # Automatic Copilot PR review
 
 The [PR Reviewer agent](../.github/agents/pr-reviewer.agent.md) runs through
-[Copilot PR review](../.github/workflows/copilot-pr-review.yml) on opened,
-updated, reopened, and ready-for-review pull requests.
+the `review` and `publish-review` jobs of the
+[Website CI](../.github/workflows/ci.yml) workflow on opened, updated,
+reopened, and ready-for-review pull requests.
 
 ## Enable it
 
@@ -12,11 +13,12 @@ updated, reopened, and ready-for-review pull requests.
    account permission. Do not grant repository write access to this token.
 3. Add it under repository **Settings > Secrets and variables > Actions** as
    `COPILOT_GITHUB_TOKEN`. Never put the value in source code, comments, or logs.
-4. Merge the agent and workflow into the PR target branch. The workflow loads
-   its agent and repository guide from the PR's base commit. Until the target
-   branch contains the agent, runs pass with a notice and skip the review.
+4. Merge the agent, the shared `.github/actions/setup` action, and the workflow
+   into the PR target branch. The workflow loads its agent, setup action, and
+   repository guide from the PR's base commit. Until the target branch contains
+   them, runs pass with a notice and skip the review.
 5. Open or update a non-draft PR from a branch in this repository. Look for the
-   **Copilot PR review** Actions run and its bot comment.
+   **review** job in the **Website CI** Actions run and its bot comment.
 
 This repository currently has a personal-account owner, so the workflow uses a
 PAT rather than organization-billed Copilot `GITHUB_TOKEN` authentication.
@@ -55,20 +57,22 @@ diff manually. It intentionally has no tools in either mode.
 
 ## Maintenance and verification
 
-The CLI version and action commit SHAs are pinned in the workflow. The CLI
-install is cached by runner OS/arch and version, so bump the version in both the
-cache key and install command together. Update deliberately and verify CLI flags
-before upgrading. Agent changes take effect
+The CLI version and action commit SHAs are pinned in the workflow and the
+shared setup action. The CLI install is cached by runner OS/arch and version
+through the `copilot-cli-version` input, so bumping `COPILOT_CLI_VERSION` in
+the workflow `env` updates both the cache key and the install. Update
+deliberately and verify CLI flags before upgrading. Agent changes take effect
 only after they reach the target branch.
 
-Validate the workflow with `actionlint .github/workflows/copilot-pr-review.yml`
+Validate the workflow with `actionlint .github/workflows/ci.yml`
 and run the standard repository checks from [AGENTS.md](../AGENTS.md). A full
 end-to-end check requires the secret and a real PR: confirm that a new push
 updates the same comment, draft/fork runs are skipped, and authentication
 failures leave a failed Actions run. No local test can establish that the
 repository secret or Copilot billing is configured correctly.
 
-To disable automation, remove or disable **Copilot PR review** in Actions.
+To disable automation, remove the `review` and `publish-review` jobs from
+**Website CI**.
 Removing the token alone intentionally causes eligible review runs to fail.
 
 References:
