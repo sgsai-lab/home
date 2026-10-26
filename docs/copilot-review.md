@@ -64,7 +64,10 @@ The CLI version and action commit SHAs are pinned in the workflow and the
 shared setup action. The CLI install is cached by runner OS/arch and version
 through the `copilot-cli-version` input, so bumping `COPILOT_CLI_VERSION` in
 the workflow `env` updates both the cache key and the install. Update
-deliberately and verify CLI flags before upgrading. Agent changes take effect
+deliberately and verify CLI flags before upgrading: the workflow parses the
+CLI's `--output-format json` event stream (`assistant.message` content and the
+`result` exit code) because the default text output renders Markdown for a
+terminal and strips the required headings. Agent changes take effect
 on the PR that makes them and on every PR after they reach the target branch.
 
 Validate the workflow with `actionlint .github/workflows/ci.yml`

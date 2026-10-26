@@ -134,15 +134,34 @@ jobs:
             echo "::error::Add the COPILOT_GITHUB_TOKEN Actions secret with Copilot Requests permission."
             exit 1
           fi
+          # Text output renders Markdown for a terminal (headings and bullets are
+          # stripped, lines re-wrapped). JSONL keeps the raw assistant Markdown.
           copilot --agent=pr-reviewer --trust-folder \
             --available-tools= --disable-builtin-mcps \
             --no-custom-instructions --no-ask-user \
-            --silent --stream=off \
-            --prompt "$(cat prompt.txt)" > review.md
-          if [ ! -s review.md ]; then
-            echo "::error::Copilot returned an empty review."
-            exit 1
-          fi
+            --silent --stream=off --output-format json \
+            --prompt "$(cat prompt.txt)" > events.jsonl
+          node - <<'EOF'
+          const fs = require('node:fs');
+          const events = fs.readFileSync('events.jsonl', 'utf8')
+            .split('\n').filter(Boolean).map(line => JSON.parse(line));
+          const result = events.find(event => event.type === 'result');
+          if (!result || result.exitCode !== 0) {
+            console.error(`::error::Copilot CLI did not finish successfully (exit code ${result?.exitCode ?? 'unknown'}).`);
+            process.exit(1);
+          }
+          const review = events
+            .filter(event => event.type === 'assistant.message')
+            .map(event => event.data?.content ?? '')
+            .filter(Boolean)
+            .join('\n\n')
+            .trim();
+          if (!review) {
+            console.error('::error::Copilot returned an empty review.');
+            process.exit(1);
+          }
+          fs.writeFileSync('review.md', `${review}\n`);
+          EOF
 
       - name: Save review for publisher
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
