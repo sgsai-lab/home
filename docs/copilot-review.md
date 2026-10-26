@@ -15,8 +15,8 @@ reopened, and ready-for-review pull requests.
    `COPILOT_GITHUB_TOKEN`. Never put the value in source code, comments, or logs.
 4. Merge the agent, the shared `.github/actions/setup` action, and the workflow
    into the PR target branch. The workflow loads its agent, setup action, and
-   repository guide from the PR's base commit. Until the target branch contains
-   them, runs pass with a notice and skip the review.
+   repository guide from the PR merge commit, so the review also runs on the PR
+   that introduces them.
 5. Open or update a non-draft PR from a branch in this repository. Look for the
    **review** job in the **Website CI** Actions run and its bot comment.
 
@@ -34,12 +34,15 @@ the workflow visibly instead of producing a successful-looking review.
 - The review job has only `contents: read` and `pull-requests: read`; a separate
   publishing job has only `pull-requests: write` and never receives the Copilot
   secret.
-- Only trusted base-branch configuration is checked out. PR code is retrieved
-  as diff text, never checked out, installed, built, or executed.
+- The checkout does not persist credentials. PR code is retrieved as diff text
+  for the prompt and is never installed, built, or executed; the only install is
+  the pinned Copilot CLI from the npm registry. Agent and setup configuration
+  come from the PR merge commit: because same-repo pull requests already control
+  this workflow file, reading them from the base branch would add no protection.
 - Copilot runs in an isolated temporary directory with a fresh configuration
   directory, no tools, no built-in MCP servers, and no implicit custom
   instructions or repository hooks copied from the checkout.
-- The agent receives the base branch's repository guide and the entire diff.
+- The agent receives the repository guide and the entire diff.
   Diffs over 60,000 UTF-8 bytes or prompts over 100,000 bytes fail explicitly;
   input is never silently truncated. Split oversized PRs or review them manually.
 - One marked bot comment is created and updated, with the reviewed commit SHA.
@@ -62,7 +65,7 @@ shared setup action. The CLI install is cached by runner OS/arch and version
 through the `copilot-cli-version` input, so bumping `COPILOT_CLI_VERSION` in
 the workflow `env` updates both the cache key and the install. Update
 deliberately and verify CLI flags before upgrading. Agent changes take effect
-only after they reach the target branch.
+on the PR that makes them and on every PR after they reach the target branch.
 
 Validate the workflow with `actionlint .github/workflows/ci.yml`
 and run the standard repository checks from [AGENTS.md](../AGENTS.md). A full
