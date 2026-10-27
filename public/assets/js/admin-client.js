@@ -1,5 +1,6 @@
 import { api, ApiError, bindAction, describeError, formatDate, getCurrentUser, h, handleSubmit, requireUser, showStatus } from '/assets/js/auth.js';
-import { assetUrl, badge, initials, PRODUCT_KIND, PRODUCT_STATUS, ROLE, ROLE_HELP, statusTone } from '/assets/js/hub.js';
+import { closeDialog, confirmDialog, openDialog, setupDialogs } from '/assets/js/dialog.js';
+import { assetUrl, badge, initials, PRODUCT_KIND, PRODUCT_STATUS, ROLE, ROLE_HELP, SECTOR, setupTabs, statusTone } from '/assets/js/hub.js';
 import { createUploader } from '/assets/js/upload.js';
 
 const $ = (id) => document.getElementById(id);
@@ -9,40 +10,29 @@ let me;
 let client;
 let editingProduct = null;
 
-// --- Tabs (WAI-ARIA tabs pattern with arrow-key navigation) --------------------------------
-const tabs = [...document.querySelectorAll('[role="tab"]')];
-function selectTab(tab) {
-  for (const other of tabs) {
-    const selected = other === tab;
-    other.setAttribute('aria-selected', String(selected));
-    other.tabIndex = selected ? 0 : -1;
-    $(other.getAttribute('aria-controls')).hidden = !selected;
+// --- Side navigation ----------------------------------------------------------------------
+setupDialogs();
+setupTabs(document.querySelector('.hub-sidenav'), {
+  onSelect: (tab) => {
+    if (tab.id === 'tab-activity' && client) loadActivityOnce();
   }
-  tab.focus();
-  if (tab.id === 'tab-activity') loadActivity().catch((error) => showStatus($('activity-status'), describeError(error)));
-}
-tabs.forEach((tab, index) => {
-  tab.addEventListener('click', () => selectTab(tab));
-  tab.addEventListener('keydown', (event) => {
-    const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
-    if (step) selectTab(tabs[(index + step + tabs.length) % tabs.length]);
-    if (event.key === 'Home') selectTab(tabs[0]);
-    if (event.key === 'End') selectTab(tabs.at(-1));
-  });
 });
+const canManage = () => client.my_role === 'owner' || client.my_role === 'admin';
 
 // --- Overview ---------------------------------------------------------------------------
 function renderLogo() {
-  const preview = $('logo-preview');
-  preview.replaceChildren(initials(client.name));
+  markActivityStale();
+  const targets = [$('logo-preview'), $('client-logo')];
+  targets.forEach((target) => target.replaceChildren(initials(client.name)));
   if (client.branding?.logo_asset_id) {
-    assetUrl(client.branding.logo_asset_id).then((url) => preview.replaceChildren(h('img', { src: url, alt: '' }))).catch(() => {});
+    assetUrl(client.branding.logo_asset_id).then((url) => targets.forEach((target) => target.replaceChildren(h('img', { src: url, alt: '' })))).catch(() => {});
   }
 }
 
 function renderOverview() {
   const form = $('client-form');
   $('client-title').textContent = client.name;
+  $('client-subtitle').textContent = [SECTOR[client.primary_sector], client.contact?.email].filter(Boolean).join(' · ');
   document.title = `${client.name} — Manage workspace`;
   form.elements.name.value = client.name;
   form.elements.primary_sector.value = client.primary_sector;
@@ -53,6 +43,7 @@ function renderOverview() {
   form.elements.status.value = client.status;
   $('status-field').hidden = me.role !== 'admin';
   $('projects-link').href = `/projects/?client_id=${encodeURIComponent(client.id)}`;
+  $('workspace-link').href = `/workspace/?client=${encodeURIComponent(client.id)}`;
   $('back-link').href = `/workspace/?client=${encodeURIComponent(client.id)}`;
   renderLogo();
 }
@@ -77,20 +68,37 @@ function roleSelect(value, disabled) {
 }
 
 async function loadMembers() {
+  markActivityStale();
   const { items } = await api(`${base}/members`);
-  const canManage = client.my_role === 'owner' || client.my_role === 'admin';
+  $('people-count').textContent = String(items.length);
+  $('people-count').hidden = false;
   $('member-body').replaceChildren(...items.map((member) => {
     const self = member.user_id === me.id;
-    const select = roleSelect(member.role, !canManage || (member.role === 'owner' && client.my_role !== 'owner'));
-    const save = h('button', { type: 'button', className: 'button button-primary button-small', text: 'Save', disabled: select.disabled });
-    const remove = h('button', { type: 'button', className: 'button button-danger button-small', text: self ? 'Leave' : 'Remove', disabled: !self && !canManage });
-    bindAction(save, $('members-status'), async () => {
-      await api(`${base}/members/${encodeURIComponent(member.user_id)}`, { method: 'PATCH', body: { role: select.value } });
-      showStatus($('members-status'), `${member.full_name} is now ${ROLE[select.value].toLowerCase()}.`, 'success');
-      await loadMembers();
+    const locked = !canManage() || (member.role === 'owner' && client.my_role !== 'owner');
+    const select = roleSelect(member.role, locked);
+    const remove = h('button', { type: 'button', className: 'button button-danger button-small', text: self ? 'Leave' : 'Remove', disabled: !self && !canManage() });
+    // Role changes save as soon as a new role is picked.
+    select.addEventListener('change', async () => {
+      showStatus($('members-status'), '');
+      select.disabled = true;
+      try {
+        await api(`${base}/members/${encodeURIComponent(member.user_id)}`, { method: 'PATCH', body: { role: select.value } });
+        showStatus($('members-status'), `${member.full_name} is now ${ROLE[select.value].toLowerCase()}.`, 'success');
+        await loadMembers();
+      } catch (error) {
+        select.value = member.role;
+        select.disabled = locked;
+        showStatus($('members-status'), describeError(error));
+      }
     });
     bindAction(remove, $('members-status'), async () => {
-      if (!window.confirm(self ? `Leave ${client.name}?` : `Remove ${member.full_name} from ${client.name}?`)) return;
+      const confirmed = await confirmDialog({
+        title: self ? `Leave ${client.name}?` : `Remove ${member.full_name}?`,
+        message: self ? 'You lose access to this workspace, its projects and apps.' : `${member.full_name} loses access to ${client.name}, its projects and apps.`,
+        confirmLabel: self ? 'Leave workspace' : 'Remove member',
+        danger: true
+      });
+      if (!confirmed) return;
       await api(`${base}/members/${encodeURIComponent(member.user_id)}`, { method: 'DELETE' });
       if (self) {
         location.assign('/workspace/');
@@ -99,19 +107,23 @@ async function loadMembers() {
       await loadMembers();
     });
     return h('tr', {},
-      h('td', { text: self ? `${member.full_name} (you)` : member.full_name }),
-      h('td', { text: member.email }),
+      h('td', {}, h('span', { className: 'cell-person' },
+        h('span', { className: 'avatar', 'aria-hidden': 'true', text: initials(member.full_name) }),
+        h('span', { className: 'cell-primary' },
+          h('strong', { text: self ? `${member.full_name} (you)` : member.full_name }),
+          h('span', { className: 'hint', text: member.email })))),
       h('td', {}, select),
-      h('td', {}, h('div', { className: 'row-actions' }, save, remove)));
+      h('td', {}, h('div', { className: 'row-actions' }, remove)));
   }));
 }
 
 async function loadInvites() {
-  if (client.my_role !== 'owner' && client.my_role !== 'admin') {
-    $('invite-form').hidden = true;
+  markActivityStale();
+  if (!canManage()) {
     $('invite-list').replaceChildren(h('li', { className: 'hint', text: 'Only workspace admins can invite people.' }));
     return;
   }
+  $('invite-open').hidden = false;
   const { items } = await api(`${base}/invites`);
   $('invite-list').replaceChildren(...(items.length ? items.map((invite) => {
     const resend = h('button', { type: 'button', className: 'button button-secondary button-small', text: 'Resend' });
@@ -132,12 +144,18 @@ async function loadInvites() {
   }) : [h('li', { className: 'hint', text: 'No pending invitations.' })]));
 }
 
-handleSubmit($('invite-form'), $('invite-status'), async ({ email, role }) => {
+$('invite-open').addEventListener('click', () => {
+  $('invite-form').reset();
+  showStatus($('invite-form-status'), '');
+  openDialog($('invite-dialog'));
+});
+
+handleSubmit($('invite-form'), $('invite-form-status'), async ({ email, role }) => {
   if (!email.trim()) throw new ApiError(0, 'CLIENT', 'Enter an email address.');
   const invite = await api(`${base}/invites`, { method: 'POST', body: { email: email.trim(), role } });
-  $('invite-form').reset();
-  showStatus($('invite-status'), invite.email_sent ? `Invitation sent to ${invite.email}.` : `Invitation created for ${invite.email}, but the email could not be sent. Try resending.`, invite.email_sent ? 'success' : 'error');
+  closeDialog($('invite-dialog'), 'saved');
   await loadInvites();
+  showStatus($('invite-status'), invite.email_sent ? `Invitation sent to ${invite.email}.` : `Invitation created for ${invite.email}, but the email could not be sent. Try resending.`, invite.email_sent ? 'success' : 'error');
 });
 
 // --- Apps -------------------------------------------------------------------------------
@@ -162,35 +180,38 @@ function productPayload(values) {
 function editProduct(product) {
   editingProduct = product;
   productForm.reset();
+  showStatus($('product-status'), '');
   $('product-heading').textContent = product ? `Edit ${product.name}` : 'Add an app or service';
   $('product-submit').textContent = product ? 'Save app' : 'Add app';
-  $('product-cancel').hidden = !product;
-  if (!product) return;
-  for (const name of ['name', 'kind', 'status', 'visibility']) productForm.elements[name].value = product[name];
-  productForm.elements.summary.value = product.summary ?? '';
-  productForm.elements.launch_url.value = product.launch_url ?? '';
-  productForm.elements.slug.value = product.slug;
-  productForm.elements.android.value = product.store_urls.android ?? '';
-  productForm.elements.ios.value = product.store_urls.ios ?? '';
-  productForm.elements.project_id.value = product.project_id ?? '';
-  productForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  productForm.elements.name.focus({ preventScroll: true });
+  if (product) {
+    for (const name of ['name', 'kind', 'status', 'visibility']) productForm.elements[name].value = product[name];
+    productForm.elements.summary.value = product.summary ?? '';
+    productForm.elements.launch_url.value = product.launch_url ?? '';
+    productForm.elements.slug.value = product.slug;
+    productForm.elements.android.value = product.store_urls.android ?? '';
+    productForm.elements.ios.value = product.store_urls.ios ?? '';
+    productForm.elements.project_id.value = product.project_id ?? '';
+  }
+  openDialog($('product-dialog'), { initialFocus: productForm.elements.name });
 }
+
+$('product-open').addEventListener('click', () => editProduct(null));
 
 handleSubmit(productForm, $('product-status'), async (values) => {
   const body = productPayload(values);
+  let message;
   if (editingProduct) {
     await api(`/products/${encodeURIComponent(editingProduct.id)}`, { method: 'PATCH', body });
-    showStatus($('product-status'), `${body.name} saved.`, 'success');
+    message = `${body.name} saved.`;
   } else {
     const created = await api('/products', { method: 'POST', body: { ...body, client_id: client.id } });
-    showStatus($('product-status'), `${created.name} added. Its link is /go/${created.slug}.`, 'success');
+    message = `${created.name} added. Its link is /go/${created.slug}.`;
   }
-  editProduct(null);
+  closeDialog($('product-dialog'), 'saved');
+  editingProduct = null;
   await loadProducts();
+  showStatus($('products-status'), message, 'success');
 });
-
-$('product-cancel').addEventListener('click', () => editProduct(null));
 
 function productCard(product) {
   const icon = h('span', { className: 'app-icon', 'aria-hidden': 'true', text: initials(product.name) });
@@ -209,7 +230,13 @@ function productCard(product) {
   });
   edit.addEventListener('click', () => editProduct(product));
   bindAction(remove, $('products-status'), async () => {
-    if (!window.confirm(`Delete ${product.name}? Its /go/ link will stop working.`)) return;
+    const confirmed = await confirmDialog({
+      title: `Delete ${product.name}?`,
+      message: `Its /go/${product.slug} link stops working and the app disappears from the workspace.`,
+      confirmLabel: 'Delete app',
+      danger: true
+    });
+    if (!confirmed) return;
     await api(`/products/${encodeURIComponent(product.id)}`, { method: 'DELETE' });
     await loadProducts();
   });
@@ -219,6 +246,7 @@ function productCard(product) {
     }
     uploaderSlot.hidden = !uploaderSlot.hidden;
   });
+  const manageActions = canManage() ? [edit, remove] : [];
   return h('li', {}, h('article', { className: 'hub-card' },
     h('div', { className: 'hub-identity' }, icon, h('div', {}, h('h3', { text: product.name }), h('span', { className: 'hint', text: `/go/${product.slug}` }))),
     h('span', { className: 'card-meta' },
@@ -227,14 +255,19 @@ function productCard(product) {
       badge(product.visibility === 'public' ? 'Public' : 'Members only', product.visibility === 'public' ? 'info' : '')),
     product.summary && h('p', { text: product.summary }),
     launches,
-    h('div', { className: 'row-actions' }, copy, edit, remove),
-    iconToggle,
+    h('div', { className: 'row-actions' }, copy, ...manageActions),
+    canManage() && iconToggle,
     uploaderSlot));
 }
 
 async function loadProducts() {
+  markActivityStale();
   const { items } = await api(`/products?client_id=${encodeURIComponent(client.id)}&page_size=100`);
-  $('product-list').replaceChildren(...(items.length ? items.map(productCard) : [h('li', { className: 'empty-state', text: 'No apps yet. Add the first one above.' })]));
+  $('apps-count').textContent = String(items.length);
+  $('apps-count').hidden = false;
+  $('product-open').hidden = !canManage();
+  $('product-list').replaceChildren(...(items.length ? items.map(productCard) : [h('li', { className: 'empty-state' },
+    h('p', { text: canManage() ? 'No apps yet. Add the first one with “Add app”.' : 'No apps yet.' }))]));
 }
 
 async function loadProjectOptions() {
@@ -265,6 +298,22 @@ const ACTIONS = {
   'asset.deleted': 'deleted a file'
 };
 
+// Activity is fetched once per page load and again only after something in the workspace changed.
+// A single in-flight request is shared so a tab click during startup cannot duplicate it.
+let activityLoading = null;
+let activityLoaded = false;
+function markActivityStale() {
+  activityLoaded = false;
+}
+function loadActivityOnce() {
+  if (activityLoaded) return Promise.resolve();
+  activityLoading ??= loadActivity()
+    .then(() => { activityLoaded = true; })
+    .catch((error) => showStatus($('activity-status'), describeError(error)))
+    .finally(() => { activityLoading = null; });
+  return activityLoading;
+}
+
 async function loadActivity() {
   if (client.my_role !== 'owner') {
     $('activity-body').replaceChildren(h('tr', {}, h('td', { colspan: 3, className: 'empty', text: 'Only workspace owners can view activity.' })));
@@ -288,7 +337,8 @@ async function main() {
   }
   $('visibility-field').hidden = me.role !== 'admin';
   renderOverview();
-  if (client.my_role === 'owner' || client.my_role === 'admin') {
+  if (location.hash === '#activity') loadActivityOnce();
+  if (canManage()) {
     $('logo-upload').append(createUploader({
       owner: { type: 'client', id: client.id }, purpose: 'logo', kinds: ['image'], label: 'Upload a logo', requireAlt: true,
       onUploaded: async () => {

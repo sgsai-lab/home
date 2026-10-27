@@ -44,7 +44,7 @@ The included container runs the API on port 3000 and Nginx on port 8080. Nginx r
 
 ## Client hub in the browser
 
-Signed-in pages are ES modules on top of `auth.js` (API client with token refresh) and `hub.js` (labels, workspace selection, signed-URL cache). `/workspace/` is the launcher: apps open through `/go/{slug}`, and client-only apps bounce through `/workspace/launch/`, which signs the visitor in and returns with a single-use launch token. The site is an installable PWA: [sw.js](../public/sw.js) caches only the shell (never API responses or launch links), and the workspace keeps an offline snapshot of names and links that is cleared on sign-out.
+Signed-in pages are ES modules on top of `auth.js` (API client with token refresh), `hub.js` (labels, workspace selection, signed-URL cache, accessible tabs) and `dialog.js` (native `<dialog>` sheets for create/edit/invite forms and confirmations). The hub UI (`hub.css`) uses a settings-style side navigation with hash deep links (`/admin/clients/?id=…#people`), iCloud-style app tiles on the workspace home, and sheet dialogs instead of inline forms. `/workspace/` is the launcher: apps open through `/go/{slug}`, and client-only apps bounce through `/workspace/launch/`, which signs the visitor in and returns with a single-use launch token. The site is an installable PWA: [sw.js](../public/sw.js) caches only the shell (never API responses or launch links), and the workspace keeps an offline snapshot of names and links that is cleared on sign-out.
 
 ## Build and deployment boundary
 

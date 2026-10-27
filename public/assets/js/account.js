@@ -11,11 +11,15 @@ import {
   requireUser,
   showStatus
 } from '/assets/js/auth.js';
+import { confirmDialog } from '/assets/js/dialog.js';
 import { mountGoogleButton } from '/assets/js/google.js';
+import { initials, setupTabs } from '/assets/js/hub.js';
 
 const $ = (id) => document.getElementById(id);
 const pageStatus = $('page-status');
 let recoveryCodes = [];
+
+setupTabs(document.querySelector('.hub-sidenav'));
 
 function reauthBody(secret) {
   const value = secret.trim();
@@ -29,9 +33,22 @@ function checkNewPassword(newPassword, confirm) {
 
 // --- Profile ---------------------------------------------------------------
 function renderProfile(user) {
+  $('profile-name').textContent = user.full_name;
+  document.title = `${user.full_name} — Account`;
   $('profile-email').textContent = user.email;
-  $('profile-role').textContent = user.role;
-  $('profile-since').textContent = new Date(user.created_at).toLocaleDateString();
+  $('profile-role').textContent = user.role === 'admin' ? 'SGS admin' : 'Member';
+  $('profile-role').className = `badge${user.role === 'admin' ? ' badge-purple' : ''}`;
+  $('profile-since').textContent = new Date(user.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  const avatar = $('profile-avatar');
+  avatar.replaceChildren(initials(user.full_name));
+  // Remember which URL is current so a slow earlier image cannot overwrite a newer avatar.
+  avatar.dataset.src = user.avatar_url ?? '';
+  if (user.avatar_url) {
+    const image = h('img', { src: user.avatar_url, alt: '' });
+    image.addEventListener('load', () => {
+      if (avatar.dataset.src === user.avatar_url) avatar.replaceChildren(image);
+    });
+  }
   const form = $('profile-form');
   form.elements.full_name.value = user.full_name;
   form.elements.avatar_url.value = user.avatar_url ?? '';
@@ -90,6 +107,9 @@ async function loadMfa() {
   $('mfa-setup').hidden = true;
   $('mfa-off').hidden = state.enabled || !state.available;
   $('mfa-on').hidden = !state.enabled;
+  $('mfa-badge').hidden = !state.available;
+  $('mfa-badge').textContent = state.enabled ? 'On' : 'Off';
+  $('mfa-badge').className = `badge ${state.enabled ? 'badge-success' : 'badge-warning'}`;
   if (state.enabled) {
     $('mfa-summary').textContent = `Enabled. ${state.recovery_codes_remaining} recovery codes remaining.`;
   } else if (state.available) {
@@ -202,12 +222,13 @@ bindAction($('google-unlink'), googleStatus, async () => {
 const sessionsStatus = $('sessions-status');
 
 function deviceLabel(session) {
-  const agent = session.user_agent ? session.user_agent.slice(0, 70) : 'Unknown device';
-  return session.current ? `${agent} (this device)` : agent;
+  return session.user_agent ? session.user_agent.slice(0, 70) : 'Unknown device';
 }
 
 async function loadSessions() {
   const { items: sessions } = await api('/auth/sessions');
+  $('sessions-count').textContent = String(sessions.length);
+  $('sessions-count').hidden = false;
   $('sessions-body').replaceChildren(...sessions.map((session) => {
     const button = h('button', {
       type: 'button',
@@ -220,7 +241,9 @@ async function loadSessions() {
       await loadSessions();
     });
     return h('tr', {},
-      h('td', { text: deviceLabel(session) }),
+      h('td', {}, h('span', { className: 'cell-primary' },
+        h('strong', { text: session.current ? 'This device' : session.device || 'Unknown device' }),
+        h('span', { className: 'hint', text: deviceLabel(session) }))),
       h('td', { text: session.device }),
       h('td', { text: formatDate(session.started_at) }),
       h('td', { text: formatDate(session.last_used_at) }),
@@ -229,6 +252,12 @@ async function loadSessions() {
 }
 
 bindAction($('logout-all'), sessionsStatus, async () => {
+  const confirmed = await confirmDialog({
+    title: 'Sign out everywhere?',
+    message: 'Every device, including this one, is signed out. You will need to sign in again.',
+    confirmLabel: 'Sign out everywhere'
+  });
+  if (!confirmed) return;
   await api('/auth/logout-all', { method: 'POST' });
   clearSession();
   location.assign('/login/?notice=signed-out-everywhere');
@@ -237,7 +266,13 @@ bindAction($('logout-all'), sessionsStatus, async () => {
 // --- Delete account ------------------------------------------------------------
 handleSubmit($('delete-form'), $('delete-status'), async ({ secret }) => {
   if (!secret) throw new ApiError(0, 'CLIENT', 'Enter your password or an authenticator code.');
-  if (!window.confirm('Delete your account permanently? This cannot be undone.')) return;
+  const confirmed = await confirmDialog({
+    title: 'Delete your account permanently?',
+    message: 'Your profile, sessions and sign-in methods are removed. This cannot be undone.',
+    confirmLabel: 'Delete my account',
+    danger: true
+  });
+  if (!confirmed) return;
   await api('/users/me', { method: 'DELETE', body: reauthBody(secret) });
   clearSession();
   location.assign('/login/?notice=account-deleted');
