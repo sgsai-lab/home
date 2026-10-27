@@ -25,7 +25,7 @@ SGS AI Technology website: framework-free, multi-page HTML/CSS/JavaScript plus a
 | `config/nginx.conf` | Routing, CSP, caching, API proxy |
 | `scripts/` | `build.mjs`, `check-links.mjs`, `preview.mjs`, `check-container.sh`, `review-diff.mjs` (CI Copilot review splitting) |
 | `test/` | `node:test` suites |
-| `docs/` | [architecture](docs/architecture.md), [deployment](docs/deployment.md), [API](docs/api.md), [data model](docs/data-model.md), [runbook](docs/runbook-firestore-gcs.md), [ADR-002](docs/adr/0002-firestore-first-data-platform.md) |
+| `docs/` | [platform docs and diagrams](docs/platform/README.md), [architecture](docs/architecture.md), [deployment](docs/deployment.md), [API](docs/api.md), [data model](docs/data-model.md), [runbook](docs/runbook-firestore-gcs.md), [ADR-002](docs/adr/0002-firestore-first-data-platform.md) |
 | `infra/gcp/terraform/` | Infrastructure. Never edit or delete local state/plan/tfvars files. |
 
 ## Commands

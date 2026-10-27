@@ -1,5 +1,7 @@
 # Architecture
 
+For the end-to-end platform documentation (client hub, mobile app, infrastructure, decisions, sequence diagrams and the Google Cloud architecture diagram) see [docs/platform/](platform/README.md).
+
 ## System boundaries
 
 The application is a multi-page HTML/CSS/JavaScript website with a Node.js API, not a single-page application. Nginx serves the built web root and proxies same-origin API requests. This layout preserves the existing framework-free implementation and public page routes.
