@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f8f9fc">
+  <meta name="theme-color" content="#f5f5f7">
   <meta name="robots" content="noindex">
   <title>Projects — SGS AI Technology</title>
   <meta name="description" content="Start and manage your SGS AI Technology projects.">
@@ -21,21 +21,94 @@
   <div id="header-mount"></div>
   <div id="nav-mount"></div>
 
-  <main id="main" class="auth-main">
+  <main id="main" class="auth-main hub-main">
     <div class="section-wrap">
-      <h1 class="page-title">Projects</h1>
-      <p class="hint">Business engagements and education programmes SGS AI Technology runs with your organisation.</p>
+      <header class="hub-page-head">
+        <div>
+          <h1 class="page-title">Projects</h1>
+          <p class="hint">Business engagements and education programmes SGS AI Technology runs with your organisation.</p>
+        </div>
+        <div class="row-actions">
+          <button id="new-project" class="button button-primary" type="button" hidden>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+            New project
+          </button>
+        </div>
+      </header>
       <p id="page-status" class="form-status" role="alert" hidden></p>
 
-      <section id="editor" class="panel" aria-labelledby="editor-heading" hidden>
-        <h2 id="editor-heading">Start a new project</h2>
-        <form id="project-form" class="stack" novalidate>
+      <section class="panel" aria-labelledby="list-heading">
+        <div class="section-head">
+          <h2 id="list-heading">All projects</h2>
+          <span id="list-summary" class="hint"></span>
+        </div>
+        <form id="filter-form" class="toolbar" novalidate>
+          <label class="field search"><span>Search</span>
+            <input name="q" type="search" maxlength="100" placeholder="Search projects, summaries or tags" autocomplete="off">
+          </label>
+          <label class="field"><span>Workspace</span>
+            <select name="client_id"><option value="">All workspaces</option></select>
+          </label>
+          <label class="field"><span>Sector</span>
+            <select name="sector">
+              <option value="">Any sector</option>
+              <option value="business">Business</option>
+              <option value="education">Education</option>
+            </select>
+          </label>
+          <label class="field"><span>Status</span>
+            <select name="status">
+              <option value="">Any status</option>
+              <option value="draft">Draft</option>
+              <option value="discovery">Discovery</option>
+              <option value="in_progress">In progress</option>
+              <option value="on_hold">On hold</option>
+              <option value="delivered">Delivered</option>
+              <option value="archived">Archived</option>
+            </select>
+          </label>
+          <label class="field"><span>Sort</span>
+            <select name="sort">
+              <option value="-updated_at">Recently updated</option>
+              <option value="-created_at">Newest first</option>
+              <option value="name">Name A–Z</option>
+              <option value="start_date">Start date</option>
+            </select>
+          </label>
+          <button id="filter-reset" class="link-button toolbar-reset" type="button" hidden>Clear filters</button>
+          <button class="visually-hidden" type="submit">Apply filters</button>
+        </form>
+
+        <ul id="project-list" class="card-grid"></ul>
+        <div class="pager">
+          <button id="prev-page" class="button button-secondary button-small" type="button">Previous</button>
+          <span id="page-info"></span>
+          <button id="next-page" class="button button-secondary button-small" type="button">Next</button>
+        </div>
+        <p id="list-status" class="form-status" role="status" hidden></p>
+      </section>
+    </div>
+  </main>
+
+  <dialog id="project-dialog" class="sheet" aria-labelledby="editor-heading">
+    <div class="sheet-inner">
+      <div class="sheet-head">
+        <div>
+          <h2 id="editor-heading" class="sheet-title">Start a new project</h2>
+          <p class="hint">Projects group milestones, deliverables and apps for one workspace.</p>
+        </div>
+        <button class="sheet-close" type="button" aria-label="Close" data-dialog-close>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <form id="project-form" class="stack" novalidate>
+        <div class="sheet-body stack">
           <div class="grid-2">
             <label class="field">Workspace
               <select name="client_id" required></select>
             </label>
             <label class="field">Name
-              <input name="name" type="text" required maxlength="120">
+              <input name="name" type="text" required maxlength="120" autofocus>
             </label>
           </div>
           <div class="grid-2">
@@ -61,7 +134,7 @@
             <div id="profile-inputs" class="grid-2"></div>
           </fieldset>
           <label class="field">Summary
-            <textarea name="summary" maxlength="2000"></textarea>
+            <textarea name="summary" maxlength="2000" placeholder="What are we building together?"></textarea>
           </label>
           <div class="grid-2">
             <label class="field">Start date
@@ -78,62 +151,15 @@
             <input name="use_template" type="checkbox" checked>
             <span>Start with the standard milestones for this sector</span>
           </label>
-          <div class="row-actions">
-            <button id="submit-project" class="button button-primary" type="submit">Create project</button>
-            <button id="cancel-edit" class="button button-secondary" type="button" hidden>Cancel</button>
-          </div>
-        </form>
-        <p id="editor-status" class="form-status" role="status" hidden></p>
-      </section>
-
-      <section class="panel" aria-labelledby="list-heading">
-        <h2 id="list-heading">All projects</h2>
-        <form id="filter-form" class="inline-form" novalidate>
-          <label class="field">Search
-            <input name="q" type="search" maxlength="100" placeholder="Name, summary or tag">
-          </label>
-          <label class="field">Workspace
-            <select name="client_id"><option value="">All</option></select>
-          </label>
-          <label class="field">Sector
-            <select name="sector">
-              <option value="">Any</option>
-              <option value="business">Business</option>
-              <option value="education">Education</option>
-            </select>
-          </label>
-          <label class="field">Status
-            <select name="status">
-              <option value="">Any</option>
-              <option value="draft">Draft</option>
-              <option value="discovery">Discovery</option>
-              <option value="in_progress">In progress</option>
-              <option value="on_hold">On hold</option>
-              <option value="delivered">Delivered</option>
-              <option value="archived">Archived</option>
-            </select>
-          </label>
-          <label class="field">Sort
-            <select name="sort">
-              <option value="-updated_at">Recently updated</option>
-              <option value="-created_at">Newest first</option>
-              <option value="name">Name A–Z</option>
-              <option value="start_date">Start date</option>
-            </select>
-          </label>
-          <button class="button button-secondary" type="submit">Apply</button>
-        </form>
-
-        <ul id="project-list" class="card-grid"></ul>
-        <div class="pager">
-          <button id="prev-page" class="button button-secondary button-small" type="button">Previous</button>
-          <span id="page-info"></span>
-          <button id="next-page" class="button button-secondary button-small" type="button">Next</button>
         </div>
-        <p id="list-status" class="form-status" role="status" hidden></p>
-      </section>
+        <div class="sheet-actions">
+          <p id="editor-status" class="form-status" role="status" hidden></p>
+          <button id="cancel-edit" class="button button-secondary" type="button" data-dialog-close>Cancel</button>
+          <button id="submit-project" class="button button-primary" type="submit">Create project</button>
+        </div>
+      </form>
     </div>
-  </main>
+  </dialog>
 
   <div id="footer-mount"></div>
 </body>

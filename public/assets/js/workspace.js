@@ -1,6 +1,6 @@
 import { api, ApiError, describeError, getCurrentUser, h, requireUser, showStatus } from '/assets/js/auth.js';
 import {
-  assetUrl, badge, chooseWorkspace, formatDay, initials, launchLink, loadWorkspaces,
+  assetUrl, badge, chooseWorkspace, formatDay, initials, launchLink, loadWorkspaces, milestoneProgress, progressBar,
   PRODUCT_KIND, PRODUCT_STATUS, PROJECT_STATUS, ROLE, SECTOR, sectorSubtitle, statusTone
 } from '/assets/js/hub.js';
 import { setupInstallPrompt } from '/assets/js/pwa.js';
@@ -34,7 +34,7 @@ async function renderApps(products) {
     h('span', {},
       h('strong', { text: product.name }),
       h('span', { className: 'hint', text: product.summary ?? PRODUCT_KIND[product.kind] }),
-      h('span', { className: 'card-meta' }, badge(PRODUCT_STATUS[product.status], statusTone(product.status)), badge(PRODUCT_KIND[product.kind])))
+      h('span', { className: 'card-meta' }, badge(PRODUCT_STATUS[product.status], statusTone(product.status))))
   ]))));
   $('app-list').replaceChildren(...tiles);
 }
@@ -46,18 +46,34 @@ function renderProjects(projects) {
   }
   $('project-list').replaceChildren(...projects.map((project) => {
     const next = project.milestones.find((milestone) => !milestone.done);
+    const progress = milestoneProgress(project);
     return h('li', {}, h('a', { className: 'hub-card', href: `/workspace/project/?id=${encodeURIComponent(project.id)}` },
       h('span', { className: 'card-meta' }, badge(PROJECT_STATUS[project.status], statusTone(project.status)), h('span', { text: sectorSubtitle(project) })),
       h('h3', { text: project.name }),
       project.summary && h('p', { text: project.summary }),
-      next && h('span', { className: 'card-meta', text: `Next: ${next.title}${next.due ? ` · ${formatDay(next.due)}` : ''}` })));
+      progress.total > 0 && progressBar(progress, `${progress.done} of ${progress.total} milestones complete`),
+      h('span', { className: 'card-foot' },
+        h('span', { text: progress.total ? `${progress.done}/${progress.total} milestones` : 'No milestones yet' }),
+        next && h('span', { text: `Next: ${next.title}${next.due ? ` · ${formatDay(next.due)}` : ''}` }))));
   }));
+}
+
+function renderStats({ products, projects, members }) {
+  const live = products.filter((product) => product.status === 'live' || product.status === 'beta').length;
+  const active = projects.filter((project) => !['delivered', 'archived'].includes(project.status)).length;
+  const stats = [
+    [live, live === 1 ? 'App available' : 'Apps available'],
+    [active, active === 1 ? 'Active project' : 'Active projects'],
+    [projects.filter((project) => project.status === 'delivered').length, 'Delivered'],
+    [members.length, members.length === 1 ? 'Team member' : 'Team members']
+  ];
+  $('workspace-stats').replaceChildren(...stats.map(([value, label]) => h('li', {}, h('strong', { text: String(value) }), h('span', { text: label }))));
 }
 
 function renderTeam(members) {
   $('team-list').replaceChildren(...members.map((member) => h('li', {},
     h('span', { className: 'avatar', 'aria-hidden': 'true', text: initials(member.full_name) }),
-    h('span', {}, h('strong', { text: member.full_name }), h('span', { className: 'hint', text: ` · ${ROLE[member.role]}` })))));
+    h('span', {}, h('strong', { text: member.full_name }), h('br'), h('span', { className: 'hint', text: ROLE[member.role] })))));
 }
 
 function renderHeader(client, role) {
@@ -70,8 +86,11 @@ function renderHeader(client, role) {
   }
   $('manage-link').hidden = !canManage(role);
   $('manage-link').href = `/admin/clients/?id=${encodeURIComponent(client.id)}`;
+  $('team-manage').hidden = !canManage(role);
+  $('team-manage').href = `/admin/clients/?id=${encodeURIComponent(client.id)}#people`;
   $('projects-manage').hidden = !canManage(role);
   $('projects-manage').href = `/projects/?client_id=${encodeURIComponent(client.id)}`;
+  $('projects-all').href = `/projects/?client_id=${encodeURIComponent(client.id)}`;
   document.title = `${client.name} — SGS AI Technology`;
 }
 
@@ -83,6 +102,7 @@ async function renderWorkspace(clientId) {
     api(`/clients/${encodeURIComponent(clientId)}/members`)
   ]);
   renderHeader(client, client.my_role);
+  renderStats({ products: products.items, projects: projects.items, members: members.items });
   renderProjects(projects.items);
   await renderApps(products.items);
   renderTeam(members.items);
@@ -95,6 +115,7 @@ async function renderSnapshot() {
   const snapshot = JSON.parse(localStorage.getItem(SNAPSHOT_KEY) ?? 'null');
   if (!snapshot) return false;
   renderHeader(snapshot.client, snapshot.client.my_role);
+  renderStats(snapshot);
   renderProjects(snapshot.projects);
   await renderApps(snapshot.products);
   renderTeam(snapshot.members);

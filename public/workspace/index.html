@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f8f9fc">
+  <meta name="theme-color" content="#f5f5f7">
   <meta name="robots" content="noindex">
   <title>Workspace — SGS AI Technology</title>
   <meta name="description" content="Your projects and apps with SGS AI Technology.">
@@ -22,7 +22,7 @@
   <div id="header-mount"></div>
   <div id="nav-mount"></div>
 
-  <main id="main" class="auth-main">
+  <main id="main" class="auth-main hub-main">
     <div class="section-wrap">
       <p id="page-status" class="form-status" role="alert" hidden></p>
       <p id="offline-banner" class="offline-banner" role="status" hidden>You are offline. Showing your workspace as it was last loaded.</p>
@@ -35,15 +35,18 @@
       </div>
 
       <section id="no-workspace" class="panel" aria-labelledby="no-workspace-heading" hidden>
-        <h1 id="no-workspace-heading" class="page-title">Your workspace</h1>
-        <div class="empty-state">
-          <p>You are not part of a client workspace yet. When SGS AI Technology starts a project with your organisation, your administrator will invite you here.</p>
+        <div class="empty-hero">
+          <div class="hub-logo" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          </div>
+          <h1 id="no-workspace-heading" class="page-title">Your workspace</h1>
+          <p class="hint">You are not part of a client workspace yet. When SGS AI Technology starts a project with your organisation, your administrator will invite you here.</p>
           <a class="button button-primary" href="/contact/">Talk to SGS AI Technology</a>
         </div>
       </section>
 
       <div id="workspace" hidden>
-        <header class="hub-header">
+        <header class="hub-hero">
           <div class="hub-identity">
             <div id="client-logo" class="hub-logo" aria-hidden="true"></div>
             <div>
@@ -52,32 +55,38 @@
             </div>
           </div>
           <div class="hub-tools">
-            <label id="switcher-field" class="field" hidden>Workspace
-              <select id="client-switcher"></select>
+            <label id="switcher-field" class="field" hidden><span class="visually-hidden">Workspace</span>
+              <select id="client-switcher" aria-label="Switch workspace"></select>
             </label>
-            <a id="manage-link" class="button button-secondary button-small" href="/admin/clients/" hidden>Manage workspace</a>
+            <a id="projects-manage" class="button button-secondary" href="/projects/" hidden>Projects</a>
+            <a id="manage-link" class="button button-primary" href="/admin/clients/" hidden>Manage workspace</a>
           </div>
         </header>
+
+        <ul id="workspace-stats" class="hub-stats"></ul>
 
         <section class="panel" aria-labelledby="apps-heading">
           <div class="section-head">
             <h2 id="apps-heading">Apps and services</h2>
             <span class="hint">Opens in a new tab</span>
           </div>
-          <ul id="app-list" class="card-grid"></ul>
+          <ul id="app-list" class="card-grid tile-grid"></ul>
         </section>
 
         <section class="panel" aria-labelledby="projects-heading">
           <div class="section-head">
             <h2 id="projects-heading">Projects</h2>
-            <a id="projects-manage" class="small-link" href="/projects/" hidden>Manage projects</a>
+            <a id="projects-all" class="small-link" href="/projects/">View all</a>
           </div>
           <ul id="project-list" class="card-grid"></ul>
         </section>
 
         <section class="panel" aria-labelledby="team-heading">
-          <h2 id="team-heading">Team</h2>
-          <ul id="team-list" class="team-list"></ul>
+          <div class="section-head">
+            <h2 id="team-heading">Team</h2>
+            <a id="team-manage" class="small-link" href="/admin/clients/" hidden>Manage people</a>
+          </div>
+          <ul id="team-list" class="team-list team-grid"></ul>
         </section>
       </div>
     </div>

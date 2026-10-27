@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f8f9fc">
+  <meta name="theme-color" content="#f5f5f7">
   <meta name="robots" content="noindex">
   <title>Manage workspace — SGS AI Technology</title>
   <meta name="description" content="Manage a client workspace: details, people and apps.">
@@ -22,192 +22,270 @@
   <div id="header-mount"></div>
   <div id="nav-mount"></div>
 
-  <main id="main" class="auth-main">
+  <main id="main" class="auth-main hub-main">
     <div class="section-wrap">
-      <p><a class="small-link" id="back-link" href="/workspace/">← Back to workspace</a></p>
-      <h1 id="client-title" class="page-title">Workspace</h1>
+      <a class="back-link" id="back-link" href="/workspace/">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        Back to workspace
+      </a>
+      <header class="hub-page-head">
+        <div class="hub-identity">
+          <div id="client-logo" class="hub-logo" aria-hidden="true"></div>
+          <div>
+            <p class="section-kicker">Manage workspace</p>
+            <h1 id="client-title">Workspace</h1>
+            <p id="client-subtitle"></p>
+          </div>
+        </div>
+        <div class="row-actions">
+          <a id="projects-link" class="button button-secondary" href="/projects/">Projects</a>
+          <a id="workspace-link" class="button button-primary" href="/workspace/">Open workspace</a>
+        </div>
+      </header>
       <p id="page-status" class="form-status" role="alert" hidden></p>
 
-      <div class="tabs" role="tablist" aria-label="Workspace settings">
-        <button id="tab-overview" role="tab" type="button" aria-selected="true" aria-controls="panel-overview">Overview</button>
-        <button id="tab-people" role="tab" type="button" aria-selected="false" aria-controls="panel-people" tabindex="-1">People</button>
-        <button id="tab-apps" role="tab" type="button" aria-selected="false" aria-controls="panel-apps" tabindex="-1">Apps</button>
-        <button id="tab-activity" role="tab" type="button" aria-selected="false" aria-controls="panel-activity" tabindex="-1">Activity</button>
-      </div>
+      <div class="hub-shell">
+        <nav class="hub-sidenav" role="tablist" aria-label="Workspace settings">
+          <button id="tab-overview" role="tab" type="button" aria-selected="true" aria-controls="panel-overview" data-hash="overview">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/></svg>
+            Overview
+          </button>
+          <button id="tab-people" role="tab" type="button" aria-selected="false" aria-controls="panel-people" data-hash="people" tabindex="-1">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M16 4a4 4 0 0 1 0 8"/><path d="M22 21a7 7 0 0 0-4-6.3"/></svg>
+            People
+            <span id="people-count" class="count" hidden></span>
+          </button>
+          <button id="tab-apps" role="tab" type="button" aria-selected="false" aria-controls="panel-apps" data-hash="apps" tabindex="-1">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+            Apps
+            <span id="apps-count" class="count" hidden></span>
+          </button>
+          <button id="tab-activity" role="tab" type="button" aria-selected="false" aria-controls="panel-activity" data-hash="activity" tabindex="-1">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            Activity
+          </button>
+        </nav>
 
-      <div id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
-        <section class="panel" aria-labelledby="details-heading">
-          <h2 id="details-heading">Details</h2>
-          <form id="client-form" class="stack" novalidate>
-            <div class="grid-2">
-              <label class="field">Name
-                <input name="name" type="text" required maxlength="120">
-              </label>
-              <label class="field">Primary sector
-                <select name="primary_sector">
-                  <option value="business">Business</option>
-                  <option value="education">Education</option>
-                </select>
-              </label>
-            </div>
-            <div class="grid-2">
-              <label class="field">Contact email
-                <input name="contact_email" type="email" maxlength="254">
-              </label>
-              <label class="field">Contact phone
-                <input name="contact_phone" type="tel" maxlength="40">
-              </label>
-            </div>
-            <div class="grid-2">
-              <label class="field">Website
-                <input name="contact_website" type="url" maxlength="500" placeholder="https://">
-              </label>
-              <label class="field">Brand colour
-                <input name="primary_color" type="color" value="#7538c4">
-              </label>
-            </div>
-            <label id="status-field" class="field" hidden>Status
-              <select name="status">
-                <option value="prospect">Prospect</option>
-                <option value="active">Active</option>
-                <option value="paused">Paused</option>
-                <option value="closed">Closed</option>
-              </select>
-            </label>
-            <div class="row-actions">
-              <button class="button button-primary" type="submit">Save details</button>
-              <a id="projects-link" class="button button-secondary" href="/projects/">Manage projects</a>
-            </div>
-          </form>
-          <p id="client-status" class="form-status" role="status" hidden></p>
-        </section>
-        <section class="panel" aria-labelledby="logo-heading">
-          <h2 id="logo-heading">Logo</h2>
-          <div class="hub-identity">
-            <div id="logo-preview" class="hub-logo" aria-hidden="true"></div>
-            <div id="logo-upload"></div>
+        <div>
+          <div id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
+            <section class="panel" aria-labelledby="details-heading">
+              <h2 id="details-heading">Details</h2>
+              <form id="client-form" class="stack" novalidate>
+                <div class="grid-2">
+                  <label class="field">Name
+                    <input name="name" type="text" required maxlength="120">
+                  </label>
+                  <label class="field">Primary sector
+                    <select name="primary_sector">
+                      <option value="business">Business</option>
+                      <option value="education">Education</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="grid-2">
+                  <label class="field">Contact email
+                    <input name="contact_email" type="email" maxlength="254">
+                  </label>
+                  <label class="field">Contact phone
+                    <input name="contact_phone" type="tel" maxlength="40">
+                  </label>
+                </div>
+                <div class="grid-2">
+                  <label class="field">Website
+                    <input name="contact_website" type="url" maxlength="500" placeholder="https://">
+                  </label>
+                  <label class="field">Brand colour
+                    <input name="primary_color" type="color" value="#7538c4">
+                  </label>
+                </div>
+                <label id="status-field" class="field" hidden>Status
+                  <select name="status">
+                    <option value="prospect">Prospect</option>
+                    <option value="active">Active</option>
+                    <option value="paused">Paused</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                </label>
+                <div class="row-actions">
+                  <button class="button button-primary" type="submit">Save details</button>
+                </div>
+              </form>
+              <p id="client-status" class="form-status" role="status" hidden></p>
+            </section>
+            <section class="panel" aria-labelledby="logo-heading">
+              <h2 id="logo-heading">Logo</h2>
+              <p class="hint">Shown on the workspace home and in the workspace switcher.</p>
+              <div class="hub-identity">
+                <div id="logo-preview" class="hub-logo" aria-hidden="true"></div>
+                <div id="logo-upload"></div>
+              </div>
+            </section>
           </div>
-        </section>
-      </div>
 
-      <div id="panel-people" role="tabpanel" aria-labelledby="tab-people" hidden>
-        <section class="panel" aria-labelledby="invite-heading">
-          <h2 id="invite-heading">Invite someone</h2>
-          <form id="invite-form" class="inline-form" novalidate>
-            <label class="field">Email
-              <input name="email" type="email" required maxlength="254">
-            </label>
-            <label class="field">Role
-              <select name="role">
-                <option value="member">Member</option>
-                <option value="viewer">Viewer</option>
-                <option value="admin">Admin</option>
-                <option value="owner">Owner</option>
-              </select>
-            </label>
-            <button class="button button-primary" type="submit">Send invitation</button>
-          </form>
-          <p id="invite-status" class="form-status" role="status" hidden></p>
-          <h3>Pending invitations</h3>
-          <ul id="invite-list" class="team-list"></ul>
-        </section>
-        <section class="panel" aria-labelledby="members-heading">
-          <h2 id="members-heading">Members</h2>
-          <div class="table-scroll">
-            <table class="data-table">
-              <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
-              <tbody id="member-body"></tbody>
-            </table>
+          <div id="panel-people" role="tabpanel" aria-labelledby="tab-people" hidden>
+            <section class="panel" aria-labelledby="members-heading">
+              <div class="section-head">
+                <h2 id="members-heading">Members</h2>
+                <button id="invite-open" class="button button-primary button-small" type="button" hidden>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                  Invite someone
+                </button>
+              </div>
+              <div class="table-scroll">
+                <table class="data-table">
+                  <thead><tr><th>Person</th><th>Role</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+                  <tbody id="member-body"></tbody>
+                </table>
+              </div>
+              <p id="members-status" class="form-status" role="status" hidden></p>
+            </section>
+            <section class="panel" aria-labelledby="invites-heading">
+              <h2 id="invites-heading">Pending invitations</h2>
+              <ul id="invite-list" class="team-list"></ul>
+              <p id="invite-status" class="form-status" role="status" hidden></p>
+            </section>
           </div>
-          <p id="members-status" class="form-status" role="status" hidden></p>
-        </section>
-      </div>
 
-      <div id="panel-apps" role="tabpanel" aria-labelledby="tab-apps" hidden>
-        <section class="panel" aria-labelledby="product-heading">
-          <h2 id="product-heading">Add an app or service</h2>
-          <form id="product-form" class="stack" novalidate>
-            <div class="grid-2">
-              <label class="field">Name
-                <input name="name" type="text" required maxlength="120">
-              </label>
-              <label class="field">Kind
-                <select name="kind">
-                  <option value="pwa">Web app (PWA)</option>
-                  <option value="web">Website</option>
-                  <option value="service">Service</option>
-                  <option value="android">Android app</option>
-                  <option value="ios">iOS app</option>
-                </select>
-              </label>
-            </div>
-            <div class="grid-2">
-              <label class="field">Launch address
-                <input name="launch_url" type="url" maxlength="500" placeholder="https://">
-              </label>
-              <label class="field">Link name (optional)
-                <input name="slug" type="text" maxlength="60" pattern="[a-z0-9-]+" placeholder="learning-portal">
-              </label>
-            </div>
-            <div class="grid-2">
-              <label class="field">Google Play link
-                <input name="android" type="url" maxlength="500" placeholder="https://play.google.com/...">
-              </label>
-              <label class="field">App Store link
-                <input name="ios" type="url" maxlength="500" placeholder="https://apps.apple.com/...">
-              </label>
-            </div>
-            <label class="field">Summary
-              <textarea name="summary" maxlength="1000"></textarea>
-            </label>
-            <div class="grid-2">
-              <label class="field">Project
-                <select name="project_id"><option value="">Not linked</option></select>
-              </label>
-              <label class="field">Status
-                <select name="status">
-                  <option value="planned">Planned</option>
-                  <option value="beta">Beta</option>
-                  <option value="live">Live</option>
-                  <option value="retired">Retired</option>
-                </select>
-              </label>
-            </div>
-            <label id="visibility-field" class="field" hidden>Visibility
-              <select name="visibility">
-                <option value="client">Workspace members only</option>
-                <option value="public">Public (listed on sgsaitechnology.com)</option>
-              </select>
-            </label>
-            <div class="row-actions">
-              <button id="product-submit" class="button button-primary" type="submit">Add app</button>
-              <button id="product-cancel" class="button button-secondary" type="button" hidden>Cancel</button>
-            </div>
-          </form>
-          <p id="product-status" class="form-status" role="status" hidden></p>
-        </section>
-        <section class="panel" aria-labelledby="products-heading">
-          <h2 id="products-heading">Apps and services</h2>
-          <ul id="product-list" class="card-grid"></ul>
-          <p id="products-status" class="form-status" role="status" hidden></p>
-        </section>
-      </div>
-
-      <div id="panel-activity" role="tabpanel" aria-labelledby="tab-activity" hidden>
-        <section class="panel" aria-labelledby="activity-heading">
-          <h2 id="activity-heading">Recent activity</h2>
-          <p class="hint">Changes to this workspace in the last 90 days. Visible to owners.</p>
-          <div class="table-scroll">
-            <table class="data-table">
-              <thead><tr><th>When</th><th>Who</th><th>What</th></tr></thead>
-              <tbody id="activity-body"></tbody>
-            </table>
+          <div id="panel-apps" role="tabpanel" aria-labelledby="tab-apps" hidden>
+            <section class="panel" aria-labelledby="products-heading">
+              <div class="section-head">
+                <h2 id="products-heading">Apps and services</h2>
+                <button id="product-open" class="button button-primary button-small" type="button" hidden>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                  Add app
+                </button>
+              </div>
+              <ul id="product-list" class="card-grid"></ul>
+              <p id="products-status" class="form-status" role="status" hidden></p>
+            </section>
           </div>
-          <p id="activity-status" class="form-status" role="status" hidden></p>
-        </section>
+
+          <div id="panel-activity" role="tabpanel" aria-labelledby="tab-activity" hidden>
+            <section class="panel" aria-labelledby="activity-heading">
+              <h2 id="activity-heading">Recent activity</h2>
+              <p class="hint">Changes to this workspace in the last 90 days. Visible to owners.</p>
+              <div class="table-scroll">
+                <table class="data-table">
+                  <thead><tr><th>When</th><th>Who</th><th>What</th></tr></thead>
+                  <tbody id="activity-body"></tbody>
+                </table>
+              </div>
+              <p id="activity-status" class="form-status" role="status" hidden></p>
+            </section>
+          </div>
+        </div>
       </div>
     </div>
   </main>
+
+  <dialog id="invite-dialog" class="sheet" aria-labelledby="invite-heading">
+    <div class="sheet-inner">
+      <div class="sheet-head">
+        <div>
+          <h2 id="invite-heading" class="sheet-title">Invite someone</h2>
+          <p class="hint">They receive an email link to join this workspace. Invitations expire after 7 days.</p>
+        </div>
+        <button class="sheet-close" type="button" aria-label="Close" data-dialog-close>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <form id="invite-form" novalidate>
+        <div class="sheet-body stack">
+          <label class="field">Email
+            <input name="email" type="email" required maxlength="254" autofocus>
+          </label>
+          <label class="field">Role
+            <select name="role">
+              <option value="member">Member — opens apps and follows projects</option>
+              <option value="viewer">Viewer — read-only access</option>
+              <option value="admin">Admin — manages projects, apps and people</option>
+              <option value="owner">Owner — full control, including other owners</option>
+            </select>
+          </label>
+        </div>
+        <div class="sheet-actions">
+          <p id="invite-form-status" class="form-status" role="status" hidden></p>
+          <button class="button button-secondary" type="button" data-dialog-close>Cancel</button>
+          <button class="button button-primary" type="submit">Send invitation</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog id="product-dialog" class="sheet sheet-wide" aria-labelledby="product-heading">
+    <div class="sheet-inner">
+      <div class="sheet-head">
+        <div>
+          <h2 id="product-heading" class="sheet-title">Add an app or service</h2>
+          <p class="hint">Members open apps from the workspace home through a short /go/ link.</p>
+        </div>
+        <button class="sheet-close" type="button" aria-label="Close" data-dialog-close>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <form id="product-form" novalidate>
+        <div class="sheet-body stack">
+          <div class="grid-2">
+            <label class="field">Name
+              <input name="name" type="text" required maxlength="120" autofocus>
+            </label>
+            <label class="field">Kind
+              <select name="kind">
+                <option value="pwa">Web app (PWA)</option>
+                <option value="web">Website</option>
+                <option value="service">Service</option>
+                <option value="android">Android app</option>
+                <option value="ios">iOS app</option>
+              </select>
+            </label>
+          </div>
+          <div class="grid-2">
+            <label class="field">Launch address
+              <input name="launch_url" type="url" maxlength="500" placeholder="https://">
+            </label>
+            <label class="field">Link name (optional)
+              <input name="slug" type="text" maxlength="60" pattern="[a-z0-9-]+" placeholder="learning-portal">
+            </label>
+          </div>
+          <div class="grid-2">
+            <label class="field">Google Play link
+              <input name="android" type="url" maxlength="500" placeholder="https://play.google.com/...">
+            </label>
+            <label class="field">App Store link
+              <input name="ios" type="url" maxlength="500" placeholder="https://apps.apple.com/...">
+            </label>
+          </div>
+          <label class="field">Summary
+            <textarea name="summary" maxlength="1000"></textarea>
+          </label>
+          <div class="grid-2">
+            <label class="field">Project
+              <select name="project_id"><option value="">Not linked</option></select>
+            </label>
+            <label class="field">Status
+              <select name="status">
+                <option value="planned">Planned</option>
+                <option value="beta">Beta</option>
+                <option value="live">Live</option>
+                <option value="retired">Retired</option>
+              </select>
+            </label>
+          </div>
+          <label id="visibility-field" class="field" hidden>Visibility
+            <select name="visibility">
+              <option value="client">Workspace members only</option>
+              <option value="public">Public (listed on sgsaitechnology.com)</option>
+            </select>
+          </label>
+        </div>
+        <div class="sheet-actions">
+          <p id="product-status" class="form-status" role="status" hidden></p>
+          <button id="product-cancel" class="button button-secondary" type="button" data-dialog-close>Cancel</button>
+          <button id="product-submit" class="button button-primary" type="submit">Add app</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
 
   <div id="footer-mount"></div>
 </body>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f8f9fc">
+  <meta name="theme-color" content="#f5f5f7">
   <meta name="robots" content="noindex">
   <title>Admin console — SGS AI Technology</title>
   <meta name="description" content="Administer SGS AI Technology client workspaces and user accounts.">
@@ -14,144 +14,258 @@
   <link rel="stylesheet" href="/assets/css/account.css?v=__ASSET_VERSION__">
   <link rel="stylesheet" href="/assets/css/hub.css?v=__ASSET_VERSION__">
   <script src="/assets/js/app.js?v=__ASSET_VERSION__" defer></script>
-  <script type="module" src="/assets/js/admin-users.js?v=__ASSET_VERSION__"></script>
-  <script type="module" src="/assets/js/admin-clients.js?v=__ASSET_VERSION__"></script>
+  <script type="module" src="/assets/js/admin.js?v=__ASSET_VERSION__"></script>
 </head>
 <body>
   <a href="#main" class="skip-link">Skip to content</a>
   <div id="header-mount"></div>
   <div id="nav-mount"></div>
 
-  <main id="main" class="auth-main">
+  <main id="main" class="auth-main hub-main">
     <div class="section-wrap">
-      <h1 class="page-title">Admin console</h1>
+      <header class="hub-page-head">
+        <div>
+          <h1 class="page-title">Admin console</h1>
+          <p class="hint">Client workspaces and user accounts across SGS AI Technology.</p>
+        </div>
+        <div class="row-actions">
+          <button id="invite-open" class="button button-secondary" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M19 8v6"/><path d="M16 11h6"/></svg>
+            Invite user
+          </button>
+          <button id="client-open" class="button button-primary" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+            New workspace
+          </button>
+        </div>
+      </header>
       <p id="page-status" class="form-status" role="alert" hidden></p>
 
-      <section class="panel" aria-labelledby="new-client-heading">
-        <h2 id="new-client-heading">New client workspace</h2>
-        <p class="hint">You become an owner of the workspace. Invite the client's staff from the workspace's People tab.</p>
-        <form id="client-create-form" class="inline-form" novalidate>
-          <label class="field">Organisation name
-            <input name="name" type="text" required maxlength="120">
-          </label>
-          <label class="field">Primary sector
-            <select name="primary_sector">
-              <option value="business">Business</option>
-              <option value="education">Education</option>
-            </select>
-          </label>
-          <label class="field">Contact email
-            <input name="contact_email" type="email" maxlength="254">
-          </label>
-          <button class="button button-primary" type="submit">Create workspace</button>
-        </form>
-        <p id="client-create-status" class="form-status" role="status" hidden></p>
-      </section>
+      <div class="hub-shell">
+        <nav class="hub-sidenav" role="tablist" aria-label="Admin sections">
+          <button id="tab-workspaces" role="tab" type="button" aria-selected="true" aria-controls="panel-workspaces" data-hash="workspaces">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+            Workspaces
+            <span id="clients-count" class="count" hidden></span>
+          </button>
+          <button id="tab-users" role="tab" type="button" aria-selected="false" aria-controls="panel-users" data-hash="users" tabindex="-1">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M16 4a4 4 0 0 1 0 8"/><path d="M22 21a7 7 0 0 0-4-6.3"/></svg>
+            Users
+            <span id="users-count" class="count" hidden></span>
+          </button>
+        </nav>
 
-      <section class="panel" aria-labelledby="clients-heading">
-        <h2 id="clients-heading">Client workspaces</h2>
-        <form id="client-filter-form" class="inline-form" novalidate>
-          <label class="field">Search
-            <input name="q" type="search" maxlength="100" placeholder="Organisation name">
-          </label>
-          <label class="field">Sector
-            <select name="sector">
-              <option value="">Any</option>
-              <option value="business">Business</option>
-              <option value="education">Education</option>
-            </select>
-          </label>
-          <label class="field">Status
-            <select name="status">
-              <option value="">Any</option>
-              <option value="prospect">Prospect</option>
-              <option value="active">Active</option>
-              <option value="paused">Paused</option>
-              <option value="closed">Closed</option>
-            </select>
-          </label>
-          <button class="button button-secondary" type="submit">Apply</button>
-        </form>
-        <div class="table-scroll">
-          <table class="data-table">
-            <thead><tr><th>Organisation</th><th>Sector</th><th>Status</th><th>Members</th><th>Actions</th></tr></thead>
-            <tbody id="clients-body"></tbody>
-          </table>
+        <div>
+          <div id="panel-workspaces" role="tabpanel" aria-labelledby="tab-workspaces">
+            <section class="panel" aria-labelledby="clients-heading">
+              <div class="section-head">
+                <h2 id="clients-heading">Client workspaces</h2>
+                <span class="hint">You become an owner of every workspace you create.</span>
+              </div>
+              <form id="client-filter-form" class="toolbar" novalidate>
+                <label class="field search"><span>Search</span>
+                  <input name="q" type="search" maxlength="100" placeholder="Search organisations" autocomplete="off">
+                </label>
+                <label class="field"><span>Sector</span>
+                  <select name="sector">
+                    <option value="">Any sector</option>
+                    <option value="business">Business</option>
+                    <option value="education">Education</option>
+                  </select>
+                </label>
+                <label class="field"><span>Status</span>
+                  <select name="status">
+                    <option value="">Any status</option>
+                    <option value="prospect">Prospect</option>
+                    <option value="active">Active</option>
+                    <option value="paused">Paused</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                </label>
+                <button class="visually-hidden" type="submit">Apply filters</button>
+              </form>
+              <div class="table-scroll">
+                <table class="data-table">
+                  <thead><tr><th>Organisation</th><th>Sector</th><th>Status</th><th>Members</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+                  <tbody id="clients-body"></tbody>
+                </table>
+              </div>
+              <p id="clients-status" class="form-status" role="status" hidden></p>
+            </section>
+          </div>
+
+          <div id="panel-users" role="tabpanel" aria-labelledby="tab-users" hidden>
+            <section class="panel" aria-labelledby="users-heading">
+              <div class="section-head">
+                <h2 id="users-heading">Users</h2>
+                <span class="hint">Invited users receive an email link to choose their password.</span>
+              </div>
+              <form id="filter-form" class="toolbar" novalidate>
+                <label class="field search"><span>Search</span>
+                  <input name="q" type="search" maxlength="100" placeholder="Search by name or email" autocomplete="off">
+                </label>
+                <label class="field"><span>Role</span>
+                  <select name="role">
+                    <option value="">Any role</option>
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </label>
+                <label class="field"><span>Status</span>
+                  <select name="status">
+                    <option value="">Any status</option>
+                    <option value="active">Active</option>
+                    <option value="disabled">Disabled</option>
+                  </select>
+                </label>
+                <label class="field"><span>Sort</span>
+                  <select name="sort">
+                    <option value="-created_at">Newest first</option>
+                    <option value="created_at">Oldest first</option>
+                    <option value="full_name">Name A–Z</option>
+                    <option value="-full_name">Name Z–A</option>
+                    <option value="email">Email A–Z</option>
+                    <option value="-email">Email Z–A</option>
+                  </select>
+                </label>
+                <button class="visually-hidden" type="submit">Apply filters</button>
+              </form>
+
+              <div class="table-scroll">
+                <table class="data-table">
+                  <thead>
+                    <tr><th>User</th><th>Role</th><th>Status</th><th>Verified</th><th>2FA</th><th>Last sign-in</th><th><span class="visually-hidden">Actions</span></th></tr>
+                  </thead>
+                  <tbody id="users-body"></tbody>
+                </table>
+              </div>
+              <div class="pager">
+                <button id="prev-page" class="button button-secondary button-small" type="button">Previous</button>
+                <span id="page-info"></span>
+                <button id="next-page" class="button button-secondary button-small" type="button">Next</button>
+              </div>
+              <p id="users-status" class="form-status" role="status" hidden></p>
+            </section>
+          </div>
         </div>
-        <p id="clients-status" class="form-status" role="status" hidden></p>
-      </section>
+      </div>
+    </div>
+  </main>
 
-      <section class="panel" aria-labelledby="invite-heading">
-        <h2 id="invite-heading">Invite a user</h2>
-        <p class="hint">The user receives an email link to choose their password.</p>
-        <form id="create-form" class="inline-form" novalidate>
+  <dialog id="client-dialog" class="sheet" aria-labelledby="new-client-heading">
+    <div class="sheet-inner">
+      <div class="sheet-head">
+        <div>
+          <h2 id="new-client-heading" class="sheet-title">New client workspace</h2>
+          <p class="hint">You become an owner of the workspace. Invite the client's staff from the workspace's People section.</p>
+        </div>
+        <button class="sheet-close" type="button" aria-label="Close" data-dialog-close>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <form id="client-create-form" novalidate>
+        <div class="sheet-body stack">
+          <label class="field">Organisation name
+            <input name="name" type="text" required maxlength="120" autofocus>
+          </label>
+          <div class="grid-2">
+            <label class="field">Primary sector
+              <select name="primary_sector">
+                <option value="business">Business</option>
+                <option value="education">Education</option>
+              </select>
+            </label>
+            <label class="field">Contact email
+              <input name="contact_email" type="email" maxlength="254">
+            </label>
+          </div>
+        </div>
+        <div class="sheet-actions">
+          <p id="client-create-status" class="form-status" role="status" hidden></p>
+          <button class="button button-secondary" type="button" data-dialog-close>Cancel</button>
+          <button class="button button-primary" type="submit">Create workspace</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog id="invite-dialog" class="sheet" aria-labelledby="invite-heading">
+    <div class="sheet-inner">
+      <div class="sheet-head">
+        <div>
+          <h2 id="invite-heading" class="sheet-title">Invite a user</h2>
+          <p class="hint">The user receives an email link to choose their password.</p>
+        </div>
+        <button class="sheet-close" type="button" aria-label="Close" data-dialog-close>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <form id="create-form" novalidate>
+        <div class="sheet-body stack">
+          <label class="field">Full name
+            <input name="full_name" type="text" required maxlength="120" autofocus>
+          </label>
+          <div class="grid-2">
+            <label class="field">Email
+              <input name="email" type="email" required maxlength="254">
+            </label>
+            <label class="field">Role
+              <select name="role">
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div class="sheet-actions">
+          <p id="create-status" class="form-status" role="status" hidden></p>
+          <button class="button button-secondary" type="button" data-dialog-close>Cancel</button>
+          <button class="button button-primary" type="submit">Send invitation</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog id="user-dialog" class="sheet" aria-labelledby="user-edit-heading">
+    <div class="sheet-inner">
+      <div class="sheet-head">
+        <div>
+          <h2 id="user-edit-heading" class="sheet-title">Edit user</h2>
+          <p id="user-edit-email" class="hint"></p>
+        </div>
+        <button class="sheet-close" type="button" aria-label="Close" data-dialog-close>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <form id="user-edit-form" novalidate>
+        <div class="sheet-body stack">
           <label class="field">Full name
             <input name="full_name" type="text" required maxlength="120">
           </label>
-          <label class="field">Email
-            <input name="email" type="email" required maxlength="254">
-          </label>
-          <label class="field">Role
-            <select name="role">
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
-            </select>
-          </label>
-          <button class="button button-primary" type="submit">Send invitation</button>
-        </form>
-        <p id="create-status" class="form-status" role="status" hidden></p>
-      </section>
-
-      <section class="panel" aria-labelledby="users-heading">
-        <h2 id="users-heading">Users</h2>
-        <form id="filter-form" class="inline-form" novalidate>
-          <label class="field">Search
-            <input name="q" type="search" maxlength="100" placeholder="Name or email">
-          </label>
-          <label class="field">Role
-            <select name="role">
-              <option value="">Any</option>
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
-            </select>
-          </label>
-          <label class="field">Status
-            <select name="status">
-              <option value="">Any</option>
-              <option value="active">Active</option>
-              <option value="disabled">Disabled</option>
-            </select>
-          </label>
-          <label class="field">Sort
-            <select name="sort">
-              <option value="-created_at">Newest first</option>
-              <option value="created_at">Oldest first</option>
-              <option value="full_name">Name A–Z</option>
-              <option value="-full_name">Name Z–A</option>
-              <option value="email">Email A–Z</option>
-              <option value="-email">Email Z–A</option>
-            </select>
-          </label>
-          <button class="button button-secondary" type="submit">Apply</button>
-        </form>
-
-        <div class="table-scroll">
-          <table class="data-table">
-            <thead>
-              <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Verified</th><th>2FA</th><th>Last sign-in</th><th>Actions</th></tr>
-            </thead>
-            <tbody id="users-body"></tbody>
-          </table>
+          <div class="grid-2">
+            <label class="field">Role
+              <select name="role">
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+            </label>
+            <label class="field">Status
+              <select name="status">
+                <option value="active">Active</option>
+                <option value="disabled">Disabled</option>
+              </select>
+            </label>
+          </div>
+          <p id="user-edit-self" class="hint" hidden>You cannot change your own role or status.</p>
         </div>
-        <div class="pager">
-          <button id="prev-page" class="button button-secondary button-small" type="button">Previous</button>
-          <span id="page-info"></span>
-          <button id="next-page" class="button button-secondary button-small" type="button">Next</button>
+        <div class="sheet-actions">
+          <p id="user-edit-status" class="form-status" role="status" hidden></p>
+          <button class="button button-secondary" type="button" data-dialog-close>Cancel</button>
+          <button class="button button-primary" type="submit">Save changes</button>
         </div>
-        <p id="users-status" class="form-status" role="status" hidden></p>
-      </section>
+      </form>
     </div>
-  </main>
+  </dialog>
 
   <div id="footer-mount"></div>
 </body>

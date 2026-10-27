@@ -12,8 +12,8 @@ SGS AI Technology website: framework-free, multi-page HTML/CSS/JavaScript plus a
 | --- | --- |
 | `public/` | Entire web root. Everything here is deployed publicly. |
 | `public/<route>/index.html` | One folder per page route (`/about/`, `/projects/`, ...) with optional `<route>-page.css` |
-| `public/assets/js/` | `app.js` (component loader, analytics), `script.js`, account/hub ES modules (`auth.js` API client, `hub.js` shared hub helpers, `upload.js` signed uploads, `workspace.js`, `projects.js`, `admin-client.js`, `pwa.js`, ...) |
-| `public/assets/css/` | `global.css` (tokens, self-hosted fonts, utilities), `account.css` (auth/account pages), `hub.css` (workspace/admin), legacy `styles.css`/`pages.css` |
+| `public/assets/js/` | `app.js` (component loader, analytics), `script.js`, account/hub ES modules (`auth.js` API client, `hub.js` shared hub helpers incl. `setupTabs()`, `dialog.js` sheet dialogs and `confirmDialog()`, `upload.js` signed uploads, `workspace.js`, `projects.js`, `admin.js`, `admin-client.js`, `pwa.js`, ...) |
+| `public/assets/css/` | `global.css` (tokens, self-hosted fonts, utilities), `account.css` (auth/account pages), `hub.css` (hub design system: workspace, projects, account, admin consoles, sheet dialogs), legacy `styles.css`/`pages.css` |
 | `public/workspace/`, `public/admin/clients/` | Client hub: workspace, project detail, invite join, launch bridge, workspace management |
 | `public/sw.js`, `public/offline/` | Service worker and offline page (installable hub) |
 | `public/components/`, `public/sections/` | Fragments (`.html` + optional `.css`/`.js`) mounted at runtime by `app.js` |

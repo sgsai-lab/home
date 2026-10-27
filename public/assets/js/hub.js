@@ -78,6 +78,58 @@ export function initials(name) {
   return String(name ?? '?').split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0].toUpperCase()).join('');
 }
 
+/**
+ * WAI-ARIA tabs with arrow-key navigation. Tabs carrying data-hash sync with location.hash so
+ * sections can be deep-linked (/admin/clients/?id=…#people). Returns { tabs, select }.
+ */
+export function setupTabs(tablist, { onSelect } = {}) {
+  const tabs = [...tablist.querySelectorAll('[role="tab"]')];
+  function select(tab, { focus = true } = {}) {
+    for (const other of tabs) {
+      const selected = other === tab;
+      other.setAttribute('aria-selected', String(selected));
+      other.tabIndex = selected ? 0 : -1;
+      const panel = document.getElementById(other.getAttribute('aria-controls'));
+      if (panel) panel.hidden = !selected;
+    }
+    if (focus) tab.focus();
+    // On narrow screens the tablist scrolls horizontally; keep the active tab visible.
+    tab.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    if (tab.dataset.hash) history.replaceState(null, '', `${location.pathname}${location.search}#${tab.dataset.hash}`);
+    onSelect?.(tab);
+  }
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => select(tab));
+    tab.addEventListener('keydown', (event) => {
+      const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
+      if (step) {
+        event.preventDefault();
+        select(tabs[(index + step + tabs.length) % tabs.length]);
+      }
+      if (event.key === 'Home') select(tabs[0]);
+      if (event.key === 'End') select(tabs.at(-1));
+    });
+  });
+  const fromHash = tabs.find((tab) => tab.dataset.hash && `#${tab.dataset.hash}` === location.hash);
+  select(fromHash ?? tabs.find((tab) => tab.getAttribute('aria-selected') === 'true') ?? tabs[0], { focus: false });
+  return { tabs, select };
+}
+
+/** Progress of a project's milestones as { done, total, percent }. */
+export function milestoneProgress(project) {
+  const total = project.milestones?.length ?? 0;
+  const done = project.milestones?.filter((milestone) => milestone.done).length ?? 0;
+  return { done, total, percent: total ? Math.round((done / total) * 100) : 0 };
+}
+
+/** Thin progress bar with an accessible label. */
+export function progressBar(progress, label) {
+  const bar = h('span', { className: 'progress', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': progress.percent, 'aria-label': label },
+    h('span', { className: 'progress-value' }));
+  bar.firstChild.style.setProperty('--progress', `${progress.percent}%`);
+  return bar;
+}
+
 /** Launch links open /go/{slug}; client-only apps bounce through /workspace/launch/ to get a token. */
 export function launchLink(product, children) {
   const retired = product.status === 'retired';

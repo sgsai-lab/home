@@ -13,5 +13,6 @@ applyTo: "public/**"
 - No top-level `await` in browser JS: the build minifier rejects it. Wrap in `async function main()` and call `main().catch(...)` like `projects.js`.
 - Do not add third-party scripts, styles, or fonts: the production CSP in `config/nginx.conf` blocks them (fonts are self-hosted in `/assets/fonts/`).
 - No inline `style=` attributes, `on*=` handlers, `<style>` blocks or inline scripts: the CSP blocks them and `npm run lint` rejects them. Use classes (utilities in `global.css`) and external scripts.
-- Internal links end with `/` (`/about/`). Hub pages reuse `hub.css` and `hub.js`; uploads use `createUploader()` from `upload.js`.
+- Internal links end with `/` (`/about/`). Hub pages add `hub-main` to `<main>` and reuse `hub.css` and `hub.js` (`setupTabs()` for the side navigation, with `data-hash` deep links); uploads use `createUploader()` from `upload.js`.
+- Create/edit/invite forms live in `<dialog class="sheet">` elements opened with `openDialog()` from `dialog.js` (`setupDialogs()` wires close buttons and backdrop clicks). Use `confirmDialog()` instead of `window.confirm`.
 - Validate with `npm run lint` (ESLint, Stylelint, html-validate, link check).
