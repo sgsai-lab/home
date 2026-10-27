@@ -14,7 +14,7 @@ let editingProduct = null;
 setupDialogs();
 setupTabs(document.querySelector('.hub-sidenav'), {
   onSelect: (tab) => {
-    if (tab.id === 'tab-activity' && client) loadActivity().catch((error) => showStatus($('activity-status'), describeError(error)));
+    if (tab.id === 'tab-activity' && client) loadActivityOnce();
   }
 });
 const canManage = () => client.my_role === 'owner' || client.my_role === 'admin';
@@ -294,6 +294,15 @@ const ACTIONS = {
   'asset.deleted': 'deleted a file'
 };
 
+// One request at a time: a tab click during startup must not duplicate the initial load.
+let activityLoading = null;
+function loadActivityOnce() {
+  activityLoading ??= loadActivity()
+    .catch((error) => showStatus($('activity-status'), describeError(error)))
+    .finally(() => { activityLoading = null; });
+  return activityLoading;
+}
+
 async function loadActivity() {
   if (client.my_role !== 'owner') {
     $('activity-body').replaceChildren(h('tr', {}, h('td', { colspan: 3, className: 'empty', text: 'Only workspace owners can view activity.' })));
@@ -317,7 +326,7 @@ async function main() {
   }
   $('visibility-field').hidden = me.role !== 'admin';
   renderOverview();
-  if (location.hash === '#activity') loadActivity().catch((error) => showStatus($('activity-status'), describeError(error)));
+  if (location.hash === '#activity') loadActivityOnce();
   if (canManage()) {
     $('logo-upload').append(createUploader({
       owner: { type: 'client', id: client.id }, purpose: 'logo', kinds: ['image'], label: 'Upload a logo', requireAlt: true,

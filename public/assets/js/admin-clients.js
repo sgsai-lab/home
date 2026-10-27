@@ -41,10 +41,8 @@ handleSubmit($('client-create-form'), $('client-create-status'), async ({ name, 
   const client = await api('/clients', { method: 'POST', body: { name: name.trim(), primary_sector: sector, ...(email.trim() ? { contact: { email: email.trim() } } : {}) } });
   closeDialog($('client-dialog'), 'saved');
   await load();
-  const manage = h('a', { href: `/admin/clients/?id=${encodeURIComponent(client.id)}`, text: 'Open Manage' });
-  $('clients-status').dataset.kind = 'success';
-  $('clients-status').replaceChildren(`${client.name} created. `, manage, ' to invite people and add apps.');
-  $('clients-status').hidden = false;
+  showStatus($('clients-status'), `${client.name} created. `, 'success');
+  $('clients-status').append(h('a', { href: `/admin/clients/?id=${encodeURIComponent(client.id)}`, text: 'Open Manage' }), ' to invite people and add apps.');
 });
 
 let searchTimer;

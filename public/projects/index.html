@@ -76,7 +76,7 @@
             </select>
           </label>
           <button id="filter-reset" class="link-button toolbar-reset" type="button" hidden>Clear filters</button>
-          <button class="visually-hidden" type="submit">Apply filters</button>
+          <button class="visually-hidden" type="submit" tabindex="-1">Apply filters</button>
         </form>
 
         <ul id="project-list" class="card-grid"></ul>
@@ -108,7 +108,7 @@
               <select name="client_id" required></select>
             </label>
             <label class="field">Name
-              <input name="name" type="text" required maxlength="120" autofocus>
+              <input name="name" type="text" required maxlength="120">
             </label>
           </div>
           <div class="grid-2">

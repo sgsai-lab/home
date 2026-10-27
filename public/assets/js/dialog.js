@@ -3,11 +3,14 @@ import { h } from '/assets/js/auth.js';
 
 const FOCUSABLE = 'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]):not([data-dialog-close])';
 
-/** Opens a sheet and resolves with its returnValue once it closes. Focus returns to the opener. */
+/**
+ * Opens a sheet with showModal() and resolves with its returnValue once it closes.
+ * Focus moves to `initialFocus` or the first form control, and returns to the opener on close.
+ */
 export function openDialog(dialog, { initialFocus } = {}) {
   const opener = document.activeElement;
   if (!dialog.open) dialog.showModal();
-  (initialFocus ?? dialog.querySelector('[autofocus]') ?? dialog.querySelector(FOCUSABLE))?.focus();
+  (initialFocus ?? dialog.querySelector(FOCUSABLE))?.focus();
   return new Promise((resolve) => {
     dialog.addEventListener('close', () => {
       if (opener instanceof HTMLElement && opener.isConnected) opener.focus({ preventScroll: true });
