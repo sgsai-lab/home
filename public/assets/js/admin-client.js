@@ -21,6 +21,7 @@ const canManage = () => client.my_role === 'owner' || client.my_role === 'admin'
 
 // --- Overview ---------------------------------------------------------------------------
 function renderLogo() {
+  markActivityStale();
   const targets = [$('logo-preview'), $('client-logo')];
   targets.forEach((target) => target.replaceChildren(initials(client.name)));
   if (client.branding?.logo_asset_id) {
@@ -67,6 +68,7 @@ function roleSelect(value, disabled) {
 }
 
 async function loadMembers() {
+  markActivityStale();
   const { items } = await api(`${base}/members`);
   $('people-count').textContent = String(items.length);
   $('people-count').hidden = false;
@@ -116,6 +118,7 @@ async function loadMembers() {
 }
 
 async function loadInvites() {
+  markActivityStale();
   if (!canManage()) {
     $('invite-list').replaceChildren(h('li', { className: 'hint', text: 'Only workspace admins can invite people.' }));
     return;
@@ -258,6 +261,7 @@ function productCard(product) {
 }
 
 async function loadProducts() {
+  markActivityStale();
   const { items } = await api(`/products?client_id=${encodeURIComponent(client.id)}&page_size=100`);
   $('apps-count').textContent = String(items.length);
   $('apps-count').hidden = false;
@@ -294,10 +298,17 @@ const ACTIONS = {
   'asset.deleted': 'deleted a file'
 };
 
-// One request at a time: a tab click during startup must not duplicate the initial load.
+// Activity is fetched once per page load and again only after something in the workspace changed.
+// A single in-flight request is shared so a tab click during startup cannot duplicate it.
 let activityLoading = null;
+let activityLoaded = false;
+function markActivityStale() {
+  activityLoaded = false;
+}
 function loadActivityOnce() {
+  if (activityLoaded) return Promise.resolve();
   activityLoading ??= loadActivity()
+    .then(() => { activityLoaded = true; })
     .catch((error) => showStatus($('activity-status'), describeError(error)))
     .finally(() => { activityLoading = null; });
   return activityLoading;

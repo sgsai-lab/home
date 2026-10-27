@@ -41,9 +41,13 @@ function renderProfile(user) {
   $('profile-since').textContent = new Date(user.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
   const avatar = $('profile-avatar');
   avatar.replaceChildren(initials(user.full_name));
+  // Remember which URL is current so a slow earlier image cannot overwrite a newer avatar.
+  avatar.dataset.src = user.avatar_url ?? '';
   if (user.avatar_url) {
     const image = h('img', { src: user.avatar_url, alt: '' });
-    image.addEventListener('load', () => avatar.replaceChildren(image));
+    image.addEventListener('load', () => {
+      if (avatar.dataset.src === user.avatar_url) avatar.replaceChildren(image);
+    });
   }
   const form = $('profile-form');
   form.elements.full_name.value = user.full_name;
