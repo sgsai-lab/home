@@ -1,4 +1,5 @@
 import { api, describeError, h, handleSubmit, requireUser, showStatus } from '/assets/js/auth.js';
+import { confirmDialog } from '/assets/js/dialog.js';
 
 const $ = (id) => document.getElementById(id);
 let cursor = null;
@@ -23,7 +24,7 @@ async function load(append = false) {
 }
 
 handleSubmit($('issuer-form'), $('issuer-status'), async ({ user_id: userId, active, reason }) => {
-  if (!window.confirm(`${active === 'true' ? 'Assign' : 'Revoke'} issuer authority for this SGS administrator? Actual customer workspace ownership is still required.`)) return;
+  if (!await confirmDialog({ title: 'Update issuer authority', message: `${active === 'true' ? 'Assign' : 'Revoke'} issuer authority for this SGS administrator? Actual customer workspace ownership is still required.` })) return;
   await api(`/crm/issuer-operators/${encodeURIComponent(userId.trim())}`, {
     method: 'PUT', body: { active: active === 'true', reason }
   });

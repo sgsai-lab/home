@@ -71,6 +71,8 @@ Features whose configuration is missing answer `503` (or `404` for the associati
 
 ### CRM activation and operations
 
+The initial production rollout explicitly pins `CRM_INVOICE_ISSUANCE_ENABLED=false` and `CRM_INVOICE_VOID_ALLOWED=false` in the deployment workflow and does not inject GitHub App credentials. Deals, approvals and draft finance workflows are available to actual owners, but legal issuance/voiding and GitHub automation remain unavailable. Issuer and workspace-owner assignments are configured by the administrator in the website; deployment grants neither. The infrastructure owner must confirm the CRM indexes are READY before rollout. Activation requires a separate reviewed workflow/configuration change after the approvals and infrastructure below are complete.
+
 Deploy [Firestore indexes](../config/firestore/firestore.indexes.json) through the infrastructure owner before enabling CRM workloads. Keep the existing deny-all client rules and production memory fallback disabled. No infrastructure is provisioned automatically by the feature branch.
 
 - Set `CRM_INVOICE_ISSUANCE_ENABLED=true` **only after** a qualified India GST reviewer approves the actual issuer, customer details, SAC/rates, numbering, required text, e-invoicing applicability and retention/legal holds. Configure the workspace billing profile with an approval reference. Test fixture legal/bank details are not real configuration.

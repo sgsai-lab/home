@@ -1,5 +1,6 @@
 import { api, ApiError, bindAction, describeError, h, requireUser, showStatus } from '/assets/js/auth.js';
-import { assetUrl, badge, formatDay, initials, launchLink, PRODUCT_KIND, PRODUCT_STATUS, PROJECT_STATUS, ROLE, sectorSubtitle, statusTone } from '/assets/js/hub.js';
+import { assetUrl, badge, formatDay, initials, launchLink, milestoneProgress, PRODUCT_KIND, PRODUCT_STATUS, progressBar, PROJECT_STATUS, ROLE, sectorSubtitle, statusTone } from '/assets/js/hub.js';
+import { confirmDialog } from '/assets/js/dialog.js';
 import { createUploader } from '/assets/js/upload.js';
 
 const $ = (id) => document.getElementById(id);
@@ -11,6 +12,9 @@ const today = new Date().toISOString().slice(0, 10);
 
 function renderMilestones() {
   const list = $('milestone-list');
+  const progress = milestoneProgress(project);
+  $('milestone-summary').textContent = progress.total ? `${progress.done} of ${progress.total} complete` : '';
+  $('milestone-progress').replaceChildren(progress.total ? progressBar(progress, `${progress.done} of ${progress.total} milestones complete`) : '');
   if (!project.milestones.length) {
     list.replaceChildren(h('li', { className: 'hint', text: 'No milestones yet.' }));
     return;
@@ -75,7 +79,8 @@ async function renderDeliverables() {
     if (project.can_edit) {
       const remove = h('button', { type: 'button', className: 'button button-danger button-small', text: 'Delete' });
       bindAction(remove, $('deliverable-status'), async () => {
-        if (!window.confirm(`Delete ${asset.filename}?`)) return;
+        const confirmed = await confirmDialog({ title: `Delete ${asset.filename}?`, message: 'The file is removed for everyone in the workspace.', confirmLabel: 'Delete file', danger: true });
+        if (!confirmed) return;
         await api(`/assets/${encodeURIComponent(asset.id)}`, { method: 'DELETE' });
         await renderDeliverables();
       });
@@ -92,7 +97,7 @@ async function renderTeam() {
   const { items } = await api(`/clients/${encodeURIComponent(project.client_id)}/members`);
   $('team-list').replaceChildren(...items.map((member) => h('li', {},
     h('span', { className: 'avatar', 'aria-hidden': 'true', text: initials(member.full_name) }),
-    h('span', {}, h('strong', { text: member.full_name }), h('span', { className: 'hint', text: ` · ${ROLE[member.role]}` })))));
+    h('span', {}, h('strong', { text: member.full_name }), h('br'), h('span', { className: 'hint', text: ROLE[member.role] })))));
 }
 
 function renderHeader() {

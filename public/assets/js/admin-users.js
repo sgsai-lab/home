@@ -1,57 +1,82 @@
-import { api, ApiError, bindAction, formatDate, h, handleSubmit, requireUser, showStatus } from '/assets/js/auth.js';
+import { api, ApiError, bindAction, describeError, formatDate, h, handleSubmit, requireUser, showStatus } from '/assets/js/auth.js';
+import { closeDialog, confirmDialog, openDialog } from '/assets/js/dialog.js';
+import { initials } from '/assets/js/hub.js';
 
 const $ = (id) => document.getElementById(id);
 const usersStatus = $('users-status');
-const ROLES = ['user', 'admin'];
-const STATUSES = ['active', 'disabled'];
+const filterForm = $('filter-form');
+const editForm = $('user-edit-form');
 const state = { page: 1, pageSize: 20, q: '', role: '', status: '', sort: '-created_at' };
 let me = null;
-
-function select(name, options, value, disabled) {
-  return h('select', { name, 'aria-label': name, disabled },
-    options.map((option) => h('option', { value: option, selected: option === value, text: option })));
-}
+let editingUser = null;
 
 function badge(ok, yes, no) {
   return h('span', { className: `badge ${ok ? 'badge-success' : 'badge-warning'}`, text: ok ? yes : no });
 }
 
+function openEditor(user) {
+  editingUser = user;
+  const isSelf = user.id === me.id;
+  editForm.reset();
+  showStatus($('user-edit-status'), '');
+  $('user-edit-heading').textContent = isSelf ? 'Edit your account' : `Edit ${user.full_name}`;
+  $('user-edit-email').textContent = user.email;
+  $('user-edit-self').hidden = !isSelf;
+  editForm.elements.full_name.value = user.full_name;
+  editForm.elements.role.value = user.role;
+  editForm.elements.status.value = user.status;
+  // The API rejects role/status changes on your own account.
+  editForm.elements.role.disabled = isSelf;
+  editForm.elements.status.disabled = isSelf;
+  openDialog($('user-dialog'), { initialFocus: editForm.elements.full_name });
+}
+
+handleSubmit(editForm, $('user-edit-status'), async (values) => {
+  const changes = {};
+  if (values.full_name.trim() !== editingUser.full_name) changes.full_name = values.full_name.trim();
+  if (values.role && values.role !== editingUser.role) changes.role = values.role;
+  if (values.status && values.status !== editingUser.status) changes.status = values.status;
+  if ('full_name' in changes && !changes.full_name) throw new ApiError(0, 'CLIENT', 'Enter a name.');
+  if (!Object.keys(changes).length) {
+    closeDialog($('user-dialog'));
+    return showStatus(usersStatus, 'No changes to save.', 'info');
+  }
+  await api(`/users/${encodeURIComponent(editingUser.id)}`, { method: 'PATCH', body: changes });
+  closeDialog($('user-dialog'), 'saved');
+  await load();
+  showStatus(usersStatus, `Saved ${editingUser.email}.`, 'success');
+});
+
 function renderRow(user) {
   const isSelf = user.id === me.id;
-  const name = h('input', { type: 'text', value: user.full_name, maxlength: 120, 'aria-label': 'Full name' });
-  const role = select('role', ROLES, user.role, isSelf);
-  const status = select('status', STATUSES, user.status, isSelf);
-  const save = h('button', { type: 'button', className: 'button button-primary button-small', text: 'Save' });
+  const edit = h('button', { type: 'button', className: 'button button-secondary button-small', text: 'Edit' });
   const remove = h('button', { type: 'button', className: 'button button-danger button-small', text: 'Delete', disabled: isSelf });
-
-  bindAction(save, usersStatus, async () => {
-    // Only send what changed: the API rejects role/status changes on your own account.
-    const changes = {};
-    if (name.value.trim() !== user.full_name) changes.full_name = name.value.trim();
-    if (role.value !== user.role) changes.role = role.value;
-    if (status.value !== user.status) changes.status = status.value;
-    if (!Object.keys(changes).length) return showStatus(usersStatus, 'No changes to save.', 'info');
-    await api(`/users/${encodeURIComponent(user.id)}`, { method: 'PATCH', body: changes });
-    showStatus(usersStatus, `Saved ${user.email}.`, 'success');
-    await load();
-  });
-
+  edit.addEventListener('click', () => openEditor(user));
   bindAction(remove, usersStatus, async () => {
-    if (!window.confirm(`Delete ${user.email}? This cannot be undone.`)) return;
+    const confirmed = await confirmDialog({
+      title: `Delete ${user.full_name}?`,
+      message: `${user.email} loses access immediately. This cannot be undone.`,
+      confirmLabel: 'Delete user',
+      danger: true
+    });
+    if (!confirmed) return;
     await api(`/users/${encodeURIComponent(user.id)}`, { method: 'DELETE' });
     showStatus(usersStatus, `Deleted ${user.email}.`, 'success');
     await load();
   });
 
   return h('tr', {},
-    h('td', {}, name),
-    h('td', { text: isSelf ? `${user.email} (you)` : user.email }),
-    h('td', {}, role),
-    h('td', {}, status),
+    h('td', {}, h('span', { className: 'cell-person' },
+      h('span', { className: 'avatar', 'aria-hidden': 'true', text: initials(user.full_name) }),
+      h('span', { className: 'cell-primary' },
+        h('strong', { text: isSelf ? `${user.full_name} (you)` : user.full_name }),
+        h('span', { className: 'hint', text: user.email })))),
+    h('td', {}, h('span', { className: `badge${user.role === 'admin' ? ' badge-purple' : ''}`, text: user.role === 'admin' ? 'Admin' : 'User' })),
+    h('td', {}, badge(user.status === 'active', 'Active', 'Disabled')),
     h('td', {}, badge(user.email_verified, 'Yes', 'No')),
     h('td', {}, badge(user.mfa_enabled, 'On', 'Off')),
     h('td', { text: formatDate(user.last_login_at) }),
-    h('td', {}, h('div', { className: 'row-actions' }, save, remove)));
+    h('td', {}, h('div', { className: 'row-actions' }, edit, remove)));
 }
 
 async function load() {
@@ -59,25 +84,54 @@ async function load() {
   for (const key of ['q', 'role', 'status']) if (state[key]) params.set(key, state[key]);
   const result = await api(`/users?${params}`);
   const pages = Math.max(1, Math.ceil(result.total / result.page_size));
+  if (!state.q && !state.role && !state.status) {
+    $('users-count').textContent = String(result.total);
+    $('users-count').hidden = false;
+  }
   $('users-body').replaceChildren(...(result.items.length
     ? result.items.map(renderRow)
-    : [h('tr', {}, h('td', { colspan: 8, className: 'empty', text: 'No users match these filters.' }))]));
+    : [h('tr', {}, h('td', { colspan: 7, className: 'empty', text: 'No users match these filters.' }))]));
   $('page-info').textContent = `Page ${result.page} of ${pages} · ${result.total} users`;
   $('prev-page').disabled = result.page <= 1;
   $('next-page').disabled = result.page >= pages;
 }
 
-handleSubmit($('filter-form'), usersStatus, async ({ q, role, status, sort }) => {
+let searchTimer;
+async function applyFilters() {
+  const { q, role, status, sort } = Object.fromEntries(new FormData(filterForm));
   Object.assign(state, { page: 1, q: q.trim(), role, status, sort });
-  await load();
+  showStatus(usersStatus, '');
+  try {
+    await load();
+  } catch (error) {
+    showStatus(usersStatus, describeError(error));
+  }
+}
+filterForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  clearTimeout(searchTimer);
+  applyFilters();
+});
+filterForm.addEventListener('change', (event) => {
+  if (event.target.name !== 'q') applyFilters();
+});
+filterForm.elements.q.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(applyFilters, 300);
+});
+
+$('invite-open').addEventListener('click', () => {
+  $('create-form').reset();
+  showStatus($('create-status'), '');
+  openDialog($('invite-dialog'));
 });
 
 handleSubmit($('create-form'), $('create-status'), async ({ full_name: fullName, email, role }) => {
   if (!fullName.trim() || !email.trim()) throw new ApiError(0, 'CLIENT', 'Enter a name and email.');
   const user = await api('/users', { method: 'POST', body: { full_name: fullName.trim(), email: email.trim(), role } });
-  $('create-form').reset();
-  showStatus($('create-status'), `Invitation sent to ${user.email}.`, 'success');
+  closeDialog($('invite-dialog'), 'saved');
   await load();
+  showStatus(usersStatus, `Invitation sent to ${user.email}.`, 'success');
 });
 
 bindAction($('prev-page'), usersStatus, async () => { state.page -= 1; await load(); });
@@ -88,4 +142,4 @@ async function main() {
   await load();
 }
 
-main().catch((error) => showStatus($('page-status'), error.message));
+main().catch((error) => showStatus($('page-status'), describeError(error)));

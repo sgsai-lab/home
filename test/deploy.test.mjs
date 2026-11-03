@@ -29,6 +29,13 @@ test('deploy path filter uses only patterns this guard can evaluate', async () =
   }
 });
 
+test('initial CRM production rollout explicitly disables legal issuance and voiding', async () => {
+  const workflow = await read('.github/workflows/deploy.yml');
+  for (const gate of ['CRM_INVOICE_ISSUANCE_ENABLED', 'CRM_INVOICE_VOID_ALLOWED']) {
+    assert.ok(workflow.includes(`add_env ${gate} false`), `${gate} must remain disabled until a separately reviewed activation`);
+  }
+});
+
 test('deploy path filter covers every input of the production image', async () => {
   const [workflow, dockerfile, packageJson, buildScript] = await Promise.all([
     read('.github/workflows/deploy.yml'),
