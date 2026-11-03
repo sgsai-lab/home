@@ -16,6 +16,7 @@
   <script src="/assets/js/app.js?v=__ASSET_VERSION__" defer></script>
   <script type="module" src="/assets/js/admin-users.js?v=__ASSET_VERSION__"></script>
   <script type="module" src="/assets/js/admin-clients.js?v=__ASSET_VERSION__"></script>
+  <script type="module" src="/assets/js/admin-crm.js?v=__ASSET_VERSION__"></script>
 </head>
 <body>
   <a href="#main" class="skip-link">Skip to content</a>
@@ -79,6 +80,31 @@
           </table>
         </div>
         <p id="clients-status" class="form-status" role="status" hidden></p>
+      </section>
+
+      <section class="panel" aria-labelledby="issuer-heading">
+        <h2 id="issuer-heading">SGS invoice issuer operators</h2>
+        <p class="hint">An active SGS administrator may be assigned issuer authority. This does not grant customer finance access: actual workspace owner membership is also required. Assignments and revocations are audited.</p>
+        <form id="issuer-form" class="inline-form">
+          <label class="field">SGS administrator
+            <select id="issuer-user" name="user_id" required><option value="">Select an administrator</option></select>
+          </label>
+          <label class="field">Authority
+            <select name="active"><option value="true">Assign</option><option value="false">Revoke</option></select>
+          </label>
+          <label class="field">Reason
+            <input name="reason" type="text" required maxlength="500">
+          </label>
+          <button type="submit" class="button button-primary">Save assignment</button>
+        </form>
+        <p id="issuer-status" class="form-status" role="status" hidden></p>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead><tr><th>User ID</th><th>Authority</th><th>Last updated</th></tr></thead>
+            <tbody id="issuer-body"></tbody>
+          </table>
+        </div>
+        <button id="issuer-more" type="button" class="button button-secondary button-small" hidden>More operators</button>
       </section>
 
       <section class="panel" aria-labelledby="invite-heading">

@@ -1,4 +1,24 @@
 /* Client hub: workspace, project detail, launch and admin console components. */
+.crm-record {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) minmax(0, 3fr);
+  gap: 12px 20px;
+}
+
+.crm-record dt {
+  color: var(--muted);
+}
+
+.crm-record dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.crm-scope {
+  white-space: pre-wrap;
+}
+
 .hub-header {
   display: flex;
   flex-wrap: wrap;

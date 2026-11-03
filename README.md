@@ -26,6 +26,8 @@ dist/             Generated static site; not committed
 
 See [architecture and module boundaries](docs/architecture.md), [deployment and operations](docs/deployment.md), and [contribution guidelines](CONTRIBUTING.md).
 
+Product roadmap: [project CRM, GitHub integration, billing, and invoices](docs/product/crm-project-billing-plan.md). The initial owner-only deal/proposal/accepted-plan milestone is implemented; invoicing, resource tracking, and GitHub automation remain pending. See the [CRM API and setup](docs/api.md#project-crm-initial-milestone).
+
 AI coding agents: start with [AGENTS.md](AGENTS.md), which links task skills in [.github/skills/](.github/skills/) and file-scoped rules in [.github/instructions/](.github/instructions/).
 
 ## Local development and checks

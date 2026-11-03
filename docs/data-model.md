@@ -19,12 +19,28 @@ Conventions: snake_case fields, ISO-8601 strings for timestamps, numeric `expire
 | `assets` | `ast_<uuid>` | `client_id`, `owner_type`, `owner_id`, `purpose`, `kind`, `content_type`, `size_bytes`, `gcs_bucket`, `gcs_object`, `gcs_pending_object` (upload target until confirmed), `status` pending\|ready, `md5`, `alt_text` | 24 h while pending |
 | `launch_events` | `lev_<uuid>` | `product_id`, `client_id`, `user_id`, `source` web\|android\|ios\|link, `ts` | 180 days |
 | `audit_log` | `aud_<uuid>` | `actor_id`, `action`, `target_type`, `target_id`, `client_id`, `ip_hash`, `request_id`, `diff` (secret-like keys dropped), `ts` | 90 days |
+| `issuer_operators` | user ID | `id`, `user_id`, `active`, `updated_by`, `updated_at`; assignment alone does not grant tenant access | None |
+| `issuer_operator_events` | `ioe_<uuid>` | Global restricted assignment audit: actor, target user, active/revoked, reason, request ID, timestamp | None |
+| `deals` | `dea_<uuid>` | `client_id`, `project_id`, project name snapshot, scope, stage/probability, INR `amount_minor` (price/cap), method fixed/hourly, rate/minutes, dates, version, current/accepted revision, active plan | None |
+| `commercial_revisions` | `<deal_id>__r<sequence>` | Immutable deal terms, resource estimate, dates, currency/billing defaults, publisher/time; customer acceptance stored separately | None |
+| `commercial_acceptances` | revision ID | `client_id`, `project_id`, `deal_id`, `revision_id`, `accepted_by`, `accepted_at` | None |
+| `billing_plans` | `<project_id>__base` | One accepted base plan/project, commercial revision, method/amount/rate/minutes/dates, INR, month_end, net 30, tax unconfigured | None |
+| `financial_events` | `fev_<uuid>` | `client_id`, `project_id`, actor/action/target ID/version, request ID, UTC timestamp; committed atomically with commercial mutations | None |
+| `idempotency_records` | SHA-256(actor/deal/action/key) | `client_id`, `project_id`, actor, request hash, immutable committed result/time | None |
 
 Memberships are a top-level collection (rather than the `clients/{id}/members` subcollection sketched in ADR-002) so "my workspaces" is a plain equality query with no collection-group index.
+
+CRM financial data is accessible only through actual owner membership, without the global administrator bypass. Issuer authority additionally requires an active `issuer_operators` record and global admin role. Operational issuer assignment events contain no customer amounts. Finance events are not copied into the existing broadly accessible `audit_log`.
+
+The first deal atomically sets `projects.finance_retained = true`, clears expiry, and increments the project version. Such projects cannot enter the 30-day delete/TTL path; archive them instead. No financial TTLs are configured. Production retention/legal holds must be approved before real invoicing, which remains disabled.
+
+`transactDocs()` reads all declared documents before a synchronous bounded mutation callback; write references must be declared and unique. Firestore transactions revalidate user, actual membership, issuer entitlement, project, deal version and command replay. The memory implementation commits without an async interleaving point and stages writes before changing any document. Revisions and acceptances are immutable; plan activation, idempotency result and durable financial event share one transaction.
 
 ## Queries and indexes
 
 Queries use equality filters only and are served by Firestore's single-field index merging; [config/firestore/firestore.indexes.json](../config/firestore/firestore.indexes.json) adds composites for the hottest multi-field lookups and exempts large fields from indexing. Sorting, free-text search (`q`) and paging happen in the API after loading at most 1,000–5,000 documents for one workspace scope. That is deliberate for the expected scale (tens of workspaces, hundreds of projects); revisit with cursor pagination or Postgres (API-19) before a workspace exceeds a few thousand documents.
+
+Exception: CRM deal/revision/event lists use `queryPage()` with equality filters, ascending immutable `id`, `startAfter` and a page-size-plus-one fetch. They return a cursor, never totals computed from a truncated scan. Composite indexes cover client/project/stage filters. Deploy the new indexes before enabling CRM in a deployed environment.
 
 ## Cloud Storage layout
 

@@ -124,6 +124,13 @@ async function main() {
   await requireUser();
   await loadProject();
   $('project').hidden = false;
+  try {
+    await api(`/clients/${encodeURIComponent(project.client_id)}/crm/capabilities`);
+    $('crm-link').href = `/workspace/crm/?client=${encodeURIComponent(project.client_id)}&project=${encodeURIComponent(project.id)}`;
+    $('crm-link').hidden = false;
+  } catch (error) {
+    if (![403, 404].includes(error.status)) showStatus($('page-status'), describeError(error));
+  }
   await Promise.all([renderApps(), renderDeliverables(), renderTeam()]);
   if (project.can_edit) {
     $('deliverable-upload').replaceChildren(createUploader({

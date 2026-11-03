@@ -21,6 +21,14 @@ export async function getMembership(clientId, userId) {
   return membership?.status === 'active' ? membership : null;
 }
 
+export async function requireActualOwner(user, clientId) {
+  const client = clientId ? await getDoc('clients', clientId) : null;
+  const membership = client ? await getMembership(clientId, user.id) : null;
+  if (!client || !membership) throw notFound('Workspace not found.');
+  if (membership.role !== 'owner') throw forbidden('Actual workspace owner access is required.');
+  return { client, membership };
+}
+
 export async function listMembershipsForUser(userId) {
   return queryDocs('memberships', { where: [['user_id', '==', userId], ['status', '==', 'active']] });
 }

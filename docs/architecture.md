@@ -40,6 +40,8 @@ The loader preserves existing hash navigation behavior: product, vision, about, 
 
 Tenancy: every workspace document carries `client_id`, and handlers authorise with `requireMembership()` ([authz](../src/server/authz.mjs)): roles viewer < member < admin < owner, with SGS administrators acting as owners everywhere. Other tenants' resources answer `404`.
 
+The initial [project CRM](product/crm-project-billing-plan.md) adds an explicit exception: financial access uses actual active workspace owner membership, not effective SGS-admin ownership. SGS issuer operators require an audited assignment plus actual ownership. Its route/service modules implement deals, immutable proposals, customer acceptance and accepted base billing plans; invoice issuance and GitHub automation remain unavailable. Financial mutations and retained events commit together through multi-document repository transactions. See [API](api.md#project-crm-initial-milestone) for supported operations and defaults.
+
 The included container runs the API on port 3000 and Nginx on port 8080. Nginx routes `/api/contact`, `/api/analytics`, `/api/config`, `/api/readyz`, `/go/` and the two `/.well-known/` association files to the local API; `/api/v1/` uses `API_UPSTREAM`, which defaults to that same API (ADR-002 keeps the contract identical so it can later point at `backend-api`). The standalone preview is not an API proxy.
 
 ## Client hub in the browser

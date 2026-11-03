@@ -163,11 +163,68 @@ export async function updateDoc(collection, id, mutate) {
   }, async () => {
     const store = memory(collection);
     const before = clean(store.get(String(id)) ?? null);
-    const after = await mutate(before);
+    const mutation = mutate(before);
+    const after = mutation && typeof mutation.then === 'function' ? await mutation : mutation;
     if (after === null) store.delete(String(id));
     else if (after !== undefined) store.set(String(id), withTtl(after));
     return { before, after: after === undefined ? before : clean(after) };
   });
+}
+
+/** Atomic, bounded multi-document operation. The synchronous callback returns { writes, result }. */
+export async function transactDocs(refs, mutate) {
+  const keys = refs.map(({ collection, id }) => `${collection}/${id}`);
+  if (refs.length > 100 || new Set(keys).size !== refs.length) throw new Error('Transactions need at most 100 unique document references.');
+  function prepare(documents) {
+    const outcome = mutate(documents.map((doc) => structuredClone(doc)));
+    if (!outcome || typeof outcome.then === 'function') throw new Error('Transaction callbacks must be synchronous.');
+    const writes = outcome.writes ?? [];
+    const written = new Set();
+    for (const write of writes) {
+      const key = `${write.collection}/${write.id}`;
+      if (!keys.includes(key) || written.has(key)) throw new Error('Each transaction write must have one declared reference.');
+      written.add(key);
+    }
+    return { writes, result: structuredClone(outcome.result) };
+  }
+  return run(async (db) => db.runTransaction(async (transaction) => {
+    const references = refs.map(({ collection, id }) => db.collection(collection).doc(id));
+    const snapshots = await transaction.getAll(...references);
+    const { writes, result } = prepare(snapshots.map((doc) => doc.exists ? clean(doc.data()) : null));
+    for (const write of writes) {
+      const ref = references[keys.indexOf(`${write.collection}/${write.id}`)];
+      if (write.data === null) transaction.delete(ref);
+      else transaction.set(ref, withTtl(write.data));
+    }
+    return result;
+  }), () => {
+    // No await between reading and committing: concurrent memory operations cannot interleave.
+    const { writes, result } = prepare(refs.map(({ collection, id }) => clean(memory(collection).get(id) ?? null)));
+    const prepared = writes.map((write) => ({ ...write, data: write.data === null ? null : structuredClone(withTtl(write.data)) }));
+    for (const { collection, id, data } of prepared) {
+      if (data === null) memory(collection).delete(id);
+      else memory(collection).set(id, data);
+    }
+    return result;
+  });
+}
+
+/** Stable cursor paging for collections whose documents carry an immutable id field. */
+export async function queryPage(collection, { where = [], after = null, pageSize = 25 } = {}) {
+  if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 50) throw new HttpError(400, 'BAD_REQUEST', 'Use a page_size from 1 to 50.');
+  if (after !== null && (typeof after !== 'string' || !/^[a-zA-Z0-9_-]{1,160}$/.test(after))) throw new HttpError(400, 'BAD_REQUEST', 'Invalid cursor.');
+  const items = await run(async (db) => {
+    let query = db.collection(collection);
+    for (const [field, op, value] of where) query = query.where(field, op, value);
+    query = query.orderBy('id');
+    if (after) query = query.startAfter(after);
+    const snapshot = await query.limit(pageSize + 1).get();
+    return snapshot.docs.map((doc) => clean(doc.data()));
+  }, () => [...memory(collection).values()]
+    .filter((doc) => where.every((clause) => matches(doc, clause)) && (!after || doc.id > after))
+    .sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+    .slice(0, pageSize + 1).map(clean));
+  return { items: items.slice(0, pageSize), next_cursor: items.length > pageSize ? items[pageSize - 1].id : null };
 }
 
 /** Equality/range filters only; callers sort and page in process (see docs/data-model.md). */

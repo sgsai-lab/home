@@ -27,6 +27,7 @@ import { projectRoutes } from './routes/projects.mjs';
 import { productRoutes, goRoutes } from './routes/products.mjs';
 import { assetRoutes } from './routes/assets.mjs';
 import { auditRoutes } from './routes/audit.mjs';
+import { crmRoutes } from './routes/crm.mjs';
 
 export { createRateLimiter, sanitizeText };
 
@@ -97,7 +98,7 @@ function createLimiters(overrides = {}) {
   };
 }
 
-const router = createRouter([...authRoutes, ...userRoutes, ...clientRoutes, ...projectRoutes, ...productRoutes, ...assetRoutes, ...auditRoutes, ...goRoutes]);
+const router = createRouter([...authRoutes, ...userRoutes, ...clientRoutes, ...projectRoutes, ...productRoutes, ...assetRoutes, ...auditRoutes, ...crmRoutes, ...goRoutes]);
 
 function createContext({ request, response, url, params, deps, requestId }) {
   let authenticated;

@@ -179,7 +179,10 @@ async function deleteProject(ctx) {
   const { project } = await loadProject(user, ctx.params.id, 'admin');
   const now = Date.now();
   // expires_at drives the Firestore TTL policy that purges the project after the restore window.
-  await updateDoc('projects', project.id, (current) => current && { ...current, deleted_at: new Date(now).toISOString(), expires_at: now + RESTORE_WINDOW_MS, version: (current.version ?? 1) + 1 });
+  await updateDoc('projects', project.id, (current) => {
+    if (current?.finance_retained) throw new HttpError(409, 'FINANCE_RETENTION_REQUIRED', 'This project has commercial history. Archive it instead of deleting it.');
+    return current && { ...current, deleted_at: new Date(now).toISOString(), expires_at: now + RESTORE_WINDOW_MS, version: (current.version ?? 1) + 1 };
+  });
   await ctx.audit('project.deleted', { type: 'project', id: project.id }, { actorId: user.id, clientId: project.client_id });
   return ctx.send(200, { ok: true, restore_until: new Date(now + RESTORE_WINDOW_MS).toISOString() });
 }
