@@ -93,12 +93,15 @@ export function mountGithub(container, { projectId, clientId, capabilities = {} 
       delete form.dataset.idempotencyKey;
       return result;
     } catch (error) {
-      if (error.status > 0 && error.status < 500) delete form.dataset.idempotencyKey;
+      if (error.status > 0 && error.status < 500 && error.code !== 'IDEMPOTENCY_CONFLICT') {
+        delete form.dataset.idempotencyKey;
+      }
       throw error;
     }
   }
 
   function showCommandResult(command) {
+    if (!mounted) return;
     const message = command.status === 'completed'
       ? `GitHub command completed${command.external_url ? `: ${command.external_url}` : '.'}`
       : `GitHub command status: ${command.status}. ${command.error_message ?? ''}`.trim();
@@ -230,7 +233,16 @@ export function mountGithub(container, { projectId, clientId, capabilities = {} 
         children.push(form);
         if (data.binding) children.push(createIssueForm());
       }
-      if (data.binding) children.push(h('h3', { text: 'Issues and pull requests' }), renderItems(data));
+      if (data.binding) {
+        children.push(h('h3', { text: 'Issues and pull requests' }));
+        if (data.items_truncated) {
+          children.push(h('p', {
+            role: 'note',
+            text: 'This bounded snapshot includes only the first 100 Project v2 items. Open the GitHub board to view all items.'
+          }));
+        }
+        children.push(renderItems(data));
+      }
       content.replaceChildren(...children);
     } catch (error) {
       if (!mounted) return;

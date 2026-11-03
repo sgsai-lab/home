@@ -64,6 +64,21 @@ function validateProjectId(id) {
   return id;
 }
 
+function snapshotItemBounds(remote) {
+  const truncated = remote.items_truncated === true
+    || remote.items_page_info?.has_next_page === true
+    || (Array.isArray(remote.items) && remote.items.length > 100);
+  return {
+    items_truncated: truncated,
+    items_page_info: {
+      has_next_page: remote.items_page_info?.has_next_page === true,
+      end_cursor: typeof remote.items_page_info?.end_cursor === 'string'
+        ? remote.items_page_info.end_cursor
+        : null
+    }
+  };
+}
+
 function readCommand(input) {
   const check = new Checker(input);
   check.oneOf('type', COMMAND_TYPES, { required: true });
@@ -161,6 +176,7 @@ export function createGithubCrmRoutes({
       binding: publicBinding(binding),
       synced_at: snapshot?.synced_at ?? null,
       items: snapshot?.items ?? [],
+      ...snapshotItemBounds(snapshot ?? {}),
       iterations: snapshot?.iterations ?? [],
       status_options: snapshot?.status_options ?? [],
       project: snapshot?.project ?? null,
@@ -255,6 +271,7 @@ export function createGithubCrmRoutes({
       client_id: project.client_id,
       project: remote.project ?? null,
       items: Array.isArray(remote.items) ? remote.items.slice(0, 100) : [],
+      ...snapshotItemBounds(remote),
       iterations: Array.isArray(remote.iterations) ? remote.iterations.slice(0, 100) : [],
       status_options: Array.isArray(remote.status_options) ? remote.status_options.slice(0, 20) : [],
       synced_at: new Date().toISOString(),
@@ -429,8 +446,8 @@ export function createGithubCrmRoutes({
       return {
         writes: [write('github_webhook_inbox', id, {
           id, delivery_id: delivery, event, action: sanitizeText(payload.action, 80),
-          repository: sanitizeText(payload.repository?.full_name, 200),
-          payload, status: 'pending', received_at: new Date().toISOString()
+          repository: sanitizeText(payload.repository?.full_name, 200).toLowerCase(),
+          status: 'pending', received_at: new Date().toISOString()
         })],
         result: { duplicate: false, delivery }
       };
@@ -552,9 +569,10 @@ export function createGithubCrmRoutes({
       if (updated) reconciledCommands += 1;
     }
 
-    const inbox = await queryDocs('github_webhook_inbox', { where: [['status', '==', 'pending']], limit: 100 });
-    const deliveries = inbox.filter((item) => item.repository?.toLowerCase() === binding.repository.toLowerCase())
-      .slice(0, GITHUB_CRM_WORKER_BATCH_SIZE);
+    const deliveries = await queryDocs('github_webhook_inbox', {
+      where: [['status', '==', 'pending'], ['repository', '==', binding.repository.toLowerCase()]],
+      limit: GITHUB_CRM_WORKER_BATCH_SIZE
+    });
     let processedWebhooks = 0;
     if (deliveries.length) {
       let remote;
@@ -571,6 +589,7 @@ export function createGithubCrmRoutes({
           id: project.id, project_id: project.id, client_id: project.client_id,
           project: remote.project ?? null,
           items: Array.isArray(remote.items) ? remote.items.slice(0, 100) : [],
+          ...snapshotItemBounds(remote),
           iterations: Array.isArray(remote.iterations) ? remote.iterations.slice(0, 100) : [],
           status_options: Array.isArray(remote.status_options) ? remote.status_options.slice(0, 20) : [],
           synced_at: timestamp, version: (current?.version ?? 0) + 1

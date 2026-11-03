@@ -71,10 +71,10 @@ async function putProfile(ctx) {
   }
   for (const field of ['issuer_gstin', 'customer_gstin']) {
     if ((input[field] || field === 'issuer_gstin') && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z0-9]Z[A-Z0-9]$/.test(input[field] ?? '')) check.fail(field, 'Enter a GSTIN in the expected format.');
-    if (input[field] && !input[field].startsWith(input[field.replace('_gstin', '_state_code')] ?? 'invalid')) check.fail(field, 'GSTIN and state code must agree.');
+    if (typeof input[field] === 'string' && input[field] && !input[field].startsWith(input[field.replace('_gstin', '_state_code')] ?? 'invalid')) check.fail(field, 'GSTIN and state code must agree.');
   }
   if (!/^\d{6}$/.test(input.sac_code ?? '')) check.fail('sac_code', 'Use the reviewed six-digit SAC.');
-  if (input.legal_approved && !input.legal_approval_reference?.trim()) check.fail('legal_approval_reference', 'Record the qualified reviewer approval reference.');
+  if (input.legal_approved && (typeof input.legal_approval_reference !== 'string' || !input.legal_approval_reference.trim())) check.fail('legal_approval_reference', 'Record the qualified reviewer approval reference.');
   const values = check.done();
   const result = await financeCommand(ctx, project, 'profile', input, [ref('billing_profiles', profileId(project))], 'issuer', 'billing.profile_updated', ([current], { now, user }) => {
     matchVersion(ctx, current);

@@ -32,7 +32,8 @@ test('deploy path filter uses only patterns this guard can evaluate', async () =
 test('initial CRM production rollout explicitly disables legal issuance and voiding', async () => {
   const workflow = await read('.github/workflows/deploy.yml');
   for (const gate of ['CRM_INVOICE_ISSUANCE_ENABLED', 'CRM_INVOICE_VOID_ALLOWED']) {
-    assert.ok(workflow.includes(`add_env ${gate} false`), `${gate} must remain disabled until a separately reviewed activation`);
+    const calls = [...workflow.matchAll(new RegExp(`^\\s*add_env\\s+${gate}\\s+(\\S+)\\s*$`, 'gm'))];
+    assert.deepEqual(calls.map((call) => call[1]), ['false'], `${gate} must be set exactly once to false until a separately reviewed activation`);
   }
 });
 

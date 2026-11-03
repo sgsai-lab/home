@@ -59,6 +59,17 @@ async function issue(ctx, invoice, key) {
   return request(ctx, `invoices/${invoice.id}/issue`, {}, { record: invoice, key });
 }
 
+test('billing profile rejects non-string legal identifiers without server errors', async (t) => {
+  const ctx = await setup(t);
+  for (const [field, value] of [
+    ['customer_gstin', 123], ['issuer_gstin', {}], ['legal_approval_reference', 123]
+  ]) {
+    const result = await request(ctx, 'profile', { ...profile, [field]: value }, { method: 'PUT', record: { version: 0 } });
+    assert.equal(result.status, 400, `${field}: ${JSON.stringify(result.data)}`);
+    assert.equal(await getDoc('billing_profiles', `${ctx.client.id}__billing`), null);
+  }
+});
+
 test('finance fixed billing: issue once, GST snapshots, private PDF, payment/credit/refund reconciliation', async (t) => {
   const ctx = await setup(t);
   await configure(ctx);

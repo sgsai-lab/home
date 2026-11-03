@@ -22,6 +22,7 @@
     { "collectionGroup": "credit_notes", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] },
     { "collectionGroup": "refunds", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] },
     { "collectionGroup": "github_crm_commands", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }] },
+    { "collectionGroup": "github_webhook_inbox", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "repository", "order": "ASCENDING" }] },
     { "collectionGroup": "finance_jobs", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] }
   ],
   "fieldOverrides": [

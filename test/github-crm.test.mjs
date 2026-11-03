@@ -177,7 +177,7 @@ test('GitHub App tokens are scoped with bare repository names and Project v2 fie
                     options: [{ id: 'option_1', name: 'Todo' }]
                   }
                 ] },
-                items: { nodes: [{
+                items: { pageInfo: { hasNextPage: true, endCursor: 'cursor-100' }, nodes: [{
                   id: 'PVTI_1',
                   content: { __typename: 'Issue', id: 'I_1', number: 1, title: 'First issue', state: 'OPEN', url: 'https://github.com/acme/widget/issues/1' },
                   fieldValues: { nodes: [
@@ -205,6 +205,8 @@ test('GitHub App tokens are scoped with bare repository names and Project v2 fie
   assert.deepEqual(installationBodies, [{ repositories: ['widget'] }]);
   assert.equal(board.status_options[0].field_id, 'PVTSSF_1');
   assert.equal(board.iterations[0].field_id, 'PVTIF_1');
+  assert.equal(board.items_truncated, true);
+  assert.deepEqual(board.items_page_info, { has_next_page: true, end_cursor: 'cursor-100' });
   assert.deepEqual(
     { type: board.items[0].type, status: board.items[0].status, iteration: board.items[0].iteration },
     { type: 'issue', status: 'Todo', iteration: 'Sprint 1' }
@@ -481,6 +483,72 @@ test('webhook signatures are verified before durable deduplication', async () =>
   assert.equal(accepted.status, 202);
   const duplicate = await webhook({ request: makeRequest(body), send(status, data) { return { status, data }; } });
   assert.equal(duplicate.data.duplicate, true);
+});
+
+test('repository-scoped webhook batches cannot be starved and persist bounded snapshot metadata only', async () => {
+  const { issuer, owner } = await fixture();
+  await installIssuer(issuer);
+  const adapter = fakeAdapter();
+  const originalRead = adapter.readProject;
+  adapter.readProject = async (binding) => ({
+    ...await originalRead(binding),
+    items: Array.from({ length: 101 }, (_, index) => ({ id: `item-${index}`, title: `Issue ${index}` })),
+    items_page_info: { has_next_page: true, end_cursor: 'cursor-100' }
+  });
+  const env = {
+    GITHUB_WEBHOOK_SECRET: 'test-secret',
+    GITHUB_CRM_WORKER_AUDIENCE: 'https://api.test/github-worker',
+    GITHUB_CRM_WORKER_SERVICE_ACCOUNT: 'github-worker@example.iam.gserviceaccount.com'
+  };
+  const routes = routeSet({
+    adapter, env,
+    verifyServiceIdentity: async () => ({ email: env.GITHUB_CRM_WORKER_SERVICE_ACCOUNT, email_verified: true })
+  });
+  await findRoute(routes, 'PUT', '/binding')(context({
+    user: issuer,
+    body: { repository_url: 'https://github.com/acme/widget', project_url: 'https://github.com/orgs/acme/projects/4' }
+  }));
+  for (let index = 0; index < 105; index += 1) {
+    await setDoc('github_webhook_inbox', `other-${index}`, {
+      id: `other-${index}`, repository: 'another/repository', status: 'pending'
+    });
+  }
+  const webhook = findRoute(routes, 'POST', '/webhooks');
+  for (const [index, repository] of ['Acme/Widget', 'acme/widget'].entries()) {
+    const raw = Buffer.from(JSON.stringify({
+      action: 'opened', repository: { full_name: repository },
+      issue: { body: 'Private issue content is not needed by the worker.' }
+    }));
+    await webhook({
+      request: {
+        headers: {
+          'x-hub-signature-256': `sha256=${createHmac('sha256', env.GITHUB_WEBHOOK_SECRET).update(raw).digest('hex')}`,
+          'x-github-delivery': `scoped-${index}`,
+          'x-github-event': 'issues'
+        },
+        async *[Symbol.asyncIterator]() { yield raw; }
+      },
+      send(status, data) { return { status, data }; }
+    });
+  }
+  const queued = await queryDocs('github_webhook_inbox', { where: [['repository', '==', 'acme/widget']] });
+  assert.equal(queued.length, 2, 'mixed-case repository names normalize before persistence');
+  for (const entry of queued) {
+    assert.equal(Object.hasOwn(entry, 'payload'), false);
+    assert.equal(JSON.stringify(entry).includes('Private issue content'), false);
+  }
+  const result = await findRoute(routes, 'POST', '/worker/reconcile')(context({
+    body: { project_id: 'project-a' }, headers: { authorization: 'Bearer service-token' }
+  }));
+  assert.equal(result.data.processed_webhooks, 2, 'other repositories do not consume this repository batch');
+  assert.equal((await getDoc('github_webhook_inbox', 'other-0')).status, 'pending');
+  const view = await findRoute(routes, 'GET', '/github-crm')(context({ user: owner }));
+  assert.equal(view.data.items.length, 100);
+  assert.equal(view.data.items_truncated, true);
+  assert.deepEqual(view.data.items_page_info, { has_next_page: true, end_cursor: 'cursor-100' });
+  const synced = await findRoute(routes, 'POST', '/sync')(context({ user: issuer }));
+  assert.equal(synced.data.items.length, 100);
+  assert.equal(synced.data.items_truncated, true);
 });
 
 test('rate failures and revoked actual-owner/issuer authority prevent mutations', async () => {

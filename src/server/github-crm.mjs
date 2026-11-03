@@ -244,6 +244,7 @@ export function createGithubAppAdapter(env = process.env, { fetchImpl = globalTh
               }
             }
             items(first: ${MAX_PROJECT_ITEMS}) {
+              pageInfo { hasNextPage endCursor }
               nodes {
                 id content {
                   __typename
@@ -308,6 +309,11 @@ export function createGithubAppAdapter(env = process.env, { fetchImpl = globalTh
       return {
         project: { id: project.id, title: project.title, url: project.url },
         items: items.slice(0, MAX_PROJECT_ITEMS),
+        items_truncated: project.items?.pageInfo?.hasNextPage === true,
+        items_page_info: {
+          has_next_page: project.items?.pageInfo?.hasNextPage === true,
+          end_cursor: project.items?.pageInfo?.endCursor ?? null
+        },
         iterations: [...iterations.values()],
         status_options: statusOptions
       };

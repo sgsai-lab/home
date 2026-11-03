@@ -65,6 +65,10 @@ Command bodies are restricted to:
 
 Commands require an `Idempotency-Key` of 1–120 ASCII letters, digits, `_`, or `-`. The same key and body return the original command; reusing the key with a different body returns 409. Command status is one of `pending`, `completed`, `failed`, or `reconciliation_required`. Execution and reconciliation each use a transactional lease and attempt ID; final writes compare the active attempt so a stale request or worker cannot overwrite a newer result. The worker only claims pending attempts whose execution lease expired and whose start is at least five minutes old. A lost response or GitHub 5xx can be ambiguous: the system does not silently send a duplicate create request. Issue creates include a command marker, and the worker searches for that marker before reconciling. A failed/ambiguous command requires an explicit authenticated retry. GitHub status/iteration updates are idempotent but are not automatically retried.
 
+The browser retains its original idempotency key after a lost response and after an idempotency conflict. Editing that form's payload during ambiguity does not silently allocate a new key: restore the original payload to recover its command result, or inspect/reconcile the GitHub outcome before deliberately starting a different operation.
+
+Project reads are bounded to the first 100 board items. Snapshots expose `items_truncated` and `items_page_info` (`has_next_page`, `end_cursor`); the browser displays an incomplete-snapshot notice and directs users to the GitHub board when more items exist. The cursor is informational; this API does not fetch later pages.
+
 ## Authorization and persistence
 
 Every user-facing route calls `financeProject` / `financeAccess`; only an active actual workspace owner can access the project, and SGS admin role does not bypass membership. Mutations call `commitFinance`, which revalidates the active user, actual owner membership, issuer operator assignment, project, and tenant in the same Firestore transaction. The issuer must be an active SGS admin with an active `issuer_operators` record. The worker uses `transactDocs` to recheck the original command actor's active owner/issuer state before command reconciliation.
@@ -74,13 +78,14 @@ Every user-facing route calls `financeProject` / `financeAccess`; only an active
 | `github_project_bindings` | project ID | Tenant/project IDs, repository and organization Project v2 IDs/URLs, verified installation ID; never an App key or token. |
 | `github_project_snapshots` | project ID | Latest bounded normalized items, iterations, status options, project metadata, and sync time. |
 | `github_crm_commands` | `gcmd_` + SHA-256 of project/user/idempotency-key | Durable command state, sanitized request, actor, attempt count, external IDs and safe error code. |
-| `github_webhook_inbox` | SHA-256 of GitHub delivery ID | Verified bounded payload and processing state for durable deduplication. |
+| `github_webhook_inbox` | SHA-256 of GitHub delivery ID | Minimal verified delivery/event/action metadata, lowercase repository name, and processing state for durable deduplication; no raw payload or issue body. |
 
 The worker's command query is `project_id == project.id` plus `status in [pending, reconciliation_required]`, with no explicit ordering, cursor, or pagination. Its composite Firestore index is:
 
 - `github_crm_commands`: `project_id ASC`, `status ASC` (used with equality and `in` filters).
+- `github_webhook_inbox`: `status ASC`, `repository ASC` (both equality filters).
 
-This matches the current index definition exactly; it does not require `id ASC` because the worker does not use document-ID ordering or cursor paging. The webhook inbox worker filters the single-field `status` index and then matches the repository to the one explicitly supplied project binding. Other collections use document reads by ID. Keep the index and query aligned if worker ordering/paging changes; do not broaden the worker query to import multiple project boards.
+The command index does not require `id ASC` because the worker does not use document-ID ordering or cursor paging. The inbox query scopes both pending status and lowercase repository before applying its 10-record limit, so unrelated repositories cannot consume that batch. Provision the new inbox index before future GitHub activation; GitHub remains disabled until its configuration/provisioning gates are satisfied. Existing mixed-case inbox repository names must be normalized before activation if any were retained from an earlier deployment. Other collections use document reads by ID. Keep the indexes and queries aligned if worker ordering/paging changes; do not broaden the worker query to import multiple project boards.
 
 ## GitHub App and deployment setup
 
