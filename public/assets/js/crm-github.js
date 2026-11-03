@@ -1,4 +1,4 @@
-import { api, describeError, h, showStatus } from '/assets/js/auth.js';
+import { api, describeError, h, showStatus } from '/assets/js/auth.js?v=__ASSET_VERSION__';
 
 const requestBase = (projectId) => `/projects/${encodeURIComponent(projectId)}/github-crm`;
 

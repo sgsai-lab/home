@@ -63,7 +63,7 @@ Command bodies are restricted to:
 { "type": "issue.iteration", "item_id": "Project item node ID", "field_id": "Iteration field ID", "iteration_id": "Iteration ID" }
 ```
 
-Commands require an `Idempotency-Key` of 1–120 ASCII letters, digits, `_`, or `-`. The same key and body return the original command; reusing the key with a different body returns 409. Command status is one of `pending`, `completed`, `failed`, or `reconciliation_required`. A lost response or GitHub 5xx can be ambiguous: the system does not silently send a duplicate create request. Issue creates include a command marker, and the worker searches for that marker before reconciling. A failed/ambiguous command requires an explicit authenticated retry. GitHub status/iteration updates are idempotent but are not automatically retried.
+Commands require an `Idempotency-Key` of 1–120 ASCII letters, digits, `_`, or `-`. The same key and body return the original command; reusing the key with a different body returns 409. Command status is one of `pending`, `completed`, `failed`, or `reconciliation_required`. Execution and reconciliation each use a transactional lease and attempt ID; final writes compare the active attempt so a stale request or worker cannot overwrite a newer result. The worker only claims pending attempts whose execution lease expired and whose start is at least five minutes old. A lost response or GitHub 5xx can be ambiguous: the system does not silently send a duplicate create request. Issue creates include a command marker, and the worker searches for that marker before reconciling. A failed/ambiguous command requires an explicit authenticated retry. GitHub status/iteration updates are idempotent but are not automatically retried.
 
 ## Authorization and persistence
 
@@ -76,11 +76,11 @@ Every user-facing route calls `financeProject` / `financeAccess`; only an active
 | `github_crm_commands` | `gcmd_` + SHA-256 of project/user/idempotency-key | Durable command state, sanitized request, actor, attempt count, external IDs and safe error code. |
 | `github_webhook_inbox` | SHA-256 of GitHub delivery ID | Verified bounded payload and processing state for durable deduplication. |
 
-Worker queries need this composite Firestore index:
+The worker's command query is `project_id == project.id` plus `status in [pending, reconciliation_required]`, with no explicit ordering, cursor, or pagination. Its composite Firestore index is:
 
 - `github_crm_commands`: `project_id ASC`, `status ASC` (used with equality and `in` filters).
 
-The webhook inbox worker filters the single-field `status` index and then matches the repository to the one explicitly supplied project binding. Other collections use document reads by ID. Ensure the infrastructure repo provisions the composite index before deploying the worker; do not broaden the worker query to import multiple project boards.
+This matches the current index definition exactly; it does not require `id ASC` because the worker does not use document-ID ordering or cursor paging. The webhook inbox worker filters the single-field `status` index and then matches the repository to the one explicitly supplied project binding. Other collections use document reads by ID. Keep the index and query aligned if worker ordering/paging changes; do not broaden the worker query to import multiple project boards.
 
 ## GitHub App and deployment setup
 

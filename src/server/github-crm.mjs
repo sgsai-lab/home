@@ -161,7 +161,7 @@ export function createGithubAppAdapter(env = process.env, { fetchImpl = globalTh
 
   async function tokenFor(binding) {
     if (!binding?.installation_id || !binding.repository_owner || !binding.repository_name) throw unavailable('The GitHub repository binding is incomplete.');
-    return installationToken(binding.installation_id, `${binding.repository_owner}/${binding.repository_name}`);
+    return installationToken(binding.installation_id, binding.repository_name);
   }
 
   async function graph(token, query, variables) {
@@ -236,6 +236,7 @@ export function createGithubAppAdapter(env = process.env, { fetchImpl = globalTh
             id title url
             fields(first: 50) {
               nodes {
+                __typename
                 ... on ProjectV2IterationField {
                   id name configuration { iterations { id title startDate duration } }
                 }
@@ -251,6 +252,7 @@ export function createGithubAppAdapter(env = process.env, { fetchImpl = globalTh
                 }
                 fieldValues(first: 50) {
                   nodes {
+                    __typename
                     ... on ProjectV2ItemFieldTextValue { text field { name } }
                     ... on ProjectV2ItemFieldSingleSelectValue { name field { name } }
                     ... on ProjectV2ItemFieldIterationValue { title startDate duration field { name } }
@@ -288,7 +290,7 @@ export function createGithubAppAdapter(env = process.env, { fetchImpl = globalTh
         let iteration = null;
         for (const fieldValue of node.fieldValues?.nodes ?? []) {
           if (fieldValue.field?.name?.toLowerCase() === 'status') status = fieldValue.name ?? null;
-          if (fieldValue.field?.name?.toLowerCase().includes('iteration')) {
+          if (fieldValue.__typename === 'ProjectV2ItemFieldIterationValue') {
             iteration = fieldValue.title ?? null;
           }
         }

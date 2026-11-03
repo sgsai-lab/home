@@ -1,5 +1,5 @@
-import { createHash } from 'node:crypto';
-import { HttpError, sanitizeText } from '../http.mjs';
+import { createHash, randomUUID } from 'node:crypto';
+import { HttpError, log, sanitizeText } from '../http.mjs';
 import { getDoc, queryDocs, transactDocs } from '../db.mjs';
 import { financeAccess, financeProject, commitFinance, ref, write } from '../crm.mjs';
 import { Checker } from '../validation.mjs';
@@ -10,13 +10,35 @@ import {
 
 const PRIVATE_HEADERS = { 'Cache-Control': 'no-store' };
 const RAW_BODY_LIMIT = 512 * 1024;
+const EXECUTION_LEASE_MS = 5 * 60 * 1000;
+const RECONCILIATION_LEASE_MS = 2 * 60 * 1000;
+const STALE_ATTEMPT_MS = 5 * 60 * 1000;
 const ID_PATTERN = /^[A-Za-z0-9_:=+.-]{1,256}$/;
 const COMMAND_TYPES = ['issue.create', 'issue.status', 'issue.iteration'];
 
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
-function unavailableGithubError(error, message) {
-  if (error instanceof HttpError) return error;
-  return new HttpError(503, 'GITHUB_CRM_UNAVAILABLE', message, [], { 'Retry-After': '60' });
+function adapterUnavailable(ctx, operation) {
+  log('WARNING', 'GitHub CRM adapter operation failed', {
+    request_id: ctx.requestId,
+    operation
+  });
+  return new HttpError(503, 'GITHUB_CRM_UNAVAILABLE', 'GitHub is temporarily unavailable.', [], { 'Retry-After': '60' });
+}
+
+function logCommandFailure(ctx) {
+  log('WARNING', 'GitHub CRM command attempt failed', { request_id: ctx.requestId });
+}
+
+function stripExecutionLease(command) {
+  return Object.fromEntries(Object.entries(command).filter(([key]) => ![
+    'execution_lease_id', 'execution_lease_until'
+  ].includes(key)));
+}
+
+function stripReconciliationLease(command) {
+  return Object.fromEntries(Object.entries(command).filter(([key]) => ![
+    'reconciliation_lease_id', 'reconciliation_lease_until', 'reconciliation_attempt_id'
+  ].includes(key)));
 }
 
 const stableJson = (value) => {
@@ -162,8 +184,8 @@ export function createGithubCrmRoutes({
     let verifiedRepository;
     try {
       verifiedRepository = await adapter.verifyRepository(parsed.fullName);
-    } catch (error) {
-      throw unavailableGithubError(error, 'GitHub repository installation verification is unavailable.');
+    } catch {
+      throw adapterUnavailable(ctx, 'repository_verification');
     }
     if (!verifiedRepository?.id || !verifiedRepository.installation_id
       || verifiedRepository.full_name?.toLowerCase() !== parsed.fullName.toLowerCase()
@@ -179,10 +201,10 @@ export function createGithubCrmRoutes({
         parsed.organization,
         parsed.number,
         verifiedRepository.installation_id,
-        parsed.fullName
+        parsed.name
       );
-    } catch (error) {
-      throw unavailableGithubError(error, 'GitHub organization Project v2 lookup is unavailable.');
+    } catch {
+      throw adapterUnavailable(ctx, 'project_lookup');
     }
     if (!resolved?.id || (resolved.url && resolved.url !== parsed.project_url)) {
       throw new HttpError(400, 'GITHUB_PROJECT_NOT_FOUND', 'The organization Project v2 board could not be verified.');
@@ -224,8 +246,8 @@ export function createGithubCrmRoutes({
     let remote;
     try {
       remote = await adapter.readProject(binding);
-    } catch (error) {
-      throw new HttpError(503, 'GITHUB_SYNC_FAILED', error?.message ?? 'GitHub project sync is unavailable.', [], { 'Retry-After': '60' });
+    } catch {
+      throw adapterUnavailable(ctx, 'project_sync');
     }
     const normalized = {
       id: project.id,
@@ -246,50 +268,85 @@ export function createGithubCrmRoutes({
     return ctx.send(200, result, PRIVATE_HEADERS);
   }
 
-  async function executeCommand(ctx, project, binding, command) {
-    const started = await commitFinance(ctx, project, [ref('github_crm_commands', command.id)], 'issuer', 'github.command.attempted',
+  async function executeCommand(ctx, project, binding, commandId, allowedStatuses) {
+    const executionLeaseId = randomUUID();
+    const attemptId = randomUUID();
+    const started = await commitFinance(ctx, project, [ref('github_crm_commands', commandId)], 'issuer', 'github.command.attempted',
       ([current], { now }) => {
         if (!current || current.project_id !== project.id || current.client_id !== project.client_id) {
           throw new HttpError(404, 'NOT_FOUND', 'GitHub command not found.');
         }
-        if (current.status !== 'pending') {
-          throw new HttpError(409, 'GITHUB_COMMAND_NOT_PENDING', `This command is ${current.status} and cannot start execution.`);
+        if (!allowedStatuses.includes(current.status)) {
+          throw new HttpError(409, 'GITHUB_COMMAND_NOT_RETRYABLE', 'This command has changed and cannot be executed.');
+        }
+        if (Number.isFinite(Date.parse(current.execution_lease_until))
+          && Date.parse(current.execution_lease_until) > Date.now()) {
+          throw new HttpError(409, 'GITHUB_COMMAND_IN_PROGRESS', 'Another execution attempt is still in progress.');
+        }
+        if (Number.isFinite(Date.parse(current.reconciliation_lease_until))
+          && Date.parse(current.reconciliation_lease_until) > Date.now()) {
+          throw new HttpError(409, 'GITHUB_COMMAND_IN_PROGRESS', 'A reconciliation attempt is still in progress.');
         }
         const updated = {
-          ...current, attempt_count: (current.attempt_count ?? 0) + 1,
-          attempt_started_at: now, updated_at: now, version: (current.version ?? 0) + 1
+          ...stripReconciliationLease(current),
+          status: 'pending',
+          attempt_id: attemptId,
+          execution_lease_id: executionLeaseId,
+          execution_lease_until: new Date(Date.now() + EXECUTION_LEASE_MS).toISOString(),
+          attempt_count: (current.attempt_count ?? 0) + 1,
+          attempt_started_at: now,
+          updated_at: now,
+          version: (current.version ?? 0) + 1
         };
-        return { writes: [write('github_crm_commands', command.id, updated)], result: updated };
+        return { writes: [write('github_crm_commands', commandId, updated)], result: updated };
       });
-    let result;
+
     let status = 'completed';
     let external = null;
+    let result = null;
     try {
       external = await adapter.executeCommand(binding, started);
       if (!external?.external_id) throw Object.assign(new Error('GitHub did not confirm the command result.'), { ambiguous: true });
     } catch (error) {
+      logCommandFailure(ctx);
+      const ambiguous = error?.ambiguous === true;
       result = {
-        error_code: sanitizeText(error?.code ?? (error?.ambiguous ? 'GITHUB_OUTCOME_UNKNOWN' : 'GITHUB_COMMAND_FAILED'), 64),
-        error_message: error?.ambiguous
+        error_code: ambiguous ? 'GITHUB_OUTCOME_UNKNOWN' : 'GITHUB_COMMAND_FAILED',
+        error_message: ambiguous
           ? 'GitHub may have applied this command. Reconcile it before retrying.'
-          : 'GitHub rejected this command. Correct the request or explicitly retry it.'
+          : 'GitHub rejected this command. Correct the request or explicitly retry it.',
+        ...(error?.external_id ? {
+          external_id: sanitizeText(error.external_id, 100),
+          external_url: typeof error.external_url === 'string' && error.external_url.startsWith('https://github.com/')
+            ? error.external_url
+            : null
+        } : {})
       };
-      status = error?.ambiguous ? 'reconciliation_required' : 'failed';
+      status = ambiguous ? 'reconciliation_required' : 'failed';
     }
-    const refs = [ref('github_crm_commands', command.id)];
-    return commitFinance(ctx, project, refs, 'issuer', `github.command.${status}`, ([current], { now }) => {
-      if (!current || current.project_id !== project.id || current.client_id !== project.client_id) {
-        throw new HttpError(404, 'NOT_FOUND', 'GitHub command not found.');
-      }
-      const updated = {
-        ...current,
-        status,
-        ...(external ? { external_id: external.external_id, external_url: external.url ?? null, item_id: external.item_id ?? current.item_id ?? null } : result),
-        updated_at: now,
-        version: (current.version ?? 0) + 1
-      };
-      return { writes: [write('github_crm_commands', command.id, updated)], result: updated };
-    });
+
+    return commitFinance(ctx, project, [ref('github_crm_commands', commandId)], 'issuer', `github.command.${status}`,
+      ([current], { now }) => {
+        if (!current || current.project_id !== project.id || current.client_id !== project.client_id) {
+          throw new HttpError(404, 'NOT_FOUND', 'GitHub command not found.');
+        }
+        if (current.status !== 'pending' || current.attempt_id !== attemptId
+          || current.execution_lease_id !== executionLeaseId) {
+          throw new HttpError(409, 'GITHUB_ATTEMPT_SUPERSEDED', 'This attempt was superseded; reload the command status.');
+        }
+        const updated = {
+          ...stripReconciliationLease(stripExecutionLease(current)),
+          status,
+          ...(external ? {
+            external_id: sanitizeText(external.external_id, 100),
+            external_url: typeof external.url === 'string' && external.url.startsWith('https://github.com/') ? external.url : null,
+            item_id: external.item_id ?? current.item_id ?? null
+          } : result),
+          updated_at: now,
+          version: (current.version ?? 0) + 1
+        };
+        return { writes: [write('github_crm_commands', commandId, updated)], result: updated };
+      });
   }
 
   async function createCommand(ctx) {
@@ -326,7 +383,7 @@ export function createGithubCrmRoutes({
       delete command.replayed;
       return ctx.send(202, command, PRIVATE_HEADERS);
     }
-    const final = await executeCommand(ctx, project, binding, record);
+    const final = await executeCommand(ctx, project, binding, record.id, ['pending']);
     return ctx.send(202, final, PRIVATE_HEADERS);
   }
 
@@ -347,15 +404,9 @@ export function createGithubCrmRoutes({
     if (!['failed', 'reconciliation_required'].includes(command.status)) {
       throw new HttpError(409, 'GITHUB_COMMAND_NOT_RETRYABLE', 'Only failed or ambiguous commands can be explicitly retried.');
     }
-    const reservation = await commitFinance(ctx, project, [ref('github_crm_commands', command.id)], 'issuer', 'github.command.retry_requested',
-      ([current], { now }) => {
-        if (!current || !['failed', 'reconciliation_required'].includes(current.status)) {
-          throw new HttpError(409, 'GITHUB_COMMAND_NOT_RETRYABLE', 'This command has changed and cannot be retried.');
-        }
-        const updated = { ...current, status: 'pending', updated_at: now, version: current.version + 1 };
-        return { writes: [write('github_crm_commands', command.id, updated)], result: updated };
-      });
-    return ctx.send(202, await executeCommand(ctx, project, binding, reservation), PRIVATE_HEADERS);
+    return ctx.send(202, await executeCommand(
+      ctx, project, binding, command.id, ['failed', 'reconciliation_required']
+    ), PRIVATE_HEADERS);
   }
 
   async function webhook(ctx) {
@@ -406,59 +457,96 @@ export function createGithubCrmRoutes({
       limit: GITHUB_CRM_WORKER_BATCH_SIZE
     });
     let reconciledCommands = 0;
-    for (const command of pending.filter((item) => item.client_id === project.client_id).slice(0, GITHUB_CRM_WORKER_BATCH_SIZE)) {
+    const nowMs = Date.now();
+    const candidates = pending.filter((item) => {
+      if (item.client_id !== project.client_id) return false;
+      const reconciliationLeaseActive = Date.parse(item.reconciliation_lease_until) > nowMs;
+      if (reconciliationLeaseActive) return false;
+      if (item.status === 'reconciliation_required') return true;
+      const executionLeaseActive = Date.parse(item.execution_lease_until) > nowMs;
+      const started = Date.parse(item.attempt_started_at ?? item.updated_at);
+      return item.status === 'pending' && !executionLeaseActive
+        && Number.isFinite(started) && nowMs - started >= STALE_ATTEMPT_MS;
+    }).slice(0, GITHUB_CRM_WORKER_BATCH_SIZE);
+    for (const candidate of candidates) {
+      const command = candidate;
       const actorRef = ref('users', command.actor_id);
       const clientRef = ref('clients', project.client_id);
       const memberRef = ref('memberships', `${project.client_id}__${command.actor_id}`);
       const operatorRef = ref('issuer_operators', command.actor_id);
       const projectRef = ref('projects', project.id);
       const commandRef = ref('github_crm_commands', command.id);
-      const authorized = await transactDocs([actorRef, clientRef, memberRef, operatorRef, projectRef, commandRef], ([actor, client, membership, operator, currentProject, current]) => {
-        const valid = actor?.status === 'active' && actor.role === 'admin'
-          && client && membership?.status === 'active' && membership.role === 'owner'
-          && operator?.active === true && currentProject && !currentProject.deleted_at
-          && current?.project_id === project.id && current?.status === command.status;
-        return { result: valid };
-      });
-      if (!authorized) continue;
+      const reconciliationLeaseId = randomUUID();
+      const claimTime = Date.now();
+      const claimed = await transactDocs([actorRef, clientRef, memberRef, operatorRef, projectRef, commandRef],
+        ([actor, client, membership, operator, currentProject, current]) => {
+          const authorized = actor?.status === 'active' && actor.role === 'admin'
+            && client && membership?.status === 'active' && membership.role === 'owner'
+            && operator?.active === true && currentProject && !currentProject.deleted_at
+            && current?.project_id === project.id && current?.client_id === project.client_id;
+          if (!authorized || current.status !== command.status || current.attempt_id !== command.attempt_id) {
+            return { result: null };
+          }
+          if (Date.parse(current.reconciliation_lease_until) > claimTime) return { result: null };
+          if (current.status === 'pending') {
+            const started = Date.parse(current.attempt_started_at ?? current.updated_at);
+            if (Date.parse(current.execution_lease_until) > claimTime
+              || !Number.isFinite(started) || claimTime - started < STALE_ATTEMPT_MS) {
+              return { result: null };
+            }
+          } else if (current.status !== 'reconciliation_required') {
+            return { result: null };
+          }
+          const updated = {
+            ...current,
+            reconciliation_lease_id: reconciliationLeaseId,
+            reconciliation_lease_until: new Date(claimTime + RECONCILIATION_LEASE_MS).toISOString(),
+            reconciliation_attempt_id: current.attempt_id ?? randomUUID(),
+            updated_at: new Date(claimTime).toISOString()
+          };
+          return {
+            writes: [write('github_crm_commands', current.id, updated)],
+            result: updated
+          };
+        });
+      if (!claimed) continue;
       let result;
       try {
-        result = await adapter.reconcile?.(binding, command);
+        result = await adapter.reconcile?.(binding, claimed);
       } catch {
-        throw new HttpError(503, 'GITHUB_RECONCILE_FAILED', 'GitHub command reconciliation is temporarily unavailable.', [], { 'Retry-After': '60' });
+        throw adapterUnavailable(ctx, 'command_reconciliation');
       }
-      if (!result) {
-        if (command.status === 'pending') {
-          await transactDocs([actorRef, clientRef, memberRef, operatorRef, projectRef, commandRef], ([actor, client, membership, operator, currentProject, current]) => {
-            if (actor?.status !== 'active' || actor.role !== 'admin' || !client
-              || membership?.status !== 'active' || membership.role !== 'owner' || operator?.active !== true
-              || !currentProject || currentProject.deleted_at || !current || current.status !== 'pending') {
-              return { result: false };
-            }
-            const next = {
-              ...current,
+      const updated = await transactDocs([actorRef, clientRef, memberRef, operatorRef, projectRef, commandRef], ([actor, client, membership, operator, currentProject, current]) => {
+        if (actor?.status !== 'active' || actor.role !== 'admin' || !client
+          || membership?.status !== 'active' || membership.role !== 'owner' || operator?.active !== true
+          || !currentProject || currentProject.deleted_at || !current
+          || current.status !== claimed.status
+          || current.attempt_id !== claimed.attempt_id
+          || current.reconciliation_lease_id !== reconciliationLeaseId
+          || current.reconciliation_attempt_id !== claimed.reconciliation_attempt_id) {
+          return { result: false };
+        }
+        const base = stripReconciliationLease(current);
+        const next = result
+          ? {
+            ...stripExecutionLease(base),
+            status: 'completed',
+            external_id: sanitizeText(result.external_id, 100),
+            external_url: typeof result.url === 'string' && result.url.startsWith('https://github.com/') ? result.url : null,
+            item_id: result.item_id ?? current.item_id ?? null,
+            reconciled_at: new Date().toISOString(),
+            version: (current.version ?? 0) + 1
+          }
+          : current.status === 'pending'
+            ? {
+              ...stripExecutionLease(base),
               status: 'reconciliation_required',
               error_code: 'GITHUB_OUTCOME_UNKNOWN',
               error_message: 'GitHub may have applied this command. Reconcile it before retrying.',
               version: (current.version ?? 0) + 1,
               updated_at: new Date().toISOString()
-            };
-            return { writes: [write('github_crm_commands', command.id, next)], result: true };
-          });
-        }
-        continue;
-      }
-      const updated = await transactDocs([actorRef, clientRef, memberRef, operatorRef, projectRef, commandRef], ([actor, client, membership, operator, currentProject, current]) => {
-        if (actor?.status !== 'active' || actor.role !== 'admin' || !client
-          || membership?.status !== 'active' || membership.role !== 'owner' || operator?.active !== true
-          || !currentProject || currentProject.deleted_at || !current || current.status !== command.status) {
-          return { result: false };
-        }
-        const next = {
-          ...current, status: 'completed', external_id: result.external_id,
-          external_url: result.url ?? null, item_id: result.item_id ?? current.item_id ?? null,
-          reconciled_at: new Date().toISOString(), version: (current.version ?? 0) + 1
-        };
+            }
+            : { ...base, version: (current.version ?? 0) + 1, updated_at: new Date().toISOString() };
         return { writes: [write('github_crm_commands', command.id, next)], result: true };
       });
       if (updated) reconciledCommands += 1;
@@ -469,7 +557,12 @@ export function createGithubCrmRoutes({
       .slice(0, GITHUB_CRM_WORKER_BATCH_SIZE);
     let processedWebhooks = 0;
     if (deliveries.length) {
-      const remote = await adapter.readProject(binding);
+      let remote;
+      try {
+        remote = await adapter.readProject(binding);
+      } catch {
+        throw adapterUnavailable(ctx, 'webhook_project_sync');
+      }
       const snapshotRef = ref('github_project_snapshots', project.id);
       const refs = [snapshotRef, ...deliveries.map((item) => ref('github_webhook_inbox', item.id))];
       const processed = await transactDocs(refs, ([current, ...currentDeliveries]) => {

@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHmac } from 'node:crypto';
+import { createHmac, generateKeyPairSync } from 'node:crypto';
 import { getDoc, queryDocs, resetInMemoryDb, setDoc, setFirestoreDisabled } from '../src/server/db.mjs';
+import { createGithubAppAdapter } from '../src/server/github-crm.mjs';
 import { createGithubCrmRoutes } from '../src/server/routes/github-crm.mjs';
 import { account, call, start } from './helpers.mjs';
 
@@ -86,6 +87,16 @@ function findRoute(routes, method, suffix) {
   return routes.find(([candidate, path]) => candidate === method && path.endsWith(suffix))[2];
 }
 
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
 test('GitHub CRM scopes project access to its actual owner and issuer, never global admin bypass', async () => {
   const { owner, issuer } = await fixture();
   const routes = routeSet({ adapter: fakeAdapter() });
@@ -115,6 +126,91 @@ test('unconfigured GitHub credentials are explicit and never simulated', async (
   await assert.rejects(findRoute(routes, 'GET', '/github-crm')(context({ user: owner })), { status: 503 });
 });
 
+test('GitHub App tokens are scoped with bare repository names and Project v2 field typenames normalize', async () => {
+  const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const installationBodies = [];
+  const adapter = createGithubAppAdapter({
+    GITHUB_APP_ID: '12345',
+    GITHUB_APP_PRIVATE_KEY: privateKey.export({ type: 'pkcs8', format: 'pem' })
+  }, {
+    fetchImpl: async (url, options = {}) => {
+      const parsed = new URL(url);
+      if (parsed.pathname === '/repos/acme/widget/installation') {
+        return Response.json({ id: 77, account: { login: 'acme' } });
+      }
+      if (parsed.pathname === '/app/installations/77/access_tokens') {
+        installationBodies.push(JSON.parse(options.body));
+        return Response.json({
+          token: 'installation-secret',
+          expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString()
+        });
+      }
+      if (parsed.pathname === '/repos/acme/widget') {
+        return Response.json({
+          id: 11,
+          node_id: 'R_11',
+          full_name: 'acme/widget',
+          owner: { login: 'acme', type: 'Organization' }
+        });
+      }
+      if (parsed.pathname === '/graphql') {
+        const { query } = JSON.parse(options.body);
+        assert.match(query, /fields\(first: 50\)\s*\{\s*nodes\s*\{\s*__typename/);
+        return Response.json({
+          data: {
+            organization: {
+              projectV2: {
+                id: 'PVT_1',
+                title: 'Board',
+                url: 'https://github.com/orgs/acme/projects/4',
+                fields: { nodes: [
+                  {
+                    __typename: 'ProjectV2IterationField',
+                    id: 'PVTIF_1',
+                    name: 'Sprint',
+                    configuration: { iterations: [{ id: 'iteration_1', title: 'Sprint 1', startDate: '2026-10-01', duration: 14 }] }
+                  },
+                  {
+                    __typename: 'ProjectV2SingleSelectField',
+                    id: 'PVTSSF_1',
+                    name: 'Status',
+                    options: [{ id: 'option_1', name: 'Todo' }]
+                  }
+                ] },
+                items: { nodes: [{
+                  id: 'PVTI_1',
+                  content: { __typename: 'Issue', id: 'I_1', number: 1, title: 'First issue', state: 'OPEN', url: 'https://github.com/acme/widget/issues/1' },
+                  fieldValues: { nodes: [
+                    { __typename: 'ProjectV2ItemFieldSingleSelectValue', name: 'Todo', field: { name: 'Status' } },
+                    { __typename: 'ProjectV2ItemFieldIterationValue', title: 'Sprint 1', field: { name: 'Sprint' } }
+                  ] }
+                }] }
+              }
+            }
+          }
+        });
+      }
+      throw new Error(`Unexpected mocked GitHub request: ${parsed.pathname}`);
+    }
+  });
+
+  const repository = await adapter.verifyRepository('acme/widget');
+  const board = await adapter.readProject({
+    installation_id: repository.installation_id,
+    repository_owner: 'acme',
+    repository_name: 'widget',
+    organization: 'acme',
+    project_v2_number: 4
+  });
+  assert.deepEqual(installationBodies, [{ repositories: ['widget'] }]);
+  assert.equal(board.status_options[0].field_id, 'PVTSSF_1');
+  assert.equal(board.iterations[0].field_id, 'PVTIF_1');
+  assert.deepEqual(
+    { type: board.items[0].type, status: board.items[0].status, iteration: board.items[0].iteration },
+    { type: 'issue', status: 'Todo', iteration: 'Sprint 1' }
+  );
+});
+
 test('GitHub App permission failures surface as unavailable without saving a binding', async () => {
   const { issuer } = await fixture();
   await installIssuer(issuer);
@@ -124,7 +220,12 @@ test('GitHub App permission failures surface as unavailable without saving a bin
   await assert.rejects(findRoute(routes, 'PUT', '/binding')(context({
     user: issuer,
     body: { repository_url: 'https://github.com/acme/widget', project_url: 'https://github.com/orgs/acme/projects/4' }
-  })), { status: 503 });
+  })), (error) => {
+    assert.equal(error.status, 503);
+    assert.equal(error.message, 'GitHub is temporarily unavailable.');
+    assert.equal(error.message.includes('permission denied'), false);
+    return true;
+  });
   assert.equal(await getDoc('github_project_bindings', 'project-a'), null);
 });
 
@@ -193,6 +294,7 @@ test('commands are durable and idempotent and ambiguous adapter failures require
   }));
   assert.equal(uncertain.data.status, 'reconciliation_required');
   assert.ok(uncertain.data.error_code);
+  assert.equal(uncertain.data.error_message.includes('connection lost'), false);
   adapter.executeCommand = async () => ({ external_id: '43', url: 'https://github.com/acme/widget/issues/43' });
   const retried = await findRoute(routes, 'POST', '/retry')(context({
     user: issuer,
@@ -201,6 +303,167 @@ test('commands are durable and idempotent and ambiguous adapter failures require
   }));
   assert.equal(retried.data.status, 'completed');
   assert.equal(retried.data.external_id, '43');
+});
+
+test('execution leases fence duplicate requests and active attempts from reconciliation', async () => {
+  const { issuer } = await fixture();
+  await installIssuer(issuer);
+  const adapter = fakeAdapter();
+  const execution = deferred();
+  const executing = deferred();
+  let executeCalls = 0;
+  let reconcileCalls = 0;
+  adapter.executeCommand = async () => {
+    executeCalls += 1;
+    executing.resolve();
+    await execution.promise;
+    return { external_id: '51', url: 'https://github.com/acme/widget/issues/51' };
+  };
+  adapter.reconcile = async () => { reconcileCalls += 1; return null; };
+  const env = {
+    GITHUB_CRM_WORKER_AUDIENCE: 'https://api.test/github-worker',
+    GITHUB_CRM_WORKER_SERVICE_ACCOUNT: 'github-worker@example.iam.gserviceaccount.com'
+  };
+  const routes = routeSet({
+    adapter,
+    env,
+    verifyServiceIdentity: async () => ({ email: env.GITHUB_CRM_WORKER_SERVICE_ACCOUNT, email_verified: true })
+  });
+  await findRoute(routes, 'PUT', '/binding')(context({
+    user: issuer,
+    body: { repository_url: 'https://github.com/acme/widget', project_url: 'https://github.com/orgs/acme/projects/4' }
+  }));
+  const create = findRoute(routes, 'POST', '/commands');
+  const createContext = () => context({
+    user: issuer,
+    body: { type: 'issue.create', title: 'Leased', body: '' },
+    headers: { 'idempotency-key': 'leased-create' }
+  });
+  const pendingRequest = create(createContext());
+  await executing.promise;
+  const replay = await create(createContext());
+  assert.equal(replay.data.status, 'pending');
+  assert.equal(executeCalls, 1, 'same idempotency key cannot start a second execution');
+
+  const worker = findRoute(routes, 'POST', '/worker/reconcile');
+  const workerResult = await worker(context({
+    body: { project_id: 'project-a' },
+    headers: { authorization: 'Bearer service-token' }
+  }));
+  assert.equal(workerResult.data.reconciled_commands, 0);
+  assert.equal(reconcileCalls, 0, 'worker skips an active execution lease');
+  execution.resolve();
+  assert.equal((await pendingRequest).data.status, 'completed');
+  assert.equal((await queryDocs('github_crm_commands'))[0].attempt_count, 1);
+});
+
+test('retry and stale reconciliation use leases and final attempt fences', async () => {
+  const { issuer } = await fixture();
+  await installIssuer(issuer);
+  const adapter = fakeAdapter();
+  const retryGate = deferred();
+  const retryEntered = deferred();
+  let executeCalls = 0;
+  adapter.executeCommand = async () => {
+    executeCalls += 1;
+    if (executeCalls === 1) throw new Error('ordinary GitHub rejection');
+    retryEntered.resolve();
+    await retryGate.promise;
+    return { external_id: '61', url: 'https://github.com/acme/widget/issues/61' };
+  };
+  const env = {
+    GITHUB_CRM_WORKER_AUDIENCE: 'https://api.test/github-worker',
+    GITHUB_CRM_WORKER_SERVICE_ACCOUNT: 'github-worker@example.iam.gserviceaccount.com'
+  };
+  const routes = routeSet({
+    adapter,
+    env,
+    verifyServiceIdentity: async () => ({ email: env.GITHUB_CRM_WORKER_SERVICE_ACCOUNT, email_verified: true })
+  });
+  await findRoute(routes, 'PUT', '/binding')(context({
+    user: issuer,
+    body: { repository_url: 'https://github.com/acme/widget', project_url: 'https://github.com/orgs/acme/projects/4' }
+  }));
+  const create = findRoute(routes, 'POST', '/commands');
+  const created = await create(context({
+    user: issuer,
+    body: { type: 'issue.create', title: 'Retry race', body: '' },
+    headers: { 'idempotency-key': 'retry-race' }
+  }));
+  assert.equal(created.data.status, 'failed');
+  const retry = findRoute(routes, 'POST', '/retry');
+  const retryRequest = retry(context({ user: issuer, body: { command_id: created.data.id } }));
+  await retryEntered.promise;
+  await assert.rejects(retry(context({ user: issuer, body: { command_id: created.data.id } })), { code: 'GITHUB_COMMAND_NOT_RETRYABLE' });
+  retryGate.resolve();
+  assert.equal((await retryRequest).data.status, 'completed');
+  assert.equal(executeCalls, 2, 'only one retry can acquire the execution lease');
+
+  const worker = findRoute(routes, 'POST', '/worker/reconcile');
+  const originalGate = deferred();
+  const originalEntered = deferred();
+  adapter.executeCommand = async () => {
+    originalEntered.resolve();
+    await originalGate.promise;
+    return { external_id: '62', url: 'https://github.com/acme/widget/issues/62' };
+  };
+  const staleExecution = create(context({
+    user: issuer,
+    body: { type: 'issue.create', title: 'Stale execution', body: '' },
+    headers: { 'idempotency-key': 'stale-execution' }
+  }));
+  await originalEntered.promise;
+  const staleCommand = (await queryDocs('github_crm_commands', {
+    where: [['project_id', '==', 'project-a']]
+  })).find((entry) => entry.title === 'Stale execution');
+  await setDoc('github_crm_commands', staleCommand.id, {
+    ...staleCommand,
+    attempt_started_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+    execution_lease_until: new Date(Date.now() - 5 * 60 * 1000).toISOString()
+  });
+  adapter.reconcile = async () => ({
+    external_id: '62', url: 'https://github.com/acme/widget/issues/62', reconciled: true
+  });
+  const staleReconciliation = await worker(context({
+    body: { project_id: 'project-a' },
+    headers: { authorization: 'Bearer service-token' }
+  }));
+  assert.equal(staleReconciliation.data.reconciled_commands, 1);
+  originalGate.resolve();
+  await assert.rejects(staleExecution, { code: 'GITHUB_ATTEMPT_SUPERSEDED' });
+  assert.equal((await getDoc('github_crm_commands', staleCommand.id)).status, 'completed');
+
+  adapter.executeCommand = async () => { throw Object.assign(new Error('uncertain'), { ambiguous: true }); };
+  const uncertain = await create(context({
+    user: issuer,
+    body: { type: 'issue.create', title: 'Reconcile lease', body: '' },
+    headers: { 'idempotency-key': 'reconcile-lease' }
+  }));
+  assert.equal(uncertain.data.status, 'reconciliation_required');
+  const reconcileGate = deferred();
+  const reconcileEntered = deferred();
+  adapter.reconcile = async (_binding, command) => {
+    assert.equal(command.id, uncertain.data.id);
+    reconcileEntered.resolve();
+    await reconcileGate.promise;
+    return { external_id: '63', url: 'https://github.com/acme/widget/issues/63', reconciled: true };
+  };
+  const reconciliation = worker(context({
+    body: { project_id: 'project-a' },
+    headers: { authorization: 'Bearer service-token' }
+  }));
+  await reconcileEntered.promise;
+  const secondWorker = await worker(context({
+    body: { project_id: 'project-a' },
+    headers: { authorization: 'Bearer service-token' }
+  }));
+  assert.equal(secondWorker.data.reconciled_commands, 0, 'a second worker cannot acquire the active reconciliation lease');
+  const activeRetry = retry(context({ user: issuer, body: { command_id: uncertain.data.id } }));
+  await assert.rejects(activeRetry, { code: 'GITHUB_COMMAND_IN_PROGRESS' });
+  reconcileGate.resolve();
+  const reconciled = await reconciliation;
+  assert.equal(reconciled.data.reconciled_commands, 1);
+  assert.equal((await getDoc('github_crm_commands', uncertain.data.id)).status, 'completed');
 });
 
 test('webhook signatures are verified before durable deduplication', async () => {
