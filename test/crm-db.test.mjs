@@ -79,3 +79,13 @@ test('cursor queries traverse more than 1000 documents without duplication or te
   await assert.rejects(queryPage('deals', { after: '../bad' }), { status: 400 });
   await assert.rejects(queryPage('deals', { pageSize: 51 }), { status: 400 });
 });
+
+test('document-ID paging supports legacy memberships without an id data field', async () => {
+  resetInMemoryDb();
+  for (let index = 0; index < 65; index++) await setDoc('memberships', `client__u${String(index).padStart(3, '0')}`, { client_id: 'client', user_id: `u${index}` });
+  const first = await queryPage('memberships', { where: [['client_id', '==', 'client']], pageSize: 50, documentIdOrder: true });
+  const second = await queryPage('memberships', { where: [['client_id', '==', 'client']], pageSize: 50, documentIdOrder: true, after: first.next_cursor });
+  assert.equal(first.items.length + second.items.length, 65);
+  assert.equal(new Set([...first.items, ...second.items].map((item) => item.id)).size, 65);
+  assert.equal((await getDoc('memberships', 'client__u000')).id, undefined);
+});

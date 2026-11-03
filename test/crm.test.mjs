@@ -29,6 +29,44 @@ const terms = {
   start_date: '2026-11-01', end_date: '2026-12-31', expected_close_date: '2026-11-15'
 };
 
+test('CRM: accepted change orders increase the contract without overwriting billed scope', async (t) => {
+  const ctx = await setup(t);
+  const activate = async (input) => {
+    const deal = await createDeal(ctx, input);
+    const published = await action(ctx, deal, 'publish');
+    const accepted = await action(ctx, published, 'accept', ctx.owner.token, { revision_id: published.data.current_revision_id });
+    return action(ctx, accepted, 'activate');
+  };
+  assert.equal((await activate({ ...terms, deal_type: 'change_order' })).status, 409);
+  assert.equal((await activate(terms)).status, 200);
+  const planId = `${ctx.project.id}__base`;
+  const original = await getDoc('billing_plans', planId);
+  await setDoc('billing_plans', planId, { ...original, billed_minor: 30000, scheduled_minor: 60000 });
+  const changed = await activate({ ...terms, deal_type: 'change_order', amount_minor: 50000, end_date: '2027-01-31' });
+  assert.equal(changed.status, 200, JSON.stringify(changed.data));
+  const plan = await getDoc('billing_plans', planId);
+  assert.equal(plan.amount_minor, terms.amount_minor + 50000);
+  assert.equal(plan.billed_minor, 30000);
+  assert.equal(plan.scheduled_minor, 60000);
+  assert.equal(plan.end_date, '2027-01-31');
+  assert.equal((await activate(terms)).status, 409);
+  assert.equal((await activate({ ...terms, deal_type: 'change_order', billing_method: 'hourly', hourly_rate_minor: 10000, planned_minutes: 60 })).status, 409);
+});
+
+test('CRM: customer can reject an exact current proposal without changing its immutable history', async (t) => {
+  const ctx = await setup(t);
+  const deal = await createDeal(ctx);
+  const published = await action(ctx, deal, 'publish');
+  const snapshot = await getDoc('commercial_revisions', published.data.current_revision_id);
+  const rejected = await action(ctx, published, 'reject', ctx.owner.token, { reason: 'Please revise the deadline.' });
+  assert.equal(rejected.status, 200, JSON.stringify(rejected.data));
+  assert.equal(rejected.data.current_revision_id, null);
+  assert.equal(rejected.data.stage, 'negotiation');
+  assert.equal(rejected.data.rejection.reason, 'Please revise the deadline.');
+  assert.deepEqual(await getDoc('commercial_revisions', snapshot.id), snapshot);
+  assert.equal((await action(ctx, published, 'accept', ctx.owner.token, { revision_id: snapshot.id })).status, 412);
+});
+
 async function createDeal(ctx, body = terms) {
   const response = await call(ctx.baseUrl, `/api/v1/projects/${ctx.project.id}/deals`, {
     method: 'POST', token: ctx.issuer.token, body

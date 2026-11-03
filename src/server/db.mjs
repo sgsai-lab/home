@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Firestore } from '@google-cloud/firestore';
+import { FieldPath, Firestore } from '@google-cloud/firestore';
 import { sha256 } from './security.mjs';
 import { HttpError } from './http.mjs';
 
@@ -210,17 +210,17 @@ export async function transactDocs(refs, mutate) {
 }
 
 /** Stable cursor paging for collections whose documents carry an immutable id field. */
-export async function queryPage(collection, { where = [], after = null, pageSize = 25 } = {}) {
+export async function queryPage(collection, { where = [], after = null, pageSize = 25, documentIdOrder = false } = {}) {
   if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 50) throw new HttpError(400, 'BAD_REQUEST', 'Use a page_size from 1 to 50.');
   if (after !== null && (typeof after !== 'string' || !/^[a-zA-Z0-9_-]{1,160}$/.test(after))) throw new HttpError(400, 'BAD_REQUEST', 'Invalid cursor.');
   const items = await run(async (db) => {
     let query = db.collection(collection);
     for (const [field, op, value] of where) query = query.where(field, op, value);
-    query = query.orderBy('id');
+    query = query.orderBy(documentIdOrder ? FieldPath.documentId() : 'id');
     if (after) query = query.startAfter(after);
     const snapshot = await query.limit(pageSize + 1).get();
-    return snapshot.docs.map((doc) => clean(doc.data()));
-  }, () => [...memory(collection).values()]
+    return snapshot.docs.map((doc) => documentIdOrder ? { ...clean(doc.data()), id: doc.id } : clean(doc.data()));
+  }, () => [...memory(collection)].map(([id, doc]) => documentIdOrder ? { ...doc, id } : doc)
     .filter((doc) => where.every((clause) => matches(doc, clause)) && (!after || doc.id > after))
     .sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
     .slice(0, pageSize + 1).map(clean));

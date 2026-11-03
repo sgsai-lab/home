@@ -12,7 +12,17 @@
     { "collectionGroup": "deals", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] },
     { "collectionGroup": "deals", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "stage", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] },
     { "collectionGroup": "commercial_revisions", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "deal_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] },
-    { "collectionGroup": "financial_events", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] }
+    { "collectionGroup": "financial_events", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] },
+    { "collectionGroup": "crm_resources", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] },
+    { "collectionGroup": "billing_items", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] },
+    { "collectionGroup": "time_entries", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] },
+    { "collectionGroup": "time_statements", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] },
+    { "collectionGroup": "invoices", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] },
+    { "collectionGroup": "payments", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] },
+    { "collectionGroup": "credit_notes", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] },
+    { "collectionGroup": "refunds", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] },
+    { "collectionGroup": "github_crm_commands", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }] },
+    { "collectionGroup": "finance_jobs", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] }
   ],
   "fieldOverrides": [
     { "collectionGroup": "audit_log", "fieldPath": "diff", "indexes": [] },
@@ -23,6 +33,10 @@
     { "collectionGroup": "users", "fieldPath": "mfa", "indexes": [] },
     { "collectionGroup": "deals", "fieldPath": "scope", "indexes": [] },
     { "collectionGroup": "commercial_revisions", "fieldPath": "scope", "indexes": [] },
-    { "collectionGroup": "idempotency_records", "fieldPath": "result", "indexes": [] }
+    { "collectionGroup": "idempotency_records", "fieldPath": "result", "indexes": [] },
+    { "collectionGroup": "invoices", "fieldPath": "profile_snapshot", "indexes": [] },
+    { "collectionGroup": "invoices", "fieldPath": "lines", "indexes": [] },
+    { "collectionGroup": "credit_notes", "fieldPath": "profile_snapshot", "indexes": [] },
+    { "collectionGroup": "finance_documents", "fieldPath": "content_base64", "indexes": [] }
   ]
 }

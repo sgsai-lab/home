@@ -83,13 +83,13 @@ The Node API (`src/server/`) serves the website and the mobile app (ADR-002). Ng
 
 Statuses: `draft, discovery, in_progress, on_hold, delivered, archived`. Sector profiles: business `{engagement_type: advisory|build|managed_service, department}`; education `{institution_type: school|college|university|training, programme, cohort, academic_year}`.
 
-## Project CRM (initial milestone)
+## Project CRM: deals and proposals
 
 The website's `/workspace/crm/?client=<id>&project=<optional-id>` provides standard deal list, read-only record detail, and explicit create/edit forms. Financial responses use `Cache-Control: no-store`; there is no offline financial snapshot.
 
 SGS prepares commercial terms; a customer owner accepts the exact published revision; SGS then activates the accepted base billing plan. Assigned issuer operators must be active global administrators **and** actual owners of the relevant workspace. Customer owners (global role `user`) can review/accept, but cannot prepare or activate deals. SGS administrators cannot accept proposals on a customer's behalf, even without an issuer assignment.
 
-Defaults confirmed for this implementation: INR; India tax jurisdiction with GST **unconfigured**; monthly billing at month end; invoice payment due 30 days after issue. Invoice issuance, time tracking, payment processing, change orders and GitHub integration are not implemented in this milestone.
+Defaults confirmed for this implementation: INR; India tax jurisdiction with GST initially **unconfigured**; monthly billing at month end; invoice payment due 30 days after issue. The Project finance section below documents resource/time billing, gated invoice issuance, manual payments and corrections. Deals also support additive change orders. See [GitHub CRM](github-crm.md) for delivery integration and its operator configuration requirements. Online payment gateway processing is not included.
 
 Setup:
 
@@ -119,11 +119,54 @@ CRM lists use indexed record-ID order with `page_size` 1-50 and `cursor`; respon
 
 Create requires `name`, `scope`, `currency: "INR"`, `billing_method: "fixed"|"hourly"` and positive `amount_minor` (fixed price or hourly cap, max 1,000,000,000,000 paise). Hourly terms also require positive `hourly_rate_minor` and `planned_minutes`. Optional `start_date`, `end_date`, `expected_close_date` use real calendar dates; `stage` can initially be `qualified`, `discovery` or `negotiation`. IDs, ownership and closed stages cannot be set in the body.
 
-All action POSTs require `If-Match` and an `Idempotency-Key` of 1-120 letters, digits, underscores or hyphens. Replaying a committed key/body for the same actor/deal/action returns its original result; changing the body returns `409 IDEMPOTENCY_CONFLICT`. Mutable record versions are mandatory (`428` missing, `412` stale). Any saved edit invalidates the current proposal/acceptance without altering historic revisions. Closed deals cannot be edited; only one accepted base plan is supported per project.
+All action POSTs require `If-Match` and an `Idempotency-Key` of 1-120 letters, digits, underscores or hyphens. Replaying a committed key/body for the same actor/deal/action returns its original result; changing the body returns `409 IDEMPOTENCY_CONFLICT`. Mutable record versions are mandatory (`428` missing, `412` stale). Any saved edit invalidates the current proposal/acceptance without altering historic revisions. Closed deals cannot be edited. A project has one base plan; additional accepted `deal_type: "change_order"` deals increase its cap without resetting scheduled/billed amounts. They must preserve currency, billing method and hourly rate. The default type is `"base"`. `POST /crm/deals/{id}/reject` with `{reason}` allows a customer owner to request revision of an unaccepted proposal without changing its published snapshot.
 
 Creating the first deal marks its project `finance_retained`; DELETE returns `409 FINANCE_RETENTION_REQUIRED`. Archive the project with its ordinary status update instead. Existing project deletion behavior is unchanged when there is no commercial history.
 
 Owner invitations are revalidated against their original inviting owner's active membership/account at acceptance; a revoked grant returns `409 INVITE_AUTHORITY_REVOKED`. A non-owner SGS admin cannot resend an owner invitation. One platform admin may assign issuer authority, including to themselves, with an audited reason; this never grants actual workspace membership.
+
+## Project finance
+
+Open `/workspace/billing/?client={client_id}&project={project_id}` from the project or CRM page. All finance endpoints are under `/api/v1/projects/{project_id}/finance`. Every read requires **actual active workspace ownership**. SGS global admin is not a bypass. Mutations require the assigned SGS issuer who also owns that workspace, except customer approval actions. All responses are `Cache-Control: no-store`; list responses are `{items,next_cursor}`.
+
+All command POSTs and profile PUT require `Idempotency-Key`. PATCH, profile PUT and record action POSTs require the current `If-Match: "vN"` (`"v0"` for a missing profile); stale versions return 412. Keys are actor/project/operation scoped. Replays revalidate current authority and return the committed result. Errors never turn a failed notification or unconfigured integration into success.
+
+| Method | Suffix | Body / behavior |
+| --- | --- | --- |
+| GET/PUT | `/profile` | Workspace-shared billing profile: `customer_name`, `customer_address`, `customer_state_code`, optional `customer_gstin`, `issuer_name`, `issuer_address`, `issuer_state_code`, `issuer_gstin`, `bank_details`, six-digit `sac_code`, `gst_rate_bps`, `legal_approved`, `legal_approval_reference` |
+| GET | `/summary` | INR contract/invoiced/credited/paid/outstanding/unallocated/refunded/overdue totals, aging buckets, resource deadline/capacity risks |
+| GET/POST | `/resources` | Create `{name,role,planned_minutes,weekly_capacity_minutes,start_date,end_date}` |
+| GET/PATCH | `/resources/{id}` | View/edit assignment estimates and dates; accepted commercial rate is not editable here |
+| GET/POST | `/time-entries` | Create `{resource_id,work_date,minutes,description}`; work must be within assignment dates, not in the future |
+| GET/PATCH | `/time-entries/{id}` | Submitted/approved/billed entries are locked |
+| GET/POST | `/time-statements` | Submit `{entry_ids}` (1-20), snapshots entry versions and locks them |
+| POST | `/time-statements/{id}/approve` or `/reject` | Customer owner only; `{}` or `{reason}`. Rejected time is unlocked for correction |
+| GET/POST | `/billing-items` | Fixed schedule `{title,amount_minor,due_date,requires_acceptance}`; total reservations cannot exceed accepted cap |
+| POST | `/billing-items/{id}/accept` | Customer owner; `{}` |
+| POST | `/billing-items/{id}/cancel` | Issuer; `{reason}`. Unbilled only; preserves record and releases scheduled cap |
+| GET | `/monthly-candidates?month=YYYY-MM` | Eligible approved/unbilled sources through month end, including carryover; `{month,cutoff,source_type,items}` |
+| GET/POST | `/invoices` | Draft `{source_type:"billing_item"\|"time_entry",source_ids,issue_date,billing_month?}` with 1-20 sources. Monthly date cannot precede month end |
+| GET/PATCH | `/invoices/{id}` | Read with settlement/overdue status; only draft `issue_date` can be edited |
+| POST | `/invoices/{id}/issue` | `{}`; legal/deployment gates; source revalidation/claim, cap and unique fiscal number in one transaction; due in 30 days |
+| POST | `/invoices/{id}/notify` | `{}`; durable owner notification, visible delivery state. 503 on failure retains issued invoice; retry safely |
+| POST | `/invoices/{id}/void` | `{reason}`; separately gated, unpaid/uncredited only; no source release or number reuse |
+| GET | `/invoices/{id}/document` | Original archived PDF; voided invoices remain downloadable as historical originals with `document_state:"void"` |
+| GET/POST | `/payments` | Manual receipt `{amount_minor,received_date,reference,invoice_id?}`; excess becomes unallocated credit |
+| POST | `/payments/{id}/allocate` | `{invoice_id,amount_minor}` from available unallocated credit; prevents overpayment |
+| POST | `/payments/{id}/reverse` | `{reason}` reverses allocations with retained history; refunded receipts require separate correcting entries |
+| GET/POST | `/credit-notes` | `{invoice_id,net_minor,reason}`; cumulative tax rounding, cannot exceed remaining unpaid balance |
+| GET | `/credit-notes/{id}/document` | Archived correction PDF with original invoice reference |
+| GET/POST | `/refunds` | `{payment_id,amount_minor,reason}`; cannot exceed unallocated receipt credit |
+
+Every listed collection also supports `GET /{kind}/{id}`. Money is integer paise, INR only, bounded to 1,000,000,000,000 per net amount. Hourly money and GST use integer half-up arithmetic. Intra-state tax splits into CGST/SGST; interstate uses IGST. Allowed reviewed rates are 0/5/12/18/28%. GSTIN format validation is **not** registration verification or tax advice.
+
+Documents return `{filename,content_type,content_base64,checksum,...metadata}` for authenticated Blob download. Private immutable archive records are limited to 600 KB of PDF binary (below Firestore's document limit after base64). Renderer v1 embeds a Latin-script font and explicitly rejects unsupported characters before issuance; it does not silently omit legal text. Extend and approve the font/shaping pipeline before using other scripts.
+
+Monthly billing is an **explicit issuer review workflow**, not automatic charging: select eligible sources for a closed month, batch at most 20 per draft, review, then issue. GitHub activity never creates billable time, changes agreed prices, or issues invoices.
+
+`POST /api/v1/crm/finance-worker/retry` is service-only, not user-session authenticated. Body `{project_id,cursor?}` processes one page of at most 10 durable notification jobs and returns `{results,next_cursor}`. Follow cursors to exhaustion each scheduled run. It uses the same strictly verified OIDC audience/service account as the [GitHub worker](github-crm.md), and revalidates the original issuer's actual membership and entitlement. Expired leases recover; sent jobs skip; failed deliveries back off at least a minute, maximum 10 automatic attempts. Individual job errors appear in results and sanitized logs. An explicit authorized Notify command can start a fresh reviewed retry cycle; lifetime attempt count remains recorded.
+
+GitHub endpoints, external permissions, webhook and reconciliation contracts are documented in [GitHub CRM setup](github-crm.md).
 
 ## Products, catalog and launch links
 

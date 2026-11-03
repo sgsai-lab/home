@@ -50,6 +50,12 @@ function field(name, value) {
   return [h('dt', { text: name }), h('dd', { text: value ?? 'Not set' })];
 }
 
+function updateBillingLink(projectId) {
+  $('billing-link').hidden = !projectId;
+  if (projectId) $('billing-link').href = `/workspace/billing/?client=${encodeURIComponent(clientId)}&project=${encodeURIComponent(projectId)}`;
+  else $('billing-link').removeAttribute('href');
+}
+
 async function loadDeals() {
   const query = new URLSearchParams({ page_size: '25' });
   if (state.cursor) query.set('cursor', state.cursor);
@@ -69,6 +75,7 @@ async function loadDeals() {
   $('first-page').disabled = !state.cursor;
   $('new-deal').hidden = !state.capabilities.can_prepare;
   $('new-deal').disabled = !state.project;
+  updateBillingLink(!$('deal-editor').hidden ? state.editorProject : !$('deal-detail').hidden ? state.selected?.project_id : state.project);
 }
 
 async function loadRevisions(append = false) {
@@ -118,12 +125,13 @@ async function selectDeal(id, focus = true) {
   state.etag = headers.get('ETag');
   $('detail-heading').textContent = deal.name;
   $('detail-fields').replaceChildren(...[
-    field('Project', deal.project_name), field('Stage', labels[deal.stage]),
+    field('Project', deal.project_name), field('Stage', labels[deal.stage]), field('Deal type', deal.deal_type === 'change_order' ? 'Change order' : 'Base contract'),
     field('Price / cap', money(deal.amount_minor)), field('Billing', deal.billing_method === 'fixed' ? 'Fixed price' : 'Time and materials'),
     field('Scope', deal.scope), field('Start', deal.start_date), field('Delivery deadline', deal.end_date),
     field('Target close', deal.expected_close_date),
     field('Proposal', deal.current_revision_id ? `Revision ${deal.revision_number}` : 'No current proposal'),
     field('Customer acceptance', deal.accepted_at ? `Accepted ${deal.accepted_at}` : 'Awaiting acceptance'),
+    ...(deal.rejection ? [field('Last requested changes', deal.rejection.reason)] : []),
     ...(deal.loss_reason ? [field('Loss reason', deal.loss_reason)] : []),
     ...(deal.hourly_rate_minor ? [field('Hourly rate', money(deal.hourly_rate_minor)), field('Planned minutes', deal.planned_minutes)] : [])
   ].flat());
@@ -135,10 +143,13 @@ async function selectDeal(id, focus = true) {
   if (open && state.capabilities.can_prepare && deal.accepted_revision_id) addAction('Activate billing plan', 'activate');
   $('loss-panel').hidden = !state.capabilities.can_prepare || !open || Boolean(deal.accepted_revision_id);
   $('loss-panel').open = false;
+  $('rejection-panel').hidden = !state.capabilities.can_accept || !open || !deal.current_revision_id || Boolean(deal.accepted_revision_id);
+  $('rejection-panel').open = false;
+  updateBillingLink(deal.project_id);
   await loadRevisions();
   const { plan } = await request(`/projects/${encodeURIComponent(deal.project_id)}/billing-plan`);
   $('billing-plan').textContent = plan
-    ? `${plan.deal_id === deal.id ? 'This deal' : 'Another deal'} supplies the active ${plan.billing_method === 'fixed' ? 'fixed-price' : 'hourly'} plan: ${money(plan.amount_minor)} price/cap. Monthly at month end; due 30 days after invoice issue. GST unconfigured; invoice issuance disabled.`
+    ? `Active ${plan.billing_method === 'fixed' ? 'fixed-price' : 'hourly'} contract including accepted change orders: ${money(plan.amount_minor)} price/cap. Monthly at month end; due 30 days after invoice issue. See billing for legal configuration and issuance availability.`
     : 'No billing plan activated. A customer must accept a published proposal before SGS activates it.';
   $('deal-detail').hidden = false;
   if (focus) $('detail-heading').focus();
@@ -160,9 +171,11 @@ function editDeal(creating) {
   const deal = creating ? null : state.selected;
   $('editor-heading').textContent = creating ? 'Create deal' : `Edit ${deal.name}`;
   const option = [...$('project-filter').options].find((item) => item.value === state.editorProject);
+  updateBillingLink(state.editorProject);
   $('editor-project').textContent = `Project: ${deal?.project_name ?? option?.textContent ?? state.editorProject}`;
   if (deal) {
     for (const name of ['name', 'scope', 'billing_method', 'planned_minutes', 'start_date', 'end_date', 'expected_close_date']) form.elements[name].value = deal[name] ?? '';
+    form.elements.deal_type.value = deal.deal_type ?? 'base';
     form.elements.amount.value = decimal(deal.amount_minor);
     form.elements.hourly_rate.value = decimal(deal.hourly_rate_minor);
     form.elements.stage.value = ['qualified', 'discovery', 'negotiation'].includes(deal.stage) ? deal.stage : 'discovery';
@@ -180,7 +193,7 @@ handleSubmit($('filters'), $('page-status'), async ({ project, stage }) => {
 });
 handleSubmit($('deal-form'), $('editor-status'), async (values) => {
   const body = {
-    name: values.name, scope: values.scope, currency: 'INR', billing_method: values.billing_method,
+    name: values.name, scope: values.scope, currency: 'INR', billing_method: values.billing_method, deal_type: values.deal_type,
     amount_minor: toMinor(values.amount), stage: values.stage,
     start_date: values.start_date || null, end_date: values.end_date || null, expected_close_date: values.expected_close_date || null
   };
@@ -194,6 +207,10 @@ handleSubmit($('deal-form'), $('editor-status'), async (values) => {
 });
 handleSubmit($('loss-form'), $('deal-status'), async ({ reason }) => {
   if (window.confirm('Close this deal as lost? Closed deals cannot be edited.')) await performAction('lose', { reason });
+});
+handleSubmit($('rejection-form'), $('deal-status'), async ({ reason }) => {
+  await performAction('reject', { reason });
+  $('rejection-form').reset();
 });
 bindAction($('first-page'), $('page-status'), async () => { state.cursor = null; await loadDeals(); });
 bindAction($('next-page'), $('page-status'), async () => { state.cursor = state.next; await loadDeals(); });

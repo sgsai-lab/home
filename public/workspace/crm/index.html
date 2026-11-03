@@ -30,7 +30,8 @@
       </header>
       <p id="page-status" class="form-status" role="alert" hidden></p>
       <div id="crm-content" hidden>
-        <p class="offline-banner">Initial release: deals and accepted billing plans. Invoices, payments, resource tracking, and GitHub automation are not enabled yet. Billing defaults: INR, monthly at month end, net 30. GST must be configured before invoice issuance.</p>
+        <p class="offline-banner">Owner-only project CRM. Billing defaults: INR, monthly at month end, net 30. Invoice issuance requires an approved legal profile and deployment authorization. GitHub App automation requires operator configuration.</p>
+        <p><a id="billing-link" class="button button-secondary" hidden>Billing, invoices and GitHub delivery</a></p>
         <section class="panel" aria-labelledby="deals-heading">
           <div class="section-head">
             <h2 id="deals-heading">Deals</h2>
@@ -78,6 +79,15 @@
           <button id="more-revisions" type="button" class="button button-secondary button-small" hidden>More proposals</button>
           <h3>Accepted billing plan</h3>
           <p id="billing-plan" class="hint"></p>
+          <details id="rejection-panel" hidden>
+            <summary>Request proposal changes</summary>
+            <form id="rejection-form" class="inline-form">
+              <label class="field">Reason for changes
+                <input name="reason" type="text" required maxlength="500">
+              </label>
+              <button type="submit" class="button button-secondary">Reject and request revision</button>
+            </form>
+          </details>
           <details id="loss-panel" hidden>
             <summary>Close this deal as lost</summary>
             <form id="loss-form" class="inline-form">
@@ -102,6 +112,9 @@
                   <option value="fixed">Fixed price</option>
                   <option value="hourly">Time and materials (hourly)</option>
                 </select>
+              </label>
+              <label class="field">Deal type
+                <select name="deal_type"><option value="base">Base contract</option><option value="change_order">Additional scope / change order</option></select>
               </label>
               <label class="field">Price / hourly cap (INR)
                 <input name="amount" type="text" inputmode="decimal" required pattern="[0-9]+(\.[0-9]{1,2})?" maxlength="16">

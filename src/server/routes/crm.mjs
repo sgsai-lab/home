@@ -8,7 +8,7 @@ import {
 } from '../crm.mjs';
 
 const PRIVATE_HEADERS = { 'Cache-Control': 'no-store' };
-const FIELDS = ['name', 'scope', 'amount_minor', 'billing_method', 'currency', 'hourly_rate_minor', 'planned_minutes', 'start_date', 'end_date', 'expected_close_date', 'stage'];
+const FIELDS = ['name', 'scope', 'amount_minor', 'billing_method', 'currency', 'hourly_rate_minor', 'planned_minutes', 'start_date', 'end_date', 'expected_close_date', 'stage', 'deal_type'];
 const OPEN_STAGES = ['qualified', 'discovery', 'negotiation'];
 
 function sendDeal(ctx, status, deal) {
@@ -28,6 +28,7 @@ function readTerms(input, { creating = false, current = {} } = {}) {
   check.text('scope', { required: creating, min: 1, max: 4000 });
   check.oneOf('billing_method', ['fixed', 'hourly'], { required: creating });
   check.oneOf('currency', ['INR'], { required: creating });
+  check.oneOf('deal_type', ['base', 'change_order']);
   check.integer('amount_minor', { min: 1, max: 1_000_000_000_000 });
   check.integer('hourly_rate_minor', { min: 1, max: 100_000_000 });
   check.integer('planned_minutes', { min: 1, max: 60_000_000 });
@@ -45,9 +46,11 @@ function readTerms(input, { creating = false, current = {} } = {}) {
 
 async function capabilities(ctx) {
   const { issuer, user } = await financeAccess(ctx, ctx.params.client_id);
+  const profile = await getDoc('billing_profiles', `${ctx.params.client_id}__billing`);
   return ctx.send(200, {
     can_prepare: issuer, can_accept: user.role !== 'admin', ...CRM_DEFAULTS,
-    implementation_stage: 'deals_and_accepted_billing_plans'
+    invoice_issuance_enabled: ctx.env.CRM_INVOICE_ISSUANCE_ENABLED === 'true' && profile?.legal_approved === true,
+    implementation_stage: 'project_crm_finance_and_delivery'
   }, PRIVATE_HEADERS);
 }
 
@@ -81,6 +84,7 @@ async function createDeal(ctx) {
     const deal = {
       id, client_id: project.client_id, project_id: project.id, project_name: currentProject.name,
       ...values, stage, probability: DEAL_PROBABILITY[stage],
+      deal_type: values.deal_type ?? 'base',
       hourly_rate_minor: values.hourly_rate_minor ?? null, planned_minutes: values.planned_minutes ?? null,
       start_date: values.start_date ?? null, end_date: values.end_date ?? null, expected_close_date: values.expected_close_date ?? null,
       current_revision_id: null, revision_number: 0, accepted_revision_id: null,
@@ -132,7 +136,7 @@ async function editDeal(ctx) {
 async function dealAction(ctx) {
   const { deal, project } = await loadDeal(ctx);
   const action = ctx.params.action;
-  if (!['publish', 'accept', 'activate', 'lose'].includes(action)) throw new HttpError(404, 'NOT_FOUND', 'Action not found.');
+  if (!['publish', 'accept', 'reject', 'activate', 'lose'].includes(action)) throw new HttpError(404, 'NOT_FOUND', 'Action not found.');
   const input = await ctx.body();
   const key = ctx.request.headers['idempotency-key'];
   if (typeof key !== 'string' || !/^[a-zA-Z0-9_-]{1,120}$/.test(key)) throw new HttpError(400, 'IDEMPOTENCY_KEY_REQUIRED', 'Send a unique Idempotency-Key using letters, numbers, underscores or hyphens.');
@@ -144,7 +148,7 @@ async function dealAction(ctx) {
   const result = await commitFinance(ctx, project, [
     ref('deals', deal.id), ref('idempotency_records', operationId), ref('commercial_revisions', revisionId),
     ref('commercial_acceptances', revisionId), ref('billing_plans', planId)
-  ], action === 'accept' ? 'customer' : 'issuer', `deal.${action === 'activate' ? 'activated' : action === 'lose' ? 'lost' : action === 'publish' ? 'published' : 'accepted'}`,
+  ], ['accept', 'reject'].includes(action) ? 'customer' : 'issuer', `deal.${action === 'activate' ? 'activated' : action === 'lose' ? 'lost' : action === 'publish' ? 'published' : action === 'reject' ? 'rejected' : 'accepted'}`,
   ([current, replay, revision, acceptance, plan], { now, user: actor }) => {
     ensureDeal(current, project);
     if (replay) {
@@ -174,11 +178,26 @@ async function dealAction(ctx) {
         revision_id: revisionId, accepted_by: actor.id, accepted_at: now
       }));
       Object.assign(updated, { accepted_revision_id: revisionId, accepted_by: actor.id, accepted_at: now });
+    } else if (action === 'reject') {
+      const check = new Checker(input);
+      check.text('reason', { required: true, min: 1, max: 500 });
+      if (Object.keys(input).some((field) => field !== 'reason')) check.fail('reason', 'Only a rejection reason is allowed.');
+      const { reason } = check.done();
+      if (!revision || revision.id !== current.current_revision_id || current.accepted_revision_id) throw new HttpError(409, 'PROPOSAL_REQUIRED', 'Only an unaccepted current proposal can be rejected.');
+      Object.assign(updated, { current_revision_id: null, stage: 'negotiation', probability: DEAL_PROBABILITY.negotiation, rejection: { reason, revision_id: revision.id, rejected_by: actor.id, rejected_at: now } });
     } else if (action === 'activate') {
       if (Object.keys(input).length) throw new HttpError(400, 'BAD_REQUEST', 'Activate does not accept body fields.');
       if (!revision || !acceptance || current.accepted_revision_id !== revision.id || acceptance.revision_id !== revision.id) throw new HttpError(409, 'ACCEPTANCE_REQUIRED', 'Customer acceptance of the current proposal is required.');
-      if (plan) throw new HttpError(409, 'BILLING_PLAN_EXISTS', 'This project already has a base plan. Change orders are not available yet.');
-      writes.push(write('billing_plans', planId, {
+      if (plan && current.deal_type !== 'change_order') throw new HttpError(409, 'BILLING_PLAN_EXISTS', 'This project already has a base plan. Use an accepted change-order deal.');
+      if (!plan && current.deal_type === 'change_order') throw new HttpError(409, 'BASE_PLAN_REQUIRED', 'Activate a base plan before a change order.');
+      if (plan && (plan.billing_method !== revision.billing_method || plan.currency !== revision.currency || (plan.billing_method === 'hourly' && plan.hourly_rate_minor !== revision.hourly_rate_minor))) throw new HttpError(409, 'INCOMPATIBLE_CHANGE_ORDER', 'A change order must preserve billing method, currency and hourly rate.');
+      const combinedAmount = (plan?.amount_minor ?? 0) + revision.amount_minor;
+      if (combinedAmount > 1_000_000_000_000) throw new HttpError(400, 'AMOUNT_RANGE', 'Combined contract value is too large.');
+      writes.push(write('billing_plans', planId, plan ? {
+        ...plan, amount_minor: combinedAmount, planned_minutes: (plan.planned_minutes ?? 0) + (revision.planned_minutes ?? 0),
+        commercial_revision_id: revision.id, end_date: revision.end_date > plan.end_date ? revision.end_date : plan.end_date,
+        version: plan.version + 1, updated_at: now
+      } : {
         id: planId, client_id: project.client_id, project_id: project.id, deal_id: deal.id,
         commercial_revision_id: revision.id, billing_method: revision.billing_method,
         amount_minor: revision.amount_minor, hourly_rate_minor: revision.hourly_rate_minor,

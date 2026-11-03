@@ -1,6 +1,6 @@
 # CRM, project billing, and invoices: architecture and delivery plan
 
-Status: **initial deal/proposal/accepted-plan milestone implemented on a feature branch; remaining roadmap proposed**. Prepared 2026-11-03.
+Status: **application workflows implemented on the feature branch; production activation remains gated by legal review and external provisioning**. Prepared 2026-11-03.
 
 ### Implementation decisions and current boundary
 
@@ -10,11 +10,11 @@ Confirmed during implementation kickoff:
 - Bill monthly at month end; invoices are due 30 days after their issue date.
 - A single platform administrator may assign/revoke SGS issuer authority with a mandatory audited reason. Actual customer workspace ownership is still required; authority assignment grants no financial read access by itself.
 - Start GitHub with repository/board linking; App credentials and automation infrastructure will be configured later.
-- Full roadmap remains the requested scope. This first milestone is not completion of invoices, resource/time tracking, payments, credits, change orders or GitHub integration.
+- Application implementation now includes invoice/resource/time/payment/correction workflows and GitHub delivery integration. Live provider access and production financial authorization require the launch gates below.
 
-Implemented: owner-only CRM navigation; standard list/detail/create/edit forms; fixed-price/hourly commercial terms; immutable published proposals; customer acceptance; SGS activation of one accepted base billing plan per project; durable financial events; indexed cursor lists; owner-invitation controls; finance-linked project retention; administrator issuer assignment.
+Implemented: owner-only CRM navigation; standard list/detail/create/edit forms; fixed-price/hourly terms; immutable proposals; customer acceptance/rejection; base-plan activation and additive change orders; durable financial events; indexed cursor lists; owner-invitation controls; retained projects; issuer assignment; resource/deadline estimates; versioned time approval; fixed billing schedules/cancellation; reviewed month-end source workbench; atomic invoice numbering/source claims; GST snapshots and private archived PDFs; partial payments, allocations/reversal, credits/refunds and aging; durable notification retries; GitHub linking, App-backed reads/explicit commands, signed webhook inbox and service-authenticated reconciliation.
 
-Pending: billing schedules/resources/time statements and claims; invoice legal configuration/numbering/PDFs; payments/credits/refunds; GitHub linking and App/webhook/queue integration; deployment provisioning and production pilot. Defaults are commercial-plan metadata, not an active monthly invoice scheduler.
+Activation pending: actual issuer/legal/bank details and qualified approval, production tax/e-invoicing applicability, GitHub credentials/installation/permissions, infrastructure-managed schedules/secrets/IAM/index deployment, backup/retention approval and a production pilot. Monthly drafts require explicit issuer review; there is no unsupervised charging. V1 uses small private Firestore PDF archives rather than queued GCS document generation, an explicit size cap and Latin-script validation. See [finance API](../api.md#project-finance), [GitHub setup](../github-crm.md) and [operational gates](../deployment.md#crm-activation-and-operations) for the implemented contracts; later sections retain the broader target design, not promises of provisioned services.
 
 ## 1. Executive decision
 
@@ -537,7 +537,7 @@ Already confirmed for this plan:
 - Workspace owners access finances for every project in that workspace.
 - Global SGS admins have no automatic financial access; actual owner membership is required.
 - SGS issues invoices; customer owners review and track payment.
-- Currency/tax configuration is required; jurisdiction remains unconfirmed.
+- Initial currency is INR and jurisdiction India GST; actual legal/tax registration and applicability remain launch gates.
 
 Remaining gates:
 

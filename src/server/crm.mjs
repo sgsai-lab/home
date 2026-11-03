@@ -29,6 +29,7 @@ export async function financeProject(ctx, id) {
 
 /** Revalidates authority and records a durable finance event in the same commit as the mutation. */
 export async function commitFinance(ctx, project, refs, mode, action, mutate) {
+  if (!['issuer', 'customer', 'owner'].includes(mode)) throw new TypeError('Unknown financial authorization mode.');
   const { user } = await ctx.auth();
   ctx.limit('mutations', user.id);
   const eventId = newId('fev');
