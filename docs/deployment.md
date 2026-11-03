@@ -71,7 +71,34 @@ Features whose configuration is missing answer `503` (or `404` for the associati
 
 ### CRM activation and operations
 
-The initial production rollout explicitly pins `CRM_INVOICE_ISSUANCE_ENABLED=false` and `CRM_INVOICE_VOID_ALLOWED=false` in the deployment workflow and does not inject GitHub App credentials. Deals, approvals and draft finance workflows are available to actual owners, but legal issuance/voiding and GitHub automation remain unavailable. Issuer and workspace-owner assignments are configured by the administrator in the website; deployment grants neither. The infrastructure owner must confirm the CRM indexes are READY before rollout. Activation requires a separate reviewed workflow/configuration change after the approvals and infrastructure below are complete.
+Deals, approvals and draft finance workflows are already available to actual owners. The activation workflow defaults invoice issuance and GitHub integration to disabled, and pins voiding to disabled. Preparing or merging deployment wiring does not itself configure an App, approve invoices, create workers or grant access. Keep the activation PR in draft until the readiness checklist below is complete. Issuer and workspace-owner assignments are configured by the administrator in the website; deployment grants neither.
+
+#### Activation inputs and readiness
+
+Set the following GitHub repository variables only after the infrastructure owner and qualified reviewer confirm readiness. Values are configuration references, never private keys, webhook secrets or bank details.
+
+| Repository variable | Purpose |
+| --- | --- |
+| `CRM_GITHUB_ENABLED` | Exact `true` to inject the App configuration; unset/`false` keeps it disabled |
+| `CRM_GITHUB_APP_ID` | Numeric ID obtained after organization-owner App registration; passed as `GITHUB_APP_ID` |
+| `CRM_GITHUB_APP_PRIVATE_KEY_SECRET` | Secret Manager **name** containing the App PEM key, mounted as `GITHUB_APP_PRIVATE_KEY` |
+| `CRM_GITHUB_WEBHOOK_SECRET` | Secret Manager **name** containing the webhook secret, mounted as `GITHUB_WEBHOOK_SECRET` |
+| `CRM_WORKER_AUDIENCE` | Exact HTTPS audience used by the managed worker's Google ID tokens; passed as `GITHUB_CRM_WORKER_AUDIENCE` |
+| `CRM_WORKER_SERVICE_ACCOUNT` | Exact allowed worker service-account email; passed as `GITHUB_CRM_WORKER_SERVICE_ACCOUNT` |
+| `CRM_INVOICE_ISSUANCE_ENABLED` | Exact `true` only after qualified approval; unset/`false` keeps issuance disabled |
+| `CRM_INVOICE_APPROVAL_REFERENCE` | Nonblank qualified-review reference required by deployment when enabling issuance; not sent to the API/browser |
+
+GitHub reserves the `GITHUB_` prefix for configuration-variable names, so repository inputs use `CRM_`; the workflow maps them to the existing runtime names. Secret mounts use `latest`, consistent with the existing SMTP/MFA mounts. Grant the Cloud Run runtime identity access to the named secrets and review the current versions before rollout. The workflow validates flags, required pairs, App ID and secret names before calling `gcloud run deploy`; it does not verify legal approval or provision resources. Each workspace still needs its own approved legal profile/reference in the website; the deployment reference does not replace that runtime check.
+
+Before marking the activation PR ready:
+
+- Organization owner registers/installs the [GitHub App](github-crm.md#organization-owner-registration), confirms selected-repository permissions, obtains the real App ID, and places its key/webhook secret directly in Secret Manager.
+- Infrastructure owner confirms the finance, GitHub command and **`github_webhook_inbox(status, repository)`** indexes READY, runtime secret IAM, worker identity/OIDC, and per-project scheduling. The finance recovery caller must follow all `next_cursor` pages; a single static Scheduler request is not sufficient for a multi-page backlog.
+- Administrator selects the website project and binds the actual repository/organization Project v2 board, with issuer assignment and actual workspace-owner membership verified. No pilot workspace/project/repository is assumed.
+- Qualified reviewer approves real invoice/tax/e-invoicing/numbering/retention requirements, and the issuer records the actual approved workspace profiles. Do not enter example approvals or legal/bank data.
+- Review the repository variables, then approve merge/deployment. Verify App sync/webhook delivery, service-authenticated worker calls and a reviewer-approved invoice pilot after rollout. No test issue, financial record or membership is created automatically.
+
+Missing activation prerequisites are a release blocker, not permission to insert placeholders. The workflow owns the complete Cloud Run environment and secret mounts: disabling `CRM_GITHUB_ENABLED` removes App ID/key/webhook mounts on the next deployment, preserving other declared secrets; when no secret references are configured it explicitly clears mounts. To disable workers too, clear both worker variables. Disabling invoice issuance does not delete or renumber existing records. Voiding remains pinned `false` and requires a further reviewed legal change.
 
 Deploy [Firestore indexes](../config/firestore/firestore.indexes.json) through the infrastructure owner before enabling CRM workloads. Keep the existing deny-all client rules and production memory fallback disabled. No infrastructure is provisioned automatically by the feature branch.
 
@@ -85,7 +112,7 @@ Deploy [Firestore indexes](../config/firestore/firestore.indexes.json) through t
 - Monitor `finance_jobs` failures/exhausted attempts, `delivery_state`, GitHub command ambiguity, webhook lag and service responses. Mail is at-least-once: a process crash after provider acceptance may cause a duplicate minimal notification. Do not silently repeat ambiguous external mutations.
 - PDF creation occurs after financial commit; failure does not roll back an issued number. Replay the original command or retry owner download to archive the immutable snapshot. The private document is then served byte-for-byte, never regenerated by subsequent deployment. Archive size is capped at 600 KB; renderer v1 explicitly rejects unsupported non-Latin text before issuing.
 - Back up financial collections/documents together. Restrict operational DB access, approve retention and test restoration/reconciliation before real money. Do not restore an older application that bypasses owner checks or purges retained projects.
-- The deploy workflow does not yet provision these new environment variables, secrets, scheduler jobs or IAM policies; the infrastructure owner must add them through the supported infrastructure deployment before activation. Keep gates disabled until that rollout is verified.
+- The deploy workflow passes the activation variables and Secret Manager references above; it does not provision App registration, secrets, scheduler jobs, indexes or IAM policies. The infrastructure owner must supply them through the supported infrastructure deployment before activation. Keep flags disabled until that rollout is verified.
 
 Read [finance API](api.md#project-finance) for correction/retry contracts. Roll back by disabling issuance and new GitHub commands, not deleting records, invoice numbers or financial claims.
 
