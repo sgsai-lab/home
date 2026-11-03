@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f9fc">
+  <meta name="robots" content="noindex">
+  <title>Project CRM — SGS AI Technology</title>
+  <meta name="description" content="Owner-only project deals and accepted commercial terms.">
+  <link rel="icon" type="image/x-icon" href="/logo/favicon.ico">
+  <link rel="stylesheet" href="/assets/css/global.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/assets/css/account.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/assets/css/hub.css?v=__ASSET_VERSION__">
+  <script src="/assets/js/app.js?v=__ASSET_VERSION__" defer></script>
+  <script type="module" src="/assets/js/crm.js?v=__ASSET_VERSION__"></script>
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <div id="header-mount"></div>
+  <div id="nav-mount"></div>
+  <main id="main" class="auth-main">
+    <div class="section-wrap">
+      <p><a id="back-link" class="small-link" href="/workspace/">Back to workspace</a></p>
+      <header class="hub-header">
+        <div>
+          <p class="section-kicker">Customer workspace</p>
+          <h1 class="page-title">Project CRM</h1>
+          <p id="crm-workspace" class="hint"></p>
+        </div>
+      </header>
+      <p id="page-status" class="form-status" role="alert" hidden></p>
+      <div id="crm-content" hidden>
+        <p class="offline-banner">Owner-only project CRM. Billing defaults: INR, monthly at month end, net 30. Invoice issuance requires an approved legal profile and deployment authorization. GitHub App automation requires operator configuration.</p>
+        <p><a id="billing-link" class="button button-secondary" hidden>Billing, invoices and GitHub delivery</a></p>
+        <section class="panel" aria-labelledby="deals-heading">
+          <div class="section-head">
+            <h2 id="deals-heading">Deals</h2>
+            <button id="new-deal" type="button" class="button button-primary" hidden>Create deal</button>
+          </div>
+          <form id="filters" class="inline-form">
+            <label class="field">Project
+              <select id="project-filter" name="project"><option value="">All projects</option></select>
+            </label>
+            <label class="field">Stage
+              <select name="stage">
+                <option value="">All stages</option>
+                <option value="qualified">Qualified</option>
+                <option value="discovery">Discovery</option>
+                <option value="proposal">Proposal</option>
+                <option value="negotiation">Negotiation</option>
+                <option value="closed_won">Closed won</option>
+                <option value="closed_lost">Closed lost</option>
+              </select>
+            </label>
+            <button type="submit" class="button button-secondary">Apply filters</button>
+          </form>
+          <div class="table-scroll">
+            <table class="data-table">
+              <caption>Project deals, ordered by record ID</caption>
+              <thead><tr><th>Deal</th><th>Project</th><th>Stage</th><th>Price / cap</th><th>Target close</th><th>Action</th></tr></thead>
+              <tbody id="deals-body"></tbody>
+            </table>
+          </div>
+          <div class="pager">
+            <button id="first-page" type="button" class="button button-secondary button-small">First page</button>
+            <button id="next-page" type="button" class="button button-secondary button-small" disabled>Next page</button>
+          </div>
+        </section>
+        <section id="deal-detail" class="panel" aria-labelledby="detail-heading" hidden>
+          <div class="section-head">
+            <h2 id="detail-heading" tabindex="-1">Deal details</h2>
+            <button id="edit-deal" type="button" class="button button-secondary" hidden>Edit</button>
+          </div>
+          <dl id="detail-fields" class="crm-record"></dl>
+          <div id="deal-actions" class="row-actions"></div>
+          <p id="deal-status" class="form-status" role="status" hidden></p>
+          <h3>Published proposals</h3>
+          <ul id="revision-list" class="team-list"></ul>
+          <button id="more-revisions" type="button" class="button button-secondary button-small" hidden>More proposals</button>
+          <h3>Accepted billing plan</h3>
+          <p id="billing-plan" class="hint"></p>
+          <details id="rejection-panel" hidden>
+            <summary>Request proposal changes</summary>
+            <form id="rejection-form" class="inline-form">
+              <label class="field">Reason for changes
+                <input name="reason" type="text" required maxlength="500">
+              </label>
+              <button type="submit" class="button button-secondary">Reject and request revision</button>
+            </form>
+          </details>
+          <details id="loss-panel" hidden>
+            <summary>Close this deal as lost</summary>
+            <form id="loss-form" class="inline-form">
+              <label class="field">Loss reason
+                <input name="reason" type="text" required maxlength="500">
+              </label>
+              <button type="submit" class="button button-danger">Close lost</button>
+            </form>
+          </details>
+        </section>
+        <section id="deal-editor" class="panel" aria-labelledby="editor-heading" hidden>
+          <h2 id="editor-heading" tabindex="-1">Create deal</h2>
+          <p id="editor-project" class="hint"></p>
+          <p class="hint">Saving changed terms invalidates the current proposal and its acceptance. Publish the saved terms for customer approval.</p>
+          <form id="deal-form">
+            <div class="form-grid">
+              <label class="field">Deal name
+                <input name="name" type="text" required maxlength="120">
+              </label>
+              <label class="field">Billing method
+                <select id="billing-method" name="billing_method">
+                  <option value="fixed">Fixed price</option>
+                  <option value="hourly">Time and materials (hourly)</option>
+                </select>
+              </label>
+              <label class="field">Deal type
+                <select name="deal_type"><option value="base">Base contract</option><option value="change_order">Additional scope / change order</option></select>
+              </label>
+              <label class="field">Price / hourly cap (INR)
+                <input name="amount" type="text" inputmode="decimal" required pattern="[0-9]+(\.[0-9]{1,2})?" maxlength="16">
+              </label>
+              <label class="field">Open stage
+                <select name="stage">
+                  <option value="qualified">Qualified</option>
+                  <option value="discovery">Discovery</option>
+                  <option value="negotiation">Negotiation</option>
+                </select>
+              </label>
+              <label class="field">Planned effort (minutes)
+                <input name="planned_minutes" type="number" min="1" max="60000000" step="1">
+              </label>
+              <label id="hourly-field" class="field" hidden>Hourly rate (INR)
+                <input name="hourly_rate" type="text" inputmode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" maxlength="12">
+              </label>
+              <label class="field">Start date
+                <input name="start_date" type="date">
+              </label>
+              <label class="field">Delivery deadline
+                <input name="end_date" type="date">
+              </label>
+              <label class="field">Expected close date
+                <input name="expected_close_date" type="date">
+              </label>
+            </div>
+            <label class="field">Scope, deliverables and exclusions
+              <textarea name="scope" rows="6" required maxlength="4000"></textarea>
+            </label>
+            <div class="row-actions">
+              <button type="submit" class="button button-primary">Save deal</button>
+              <button id="cancel-edit" type="button" class="button button-secondary">Cancel</button>
+            </div>
+          </form>
+          <p id="editor-status" class="form-status" role="status" hidden></p>
+        </section>
+      </div>
+    </div>
+  </main>
+  <div id="footer-mount"></div>
+</body>
+</html>

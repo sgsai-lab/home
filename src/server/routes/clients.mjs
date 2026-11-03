@@ -1,6 +1,6 @@
 import { HttpError, sanitizeText } from '../http.mjs';
-import { deleteDoc, getDoc, getUserById, findUserByEmail, newId, queryDocs, setDoc, updateDoc, updateUser } from '../db.mjs';
-import { isSgsAdmin, MEMBER_ROLES, membershipId, requireMembership, roleAtLeast, listMembershipsForUser } from '../authz.mjs';
+import { deleteDoc, getDoc, getUserById, findUserByEmail, newId, queryDocs, setDoc, transactDocs, updateDoc, updateUser } from '../db.mjs';
+import { isSgsAdmin, MEMBER_ROLES, membershipId, requireActualOwner, requireMembership, roleAtLeast, listMembershipsForUser } from '../authz.mjs';
 import { randomToken, sha256 } from '../security.mjs';
 import { siteOrigin, templates } from '../mail.mjs';
 import { Checker, SECTORS, SLUG_PATTERN, pageParams, slugify, sortAndPage } from '../validation.mjs';
@@ -184,6 +184,7 @@ async function addMember(ctx) {
   const role = check.oneOf('role', MEMBER_ROLES, { required: true });
   check.done();
   assertCanGrant(actorRole, role);
+  if (role === 'owner') await requireActualOwner(user, client.id);
   const member = await findUserByEmail(email);
   if (!member || member.status !== 'active') throw new HttpError(404, 'USER_NOT_FOUND', 'No active account uses that email. Send an invitation instead.');
   const id = membershipId(client.id, member.id);
@@ -204,6 +205,7 @@ async function updateMember(ctx) {
   const id = membershipId(client.id, ctx.params.user_id);
   const membership = await getDoc('memberships', id);
   if (membership?.status !== 'active') throw new HttpError(404, 'NOT_FOUND', 'Member not found.');
+  if (role === 'owner' || membership.role === 'owner') await requireActualOwner(user, client.id);
   assertCanGrant(actorRole, role);
   if (membership.role === 'owner' && actorRole !== 'owner') throw new HttpError(403, 'FORBIDDEN', 'Only an owner can change another owner.');
   if (membership.role === 'owner' && role !== 'owner' && (await activeOwners(client.id)).length <= 1) {
@@ -222,6 +224,7 @@ async function removeMember(ctx) {
   const membership = await getDoc('memberships', id);
   if (membership?.status !== 'active') throw new HttpError(404, 'NOT_FOUND', 'Member not found.');
   if (membership.role === 'owner') {
+    await requireActualOwner(user, client.id);
     if (!self && actorRole !== 'owner') throw new HttpError(403, 'FORBIDDEN', 'Only an owner can remove another owner.');
     if ((await activeOwners(client.id)).length <= 1) throw new HttpError(409, 'LAST_OWNER', 'A workspace needs at least one owner. Make someone else an owner first.');
   }
@@ -246,6 +249,29 @@ export async function findInviteByToken(token) {
 
 /** Activates the membership and consumes the invite. */
 export async function acceptInviteForUser(invite, user) {
+  if (invite.role === 'owner') {
+    const id = membershipId(invite.client_id, user.id);
+    const role = await transactDocs([
+      { collection: 'invites', id: invite.id },
+      { collection: 'memberships', id },
+      { collection: 'memberships', id: membershipId(invite.client_id, invite.invited_by) },
+      { collection: 'users', id: invite.invited_by }
+    ], ([current, existing, grantor, inviter]) => {
+      if (!current || current.accepted_at) throw new HttpError(410, 'INVITE_CONSUMED', 'This invitation has already been used.');
+      if (current.token_hash !== invite.token_hash || current.expires_at <= Date.now()) throw new HttpError(409, 'INVITE_INVALID', 'This invitation is no longer valid.');
+      if (grantor?.status !== 'active' || grantor.role !== 'owner' || inviter?.status !== 'active') throw new HttpError(409, 'INVITE_AUTHORITY_REVOKED', 'The inviting owner no longer has authority. Ask a current owner for a new invitation.');
+      const now = new Date().toISOString();
+      return {
+        writes: [
+          { collection: 'invites', id: invite.id, data: { ...current, accepted_at: now, accepted_by: user.id } },
+          { collection: 'memberships', id, data: { client_id: invite.client_id, user_id: user.id, role: 'owner', status: 'active', invited_by: invite.invited_by, joined_at: existing?.joined_at ?? now } }
+        ],
+        result: 'owner'
+      };
+    });
+    if (!user.default_client_id) await updateUser(user.id, { default_client_id: invite.client_id });
+    return role;
+  }
   const acceptedAt = new Date().toISOString();
   const { before } = await updateDoc('invites', invite.id, (current) => (current && !current.accepted_at ? { ...current, accepted_at: acceptedAt, accepted_by: user.id } : undefined));
   if (!before || before.accepted_at) throw new HttpError(410, 'INVITE_CONSUMED', 'This invitation has already been used.');
@@ -283,6 +309,7 @@ async function createInvite(ctx) {
   const role = check.oneOf('role', MEMBER_ROLES, { required: true });
   check.done();
   assertCanGrant(actorRole, role);
+  if (role === 'owner') await requireActualOwner(user, client.id);
   ctx.limit('invites', client.id);
   const existingUser = await findUserByEmail(email);
   if (existingUser && (await getDoc('memberships', membershipId(client.id, existingUser.id)))?.status === 'active') {
@@ -314,6 +341,11 @@ async function inviteFor(ctx, minimum = 'admin') {
 
 async function resendInvite(ctx) {
   const { user, invite, client } = await inviteFor(ctx);
+  if (invite.role === 'owner') {
+    await requireActualOwner(user, client.id);
+    const grantor = await getDoc('memberships', membershipId(client.id, invite.invited_by));
+    if (grantor?.status !== 'active' || grantor.role !== 'owner') throw new HttpError(409, 'INVITE_AUTHORITY_REVOKED', 'Create a new invitation from a current owner.');
+  }
   ctx.limit('invites', client.id);
   // A new token invalidates the previous link.
   const emailSent = await sendInvite(ctx, client, invite, user);

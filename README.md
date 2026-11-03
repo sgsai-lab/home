@@ -26,6 +26,8 @@ dist/             Generated static site; not committed
 
 See [architecture and module boundaries](docs/architecture.md), [deployment and operations](docs/deployment.md), and [contribution guidelines](CONTRIBUTING.md).
 
+Product CRM: [architecture and launch gates](docs/product/crm-project-billing-plan.md), [finance API](docs/api.md#project-finance), and [GitHub App setup](docs/github-crm.md). Actual customer workspace owners can manage deals/change orders, resource/time approvals, month-end billing, invoices/PDFs, payments and corrections. GitHub automation and legal invoice issuance remain disabled until their external credentials, permissions and qualified approvals are configured.
+
 AI coding agents: start with [AGENTS.md](AGENTS.md), which links task skills in [.github/skills/](.github/skills/) and file-scoped rules in [.github/instructions/](.github/instructions/).
 
 ## Local development and checks

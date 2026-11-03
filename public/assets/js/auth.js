@@ -51,7 +51,7 @@ export function hasSessionHint() {
   return Boolean(session) || localStorage.getItem(SIGNED_IN_HINT_KEY) === '1';
 }
 
-async function send(path, { method = 'GET', body, token, headers = {} } = {}) {
+async function send(path, { method = 'GET', body, token, headers = {}, cache } = {}) {
   const requestHeaders = { 'X-Client': 'web', ...headers };
   if (body !== undefined) requestHeaders['Content-Type'] = 'application/json';
   if (token) requestHeaders.Authorization = `Bearer ${token}`;
@@ -62,6 +62,7 @@ async function send(path, { method = 'GET', body, token, headers = {} } = {}) {
       method,
       headers: requestHeaders,
       credentials: 'same-origin',
+      ...(cache ? { cache } : {}),
       body: body === undefined ? undefined : JSON.stringify(body)
     });
   } catch {

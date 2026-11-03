@@ -95,6 +95,7 @@ function renderHeader(client, role) {
 }
 
 async function renderWorkspace(clientId) {
+  $('crm-link').hidden = true;
   const [client, projects, products, members] = await Promise.all([
     api(`/clients/${encodeURIComponent(clientId)}`),
     api(`/projects?client_id=${encodeURIComponent(clientId)}&page_size=50&sort=-updated_at`),
@@ -107,11 +108,19 @@ async function renderWorkspace(clientId) {
   await renderApps(products.items);
   renderTeam(members.items);
   $('workspace').hidden = false;
+  try {
+    await api(`/clients/${encodeURIComponent(clientId)}/crm/capabilities`);
+    $('crm-link').href = `/workspace/crm/?client=${encodeURIComponent(clientId)}`;
+    $('crm-link').hidden = false;
+  } catch (error) {
+    if (![403, 404].includes(error.status)) showStatus($('page-status'), describeError(error));
+  }
   // Offline snapshot: names and links only (no tokens or signed URLs). Cleared on sign-out.
   localStorage.setItem(SNAPSHOT_KEY, JSON.stringify({ client, projects: projects.items, products: products.items, members: members.items, saved_at: Date.now() }));
 }
 
 async function renderSnapshot() {
+  $('crm-link').hidden = true;
   const snapshot = JSON.parse(localStorage.getItem(SNAPSHOT_KEY) ?? 'null');
   if (!snapshot) return false;
   renderHeader(snapshot.client, snapshot.client.my_role);

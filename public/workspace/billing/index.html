@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f9fc">
+  <meta name="robots" content="noindex">
+  <title>Project billing — SGS AI Technology</title>
+  <meta name="description" content="Owner-only project resources, billing, invoices and payments.">
+  <link rel="icon" type="image/x-icon" href="/logo/favicon.ico">
+  <link rel="stylesheet" href="/assets/css/global.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/assets/css/account.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/assets/css/hub.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/workspace/billing/billing-page.css?v=__ASSET_VERSION__">
+  <script src="/assets/js/app.js?v=__ASSET_VERSION__" defer></script>
+  <script type="module" src="/assets/js/crm-billing.js?v=__ASSET_VERSION__"></script>
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <div id="header-mount"></div>
+  <div id="nav-mount"></div>
+  <main id="main" class="auth-main">
+    <div class="section-wrap">
+      <p><a id="back-link" class="small-link" href="/workspace/">Back to workspace</a></p>
+      <header class="hub-header">
+        <div>
+          <p class="section-kicker">Customer workspace</p>
+          <h1 class="page-title">Project billing</h1>
+          <p id="billing-project" class="hint"></p>
+        </div>
+        <button id="refresh-billing" type="button" class="button button-secondary">Refresh access and data</button>
+      </header>
+      <p id="page-status" class="form-status" role="alert" hidden></p>
+      <div id="billing-content" hidden>
+        <p class="offline-banner">INR · Monthly billing at month end · Net 30. Rates come from the accepted billing plan. Issuance requires approved legal/tax configuration and an enabled server issuance gate; saving configuration does not enable issuance.</p>
+        <section class="panel" aria-labelledby="summary-heading">
+          <h2 id="summary-heading">Financial overview</h2>
+          <p id="issuance-gate" class="hint"></p>
+          <dl id="finance-summary" class="billing-summary"></dl>
+          <h3>Outstanding balance aging</h3>
+          <dl id="finance-aging" class="billing-summary"></dl>
+          <h3>Resource deadlines and capacity risks</h3>
+          <ul id="resource-risks"></ul>
+        </section>
+        <section class="panel" aria-labelledby="records-heading">
+          <h2 id="records-heading">Finance records</h2>
+          <form id="record-filter" class="inline-form">
+            <label class="field">Record type
+              <select id="record-type" name="resource">
+                <option value="resources">Resources and deadlines</option>
+                <option value="billing-items">Fixed billing items</option>
+                <option value="time-entries">Time entries</option>
+                <option value="time-statements">Time statements</option>
+                <option value="invoices">Invoices</option>
+                <option value="payments">Payments</option>
+                <option value="credit-notes">Credit notes</option>
+                <option value="refunds">Refunds</option>
+              </select>
+            </label>
+            <button type="submit" class="button button-secondary">Show records</button>
+            <button id="new-record" type="button" class="button button-primary" hidden>Create record</button>
+          </form>
+          <p id="list-hint" class="hint"></p>
+          <div class="table-scroll">
+            <table class="data-table">
+              <caption id="records-caption">Project resources and deadlines</caption>
+              <thead id="records-head"></thead>
+              <tbody id="records-body"></tbody>
+            </table>
+          </div>
+          <div class="pager">
+            <button id="first-page" type="button" class="button button-secondary button-small">First page</button>
+            <button id="next-page" type="button" class="button button-secondary button-small" disabled>Next page</button>
+          </div>
+        </section>
+        <section id="record-detail" class="panel" aria-labelledby="detail-heading" hidden>
+          <div class="section-head">
+            <h2 id="detail-heading" tabindex="-1">Record details</h2>
+            <button id="close-detail" type="button" class="button button-secondary">Close details</button>
+          </div>
+          <dl id="detail-fields" class="crm-record"></dl>
+          <div id="detail-lines"></div>
+          <div id="record-actions" class="row-actions"></div>
+        </section>
+        <section id="record-editor" class="panel" aria-labelledby="editor-heading" hidden>
+          <h2 id="editor-heading" tabindex="-1">Create record</h2>
+          <p id="editor-hint" class="hint"></p>
+          <div id="editor-body"></div>
+        </section>
+        <section class="panel" aria-labelledby="profile-heading">
+          <div class="section-head">
+            <h2 id="profile-heading">Legal and tax configuration</h2>
+            <button id="edit-profile" type="button" class="button button-secondary" hidden>Edit configuration</button>
+          </div>
+          <p class="hint">Only the SGS issuer can change this configuration. Invoice issuance may remain disabled by the server, even after legal approval.</p>
+          <dl id="profile-fields" class="crm-record"></dl>
+        </section>
+        <section class="panel" aria-labelledby="github-heading">
+          <h2 id="github-heading">GitHub delivery</h2>
+          <div id="github-delivery"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+  <div id="footer-mount"></div>
+</body>
+</html>

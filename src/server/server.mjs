@@ -27,6 +27,9 @@ import { projectRoutes } from './routes/projects.mjs';
 import { productRoutes, goRoutes } from './routes/products.mjs';
 import { assetRoutes } from './routes/assets.mjs';
 import { auditRoutes } from './routes/audit.mjs';
+import { crmRoutes } from './routes/crm.mjs';
+import { createFinanceWorkerRoutes, financeRoutes } from './routes/finance.mjs';
+import { createGithubCrmRoutes } from './routes/github-crm.mjs';
 
 export { createRateLimiter, sanitizeText };
 
@@ -97,8 +100,6 @@ function createLimiters(overrides = {}) {
   };
 }
 
-const router = createRouter([...authRoutes, ...userRoutes, ...clientRoutes, ...projectRoutes, ...productRoutes, ...assetRoutes, ...auditRoutes, ...goRoutes]);
-
 function createContext({ request, response, url, params, deps, requestId }) {
   let authenticated;
   const ip = clientAddress(request);
@@ -162,9 +163,17 @@ export function createRequestHandler({
   verifyGoogleIdToken = createGoogleVerifier({ clientId: audiences(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_IDS) }),
   verifyAppleIdToken = createAppleVerifier({ clientId: audiences(env.APPLE_CLIENT_ID, env.APPLE_CLIENT_IDS) }),
   storage = createGcsStorage(env),
+  githubAdapter,
+  verifyGithubWorkerIdentity,
   limiters
 } = {}) {
   const deps = { env, sendEmail, verifyGoogleIdToken, verifyAppleIdToken, storage, limiters: createLimiters(limiters) };
+  const router = createRouter([
+    ...authRoutes, ...userRoutes, ...clientRoutes, ...projectRoutes, ...productRoutes, ...assetRoutes, ...auditRoutes,
+    ...crmRoutes, ...financeRoutes, ...goRoutes,
+    ...createGithubCrmRoutes({ env, adapter: githubAdapter, verifyServiceIdentity: verifyGithubWorkerIdentity }),
+    ...createFinanceWorkerRoutes({ env, verifyServiceIdentity: verifyGithubWorkerIdentity })
+  ]);
 
   return async (request, response) => {
     const url = new URL(request.url, 'http://localhost');

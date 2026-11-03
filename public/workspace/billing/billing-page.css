@@ -1,0 +1,75 @@
+.billing-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 16px;
+}
+
+.billing-summary div {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.billing-summary dt {
+  color: var(--muted);
+}
+
+.billing-summary dd {
+  margin: 8px 0 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.billing-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+
+.billing-choice {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.billing-choice input {
+  width: auto;
+}
+
+.billing-picker {
+  margin: 16px 0;
+}
+
+.billing-picker legend {
+  font-weight: 700;
+}
+
+.billing-picker .team-list li {
+  align-items: baseline;
+}
+
+#editor-body,
+#detail-lines {
+  overflow-wrap: anywhere;
+}
+
+#record-actions,
+.billing-picker .pager {
+  margin-top: 16px;
+}
+
+#records-body td {
+  vertical-align: top;
+}
+
+@media (max-width: 560px) {
+  .crm-record {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .crm-record dd {
+    margin-bottom: 12px;
+  }
+}

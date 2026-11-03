@@ -5,6 +5,8 @@ Disallow: /account/
 Disallow: /admin/
 Disallow: /projects/
 Disallow: /workspace/
+Disallow: /workspace/crm/
+Disallow: /workspace/billing/
 Disallow: /login/
 Disallow: /signup/
 Disallow: /forgot-password/

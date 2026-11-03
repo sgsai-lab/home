@@ -1,3 +1,24 @@
+/* Owner-only CRM records. */
+.crm-record {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) minmax(0, 3fr);
+  gap: 12px 20px;
+}
+
+.crm-record dt {
+  color: var(--muted);
+}
+
+.crm-record dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.crm-scope {
+  white-space: pre-wrap;
+}
+
 /* Client hub design system: workspace, projects, account and admin consoles.
    Soft blurred backdrop, frosted panels, settings-style side navigation and sheet dialogs. */
 .hub-main {
