@@ -31,6 +31,14 @@ Happy path: create/review cost or invoice draft -> submit -> approve -> issue in
 
 Delivery remains within the existing billing page/API, with durable events, version preconditions, idempotency, owner-only reads and retained project history. No new legal issuance gate is enabled. Deploy the vendor-bill/expense indexes before production use. Receipt-file attachments, automatic expense rebilling, bank feeds/transfers, inventory, general-ledger accounting, input-tax credits, GST filing and multi-level approvals remain out of scope.
 
+### Organization and multi-project Reports
+
+A dedicated `/workspace/reports/` area now follows the grouping in [Zoho Books Reports](https://www.zoho.com/in/books/help/reports/): organization overview, project profitability/health, receivables aging, payables/expenses, cost categories, cash movement and pending approvals. Filters cover workspace, project, project status and activity dates; every section supports CSV and authorized record drill-down.
+
+Confirmed product-owner change: platform administrators may read organization-wide reports across all workspaces without actual ownership. This supersedes the earlier owner-only reporting audience **only for the Reports API/CSV**. Customer users remain limited to actual-owner workspaces, and billing/CRM record reads, mutations and approvals retain existing owner/issuer guards. Read-only report users cannot act on approval queues without those additional permissions.
+
+Period activity is separate from current balances and approvals. Project margins are management estimates; live reports may restate prior periods after approvals/voids. Cash movement uses payment/refund/reversal dates rather than current settlement status, preserving cross-period reversals. No accounting ledger, statutory balance sheet, bank feed, scheduled/public sharing or offline report cache is claimed. See the [reporting contract](../api.md#organization-and-project-reports) and [rollout permission/index review](../deployment.md#crm-activation-and-operations).
+
 ## 1. Executive decision
 
 Extend the existing client hub with a small, project-centric CRM, not a separate CRM product or a replacement for GitHub.

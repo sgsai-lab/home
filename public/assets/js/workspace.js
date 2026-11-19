@@ -8,6 +8,7 @@ import { setupInstallPrompt } from '/assets/js/pwa.js';
 const $ = (id) => document.getElementById(id);
 const SNAPSHOT_KEY = 'sgsai.workspace.snapshot';
 const canManage = (role) => role === 'owner' || role === 'admin';
+let reportsAdmin = false;
 
 function emptyState(text, action) {
   return h('li', { className: 'empty-state' }, h('p', { text }), action);
@@ -96,6 +97,8 @@ function renderHeader(client, role) {
 
 async function renderWorkspace(clientId) {
   $('crm-link').hidden = true;
+  $('reports-link').hidden = !reportsAdmin;
+  $('reports-link').href = reportsAdmin ? '/workspace/reports/' : `/workspace/reports/?client_id=${encodeURIComponent(clientId)}`;
   const [client, projects, products, members] = await Promise.all([
     api(`/clients/${encodeURIComponent(clientId)}`),
     api(`/projects?client_id=${encodeURIComponent(clientId)}&page_size=50&sort=-updated_at`),
@@ -112,6 +115,7 @@ async function renderWorkspace(clientId) {
     await api(`/clients/${encodeURIComponent(clientId)}/crm/capabilities`);
     $('crm-link').href = `/workspace/crm/?client=${encodeURIComponent(clientId)}`;
     $('crm-link').hidden = false;
+    $('reports-link').hidden = false;
   } catch (error) {
     if (![403, 404].includes(error.status)) showStatus($('page-status'), describeError(error));
   }
@@ -121,6 +125,7 @@ async function renderWorkspace(clientId) {
 
 async function renderSnapshot() {
   $('crm-link').hidden = true;
+  $('reports-link').hidden = true;
   const snapshot = JSON.parse(localStorage.getItem(SNAPSHOT_KEY) ?? 'null');
   if (!snapshot) return false;
   renderHeader(snapshot.client, snapshot.client.my_role);
@@ -169,6 +174,7 @@ async function main() {
     throw error;
   }
   user = await getCurrentUser();
+  reportsAdmin = user.role === 'admin';
   const workspaces = await loadWorkspaces(user);
   const current = chooseWorkspace(workspaces, user);
   if (!current) {

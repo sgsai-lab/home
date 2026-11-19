@@ -68,6 +68,14 @@ The project margin estimate subtracts approved, non-void, tax-inclusive costs fr
 
 GitHub binding/cache/command/inbox records and external-data retention are described in [GitHub CRM setup](github-crm.md). Financial and GitHub histories are distinct: engineering events cannot change financial balances.
 
+### Reporting read model
+
+`/api/v1/reports/finance` aggregates existing projects, base billing plans, invoices, credit notes, receipts, refunds, vendor bills and expenses; it creates no new collection, report snapshot or TTL. This is an explicit **report-only authorization exception**: global platform administrators can read across workspaces without actual ownership; other users are restricted to actual-owner workspaces. Billing/CRM record access and mutations are unchanged. Metadata choices, aggregates, CSV and detail rows use the same report authorization. Downloaded exports cannot be revoked.
+
+Project/source queries traverse ascending `id` cursor pages to completion, backed by workspace-level `client_id,id` composites. Legacy membership discovery uses document-ID paging and active-owner checks. Reports fail explicitly above 500 selected projects, 50,000 source records or 50,000 expanded cash movements rather than returning truncated totals. Aggregates use safe integer paise and INR only.
+
+Report periods apply to invoice/credit activity, approved costs by incurred date, and cash movements by recorded payment/refund/reversal date. Balances, aging, contract value, project risks and approvals are current. Payment/reversal histories preserve cross-period cash movement; later approvals/voids can restate period revenue/cost views, so reports are not historical accounting snapshots. The [API contract](api.md#organization-and-project-reports) defines these semantics.
+
 Queries use equality filters only and are served by Firestore's single-field index merging; [config/firestore/firestore.indexes.json](../config/firestore/firestore.indexes.json) adds composites for the hottest multi-field lookups and exempts large fields from indexing. Sorting, free-text search (`q`) and paging happen in the API after loading at most 1,000–5,000 documents for one workspace scope. That is deliberate for the expected scale (tens of workspaces, hundreds of projects); revisit with cursor pagination or Postgres (API-19) before a workspace exceeds a few thousand documents.
 
 Exception: CRM deal/revision/event lists use `queryPage()` with equality filters, ascending immutable `id`, `startAfter` and a page-size-plus-one fetch. They return a cursor, never totals computed from a truncated scan. Composite indexes cover client/project/stage filters. Deploy the new indexes before enabling CRM in a deployed environment.

@@ -292,7 +292,7 @@ async function selectRecord(resource, record) {
   const epoch = ++state.detailEpoch;
   closeEditor();
   $('record-detail').hidden = true;
-  if (['invoices', 'bills', 'expenses'].includes(resource)) record = await request(`${base}/${resource}/${encode(record.id)}`);
+  record = await request(`${base}/${resource}/${encode(record.id)}`);
   if (epoch !== state.detailEpoch) return;
   state.selected = { resource, record };
   $('detail-heading').textContent = `${titles[resource]} · ${labelOf(record)}`;
@@ -808,13 +808,15 @@ async function main() {
     if (!capabilities.can_prepare && !capabilities.can_accept) throw new ApiError(403, 'FORBIDDEN', 'Finance is available only to workspace owners.');
     if (generation !== state.generation) return;
     state.capabilities = capabilities;
-    state.resource = 'resources';
+    state.resource = Object.hasOwn(titles, params.get('kind')) ? params.get('kind') : 'resources';
     $('record-type').value = state.resource;
     $('billing-project').textContent = project.name ?? projectId;
     $('back-link').href = `/workspace/project/?id=${encode(projectId)}`;
+    $('billing-reports').href = `/workspace/reports/?client_id=${encode(clientId)}&project_id=${encode(projectId)}`;
     await Promise.all([loadSummary(), loadProfile(), loadList()]);
     if (generation !== state.generation) return;
     $('billing-content').hidden = false;
+    if (params.get('record')) await selectRecord(state.resource, { id: params.get('record') });
     mountGithub().catch(report);
   } catch (error) {
     if (generation === state.generation) clearPrivateView();
