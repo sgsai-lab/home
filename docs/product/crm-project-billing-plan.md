@@ -16,6 +16,21 @@ Implemented: owner-only CRM navigation; standard list/detail/create/edit forms; 
 
 Activation pending: actual issuer/legal/bank details and qualified approval, production tax/e-invoicing applicability, GitHub credentials/installation/permissions, infrastructure-managed schedules/secrets/IAM/index deployment, backup/retention approval and a production pilot. Monthly drafts require explicit issuer review; there is no unsupervised charging. V1 uses small private Firestore PDF archives rather than queued GCS document generation, an explicit size cap and Latin-script validation. See [finance API](../api.md#project-finance), [GitHub setup](../github-crm.md) and [operational gates](../deployment.md#crm-activation-and-operations) for the implemented contracts; later sections retain the broader target design, not promises of provisioned services.
 
+### Project billing and expenses extension
+
+The project billing workbench now includes vendor bills, expenses/reimbursements and mandatory invoice/cost approval, using [Zoho Books transaction approvals](https://www.zoho.com/in/books/help/transaction-approval/) as the workflow reference, not a feature-parity claim.
+
+Confirmed product decisions:
+
+- Keep actual workspace ownership plus designated SGS issuer authority for financial mutations; global admins do not gain a finance bypass.
+- Use single-level explicit submission and approval/rejection. Any authorized issuer, including the creator, can approve. Customer scope/time acceptance remains separate.
+- Record project-linked supplier bills and expenses, approve before payment recording, support partial payments/reversals and unpaid-cost voiding with history.
+- Show approved costs, unpaid costs, net issued revenue and an explicitly labelled project margin estimate. Costs include tax; revenue excludes GST and net credits. This is not tax-profit reporting.
+
+Happy path: create/review cost or invoice draft -> submit -> approve -> issue invoice or record actual cost payment -> reconcile. Reject with a reason for correction/resubmission. Editing an approved invoice invalidates approval; approved costs cannot be repriced. Changed invoice billing profiles require fresh drafts. Legacy unissued drafts also require approval; issued originals are unchanged.
+
+Delivery remains within the existing billing page/API, with durable events, version preconditions, idempotency, owner-only reads and retained project history. No new legal issuance gate is enabled. Deploy the vendor-bill/expense indexes before production use. Receipt-file attachments, automatic expense rebilling, bank feeds/transfers, inventory, general-ledger accounting, input-tax credits, GST filing and multi-level approvals remain out of scope.
+
 ## 1. Executive decision
 
 Extend the existing client hub with a small, project-centric CRM, not a separate CRM product or a replacement for GitHub.
@@ -38,7 +53,7 @@ This proposal addresses the billing/invoicing deferral in the earlier [OneAI pla
 | Fixed-price/milestone and resource-hour billing | Retainers, subscription billing, daily-rate variants, multi-entity consolidation |
 | Resource allocations, rate snapshots, approved time, deadlines, budget alerts | Payroll, leave management, advanced capacity optimization |
 | Draft/issued invoices, authenticated PDF download, manual payment reconciliation | Payment gateways, automatic bank feeds, accounting-system synchronization |
-| Partial payments, credit adjustments, correction and reversal history | Full general ledger, automated revenue recognition, accounts payable |
+| Partial payments, credit adjustments, correction and reversal history; approved project bills and expenses | Full general ledger, automated revenue recognition, bank-integrated payables |
 | GitHub App, issue/task views, sprint views, PR links, controlled task updates | Code hosting/editor, automatic repository provisioning, arbitrary bidirectional sync |
 | Owner-only financial dashboards and durable finance audit events | Broad staff finance roles, customer-facing public payment links |
 

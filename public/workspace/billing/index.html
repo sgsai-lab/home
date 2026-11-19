@@ -25,7 +25,7 @@
       <header class="hub-header">
         <div>
           <p class="section-kicker">Customer workspace</p>
-          <h1 class="page-title">Project billing</h1>
+          <h1 class="page-title">Project billing and expenses</h1>
           <p id="billing-project" class="hint"></p>
         </div>
         <button id="refresh-billing" type="button" class="button button-secondary">Refresh access and data</button>
@@ -36,6 +36,8 @@
         <section class="panel" aria-labelledby="summary-heading">
           <h2 id="summary-heading">Financial overview</h2>
           <p id="issuance-gate" class="hint"></p>
+          <p id="approval-count" class="hint" role="status"></p>
+          <p class="hint">Margin estimate = issued revenue excluding GST, less net credits and approved costs including tax. Draft, rejected and void costs are excluded. This is not a general ledger or tax-profit report; bill payments and customer receipts are tracked separately.</p>
           <dl id="finance-summary" class="billing-summary"></dl>
           <h3>Outstanding balance aging</h3>
           <dl id="finance-aging" class="billing-summary"></dl>
@@ -52,6 +54,8 @@
                 <option value="time-entries">Time entries</option>
                 <option value="time-statements">Time statements</option>
                 <option value="invoices">Invoices</option>
+                <option value="bills">Vendor bills</option>
+                <option value="expenses">Project expenses</option>
                 <option value="payments">Payments</option>
                 <option value="credit-notes">Credit notes</option>
                 <option value="refunds">Refunds</option>
@@ -82,11 +86,15 @@
           <div id="detail-lines"></div>
           <div id="record-actions" class="row-actions"></div>
         </section>
-        <section id="record-editor" class="panel" aria-labelledby="editor-heading" hidden>
-          <h2 id="editor-heading" tabindex="-1">Create record</h2>
-          <p id="editor-hint" class="hint"></p>
-          <div id="editor-body"></div>
-        </section>
+        <dialog id="record-editor" class="sheet" aria-labelledby="editor-heading" hidden>
+          <div class="sheet-inner">
+            <div class="sheet-body">
+              <h2 id="editor-heading" tabindex="-1">Create record</h2>
+              <p id="editor-hint" class="hint"></p>
+              <div id="editor-body"></div>
+            </div>
+          </div>
+        </dialog>
         <section class="panel" aria-labelledby="profile-heading">
           <div class="section-head">
             <h2 id="profile-heading">Legal and tax configuration</h2>

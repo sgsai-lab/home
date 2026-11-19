@@ -134,7 +134,7 @@ All command POSTs and profile PUT require `Idempotency-Key`. PATCH, profile PUT 
 | Method | Suffix | Body / behavior |
 | --- | --- | --- |
 | GET/PUT | `/profile` | Workspace-shared billing profile: `customer_name`, `customer_address`, `customer_state_code`, optional `customer_gstin`, `issuer_name`, `issuer_address`, `issuer_state_code`, `issuer_gstin`, `bank_details`, six-digit `sac_code`, `gst_rate_bps`, `legal_approved`, `legal_approval_reference` |
-| GET | `/summary` | INR contract/invoiced/credited/paid/outstanding/unallocated/refunded/overdue totals, aging buckets, resource deadline/capacity risks |
+| GET | `/summary` | INR contract/invoiced/credited/paid/outstanding/unallocated/refunded/overdue totals, aging buckets, resource risks; `net_revenue_minor`, `approved_cost_minor`, `cost_paid_minor`, `payables_outstanding_minor`, `project_margin_minor`, `pending_approval_count` |
 | GET/POST | `/resources` | Create `{name,role,planned_minutes,weekly_capacity_minutes,start_date,end_date}` |
 | GET/PATCH | `/resources/{id}` | View/edit assignment estimates and dates; accepted commercial rate is not editable here |
 | GET/POST | `/time-entries` | Create `{resource_id,work_date,minutes,description}`; work must be within assignment dates, not in the future |
@@ -146,8 +146,9 @@ All command POSTs and profile PUT require `Idempotency-Key`. PATCH, profile PUT 
 | POST | `/billing-items/{id}/cancel` | Issuer; `{reason}`. Unbilled only; preserves record and releases scheduled cap |
 | GET | `/monthly-candidates?month=YYYY-MM` | Eligible approved/unbilled sources through month end, including carryover; `{month,cutoff,source_type,items}` |
 | GET/POST | `/invoices` | Draft `{source_type:"billing_item"\|"time_entry",source_ids,issue_date,billing_month?}` with 1-20 sources. Monthly date cannot precede month end |
-| GET/PATCH | `/invoices/{id}` | Read with settlement/overdue status; only draft `issue_date` can be edited |
-| POST | `/invoices/{id}/issue` | `{}`; legal/deployment gates; source revalidation/claim, cap and unique fiscal number in one transaction; due in 30 days |
+| GET/PATCH | `/invoices/{id}` | Read with settlement/overdue/approval status; only draft `issue_date` can be edited, not while submitted; editing resets approval |
+| POST | `/{kind}/{id}/submit`, `/approve`, `/reject` | `kind` is `invoices`, `bills` or `expenses`. Issuer only; `{}` for submit/approve, `{reason}` for reject. Submit draft/rejected records; approve/reject submitted only. Self-approval allowed |
+| POST | `/invoices/{id}/issue` | `{}`; mandatory invoice approval and legal/deployment gates; source revalidation/claim, cap and unique fiscal number in one transaction; due in 30 days. Changed billing profile since draft returns `409 APPROVED_TERMS_CHANGED`: create a fresh draft |
 | POST | `/invoices/{id}/notify` | `{}`; durable owner notification, visible delivery state. 503 on failure retains issued invoice; retry safely |
 | POST | `/invoices/{id}/void` | `{reason}`; separately gated, unpaid/uncredited only; no source release or number reuse |
 | GET | `/invoices/{id}/document` | Original archived PDF; voided invoices remain downloadable as historical originals with `document_state:"void"` |
@@ -157,12 +158,21 @@ All command POSTs and profile PUT require `Idempotency-Key`. PATCH, profile PUT 
 | GET/POST | `/credit-notes` | `{invoice_id,net_minor,reason}`; cumulative tax rounding, cannot exceed remaining unpaid balance |
 | GET | `/credit-notes/{id}/document` | Archived correction PDF with original invoice reference |
 | GET/POST | `/refunds` | `{payment_id,amount_minor,reason}`; cannot exceed unallocated receipt credit |
+| GET/POST | `/bills`, `/expenses` | Create `{payee,reference,category,description,amount_minor,incurred_date}`; bills also require `due_date` at/after bill date. Positive INR tax-inclusive cost, no future dates. Starts unapproved; retains project against deletion |
+| GET/PATCH | `/bills/{id}`, `/expenses/{id}` | Edit only draft/rejected, non-void costs using the creation fields. Server-owned amounts, approval and history cannot be supplied |
+| POST | `/{kind}/{id}/pay` | Bills/expenses only; `{amount_minor,paid_date,reference}`. Approved, non-void cost; payment date from cost date through today; cannot exceed balance. Records payment already made, does not transfer money |
+| POST | `/{kind}/{id}/reverse-payment` | Bills/expenses only; `{payment_id,reason}`; reverses one unreversed payment and retains the original plus actor/time/reason |
+| POST | `/{kind}/{id}/void` | Bills/expenses only; `{reason}`; no unreversed paid balance, retains all history and excludes cost from summaries |
 
 Every listed collection also supports `GET /{kind}/{id}`. Money is integer paise, INR only, bounded to 1,000,000,000,000 per net amount. Hourly money and GST use integer half-up arithmetic. Intra-state tax splits into CGST/SGST; interstate uses IGST. Allowed reviewed rates are 0/5/12/18/28%. GSTIN format validation is **not** registration verification or tax advice.
 
 Documents return `{filename,content_type,content_base64,checksum,...metadata}` for authenticated Blob download. Private immutable archive records are limited to 600 KB of PDF binary (below Firestore's document limit after base64). Renderer v1 embeds a Latin-script font and explicitly rejects unsupported characters before issuance; it does not silently omit legal text. Extend and approve the font/shaping pipeline before using other scripts.
 
-Monthly billing is an **explicit issuer review workflow**, not automatic charging: select eligible sources for a closed month, batch at most 20 per draft, review, then issue. GitHub activity never creates billable time, changes agreed prices, or issues invoices.
+Monthly billing is an **explicit issuer review workflow**, not automatic charging: select eligible sources for a closed month, batch at most 20 per draft, submit, approve, then issue. GitHub activity never creates billable time, changes agreed prices, or issues invoices.
+
+Invoice approval is separate from customer acceptance of scope/time and legal configuration approval. All invoice drafts, including existing drafts without `approval_status`, require explicit submission and approval. Already issued invoices are unchanged. Approval states are `draft -> submitted -> approved|rejected`; rejected records can be corrected and resubmitted. Invoice edits invalidate approval; approved costs are immutable (void unpaid mistakes and create replacements). `approval_history` retains action/actor/time/reason, capped at 50 transitions with an explicit error on overflow. Costs retain up to 100 `payment_history` entries including reversals. All commands commit with a durable finance event and revalidate issuer/membership, including idempotent replays.
+
+The overview's margin estimate is issued invoice net revenue less net credits and approved, non-void, tax-inclusive bills/expenses. It is not cash profit, a general-ledger balance or a tax filing calculation. Draft/rejected/void costs do not count; approved unpaid costs do. Record a cost either as a supplier bill or an expense, never both. Cost payments are manual records, separate from customer receipts. Receipt references are supported; file attachments, input-tax credits, automatic rebilling, bank feeds, payment gateways and multi-level approvals are not included.
 
 `POST /api/v1/crm/finance-worker/retry` is service-only, not user-session authenticated. Body `{project_id,cursor?}` processes one page of at most 10 durable notification jobs and returns `{results,next_cursor}`. Follow cursors to exhaustion each scheduled run. It uses the same strictly verified OIDC audience/service account as the [GitHub worker](github-crm.md), and revalidates the original issuer's actual membership and entitlement. Expired leases recover; sent jobs skip; failed deliveries back off at least a minute, maximum 10 automatic attempts. Individual job errors appear in results and sanitized logs. An explicit authorized Notify command can start a fresh reviewed retry cycle; lifetime attempt count remains recorded.
 

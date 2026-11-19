@@ -3,7 +3,7 @@ import { getDoc, newId, queryPage } from '../db.mjs';
 import { Checker } from '../validation.mjs';
 import { commitFinance, financeAccess, financeProject, ref, write } from '../crm.mjs';
 import {
-  COLLECTIONS, allProjectRecords, dateField, exactFields, fail, financeCommand,
+  COLLECTIONS, allProjectRecords, approvalChange, dateField, exactFields, fail, financeCommand,
   hourlyAmount, idsField, invoiceView, matchVersion, moneyField, own, requireIssuance, requirePlan, totals, versionOf
 } from '../finance.mjs';
 import { renderInvoicePdf, validateDocumentText } from '../invoice-pdf.mjs';
@@ -200,7 +200,7 @@ async function createInvoice(ctx, project, input) {
   return financeCommand(ctx, project, 'invoice.create', input, [
     ref('invoices', id), ref('billing_plans', basePlanId(project)), ref('billing_profiles', profileId(project)),
     ...ids.map((sourceId) => ref(sourceCollection, sourceId))
-  ], 'issuer', 'invoice.drafted', ([_current, plan, profile, ...sources], { now }) => {
+  ], 'issuer', 'invoice.drafted', ([_current, plan, profile, ...sources], { now, user }) => {
     requirePlan(plan, project, values.source_type === 'billing_item' ? 'fixed' : 'hourly');
     if (cutoff && sources.some((source) => own(source, project)[values.source_type === 'billing_item' ? 'due_date' : 'work_date'] > cutoff)) fail('OUTSIDE_BILLING_PERIOD', 'A source falls after this billing month.');
     const lines = invoiceLines(sources, values.source_type, project);
@@ -208,7 +208,7 @@ async function createInvoice(ctx, project, input) {
       ...seed(id, project, now), ...values, project_name: project.name, source_ids: ids,
       lines, ...totals(lines, profile), profile_snapshot: profile ?? null, plan_version: plan.version,
       document_state: 'draft', number: null, paid_minor: 0, credited_minor: 0, credited_net_minor: 0,
-      due_date: null, delivery_state: 'not_requested'
+      due_date: null, delivery_state: 'not_requested', approval_status: 'draft', approval_history: [], created_by: user.id
     };
     return { writes: [write('invoices', id, record)], result: record };
   });
@@ -217,7 +217,7 @@ async function createInvoice(ctx, project, input) {
 async function create(ctx) {
   const project = await financeProject(ctx, ctx.params.project_id);
   const input = await ctx.body();
-  const handlers = { resources: createResource, 'billing-items': createBillingItem, 'time-entries': createTime, 'time-statements': createStatement, invoices: createInvoice, payments: createPayment, 'credit-notes': createCredit, refunds: createRefund };
+  const handlers = { resources: createResource, 'billing-items': createBillingItem, 'time-entries': createTime, 'time-statements': createStatement, invoices: createInvoice, payments: createPayment, 'credit-notes': createCredit, refunds: createRefund, bills: createCost, expenses: createCost };
   const handler = handlers[ctx.params.kind];
   if (!handler) fail('NOT_FOUND', 'Unknown finance operation.', 404);
   const record = await handler(ctx, project, input);
@@ -229,10 +229,11 @@ async function edit(ctx) {
   const project = await financeProject(ctx, ctx.params.project_id);
   const input = await ctx.body();
   const kind = ctx.params.kind;
-  if (!['resources', 'time-entries', 'invoices'].includes(kind)) fail('IMMUTABLE_RECORD', 'This record cannot be edited.');
+  const isCost = ['bills', 'expenses'].includes(kind);
+  if (!['resources', 'time-entries', 'invoices', 'bills', 'expenses'].includes(kind)) fail('IMMUTABLE_RECORD', 'This record cannot be edited.');
   const collection = COLLECTIONS[kind];
   const before = own(await getDoc(collection, ctx.params.id), project);
-  const values = kind === 'resources' ? readResource(input, before) : kind === 'time-entries' ? readTime(input, before) : (() => {
+  const values = isCost ? readCost(input, kind, before) : kind === 'resources' ? readResource(input, before) : kind === 'time-entries' ? readTime(input, before) : (() => {
     const check = new Checker(input);
     exactFields(check, ['issue_date']);
     dateField(check, 'issue_date');
@@ -240,7 +241,7 @@ async function edit(ctx) {
   })();
   const refs = [ref(collection, before.id)];
   if (kind === 'time-entries') refs.push(ref('crm_resources', values.resource_id));
-  const result = await financeCommand(ctx, project, `${kind}.${before.id}.edit`, input, refs, 'issuer', `${kind.replaceAll('-', '_')}.updated`, ([current, resource], { now }) => {
+  const result = await financeCommand(ctx, project, `${kind}.${before.id}.edit`, input, refs, 'issuer', `${kind.replaceAll('-', '_')}.updated`, ([current, resource], { now, user }) => {
     own(current, project);
     matchVersion(ctx, current);
     if (kind === 'time-entries') {
@@ -251,10 +252,108 @@ async function edit(ctx) {
       values.resource_name = resource.name;
     }
     if (kind === 'invoices' && current.document_state !== 'draft') fail('IMMUTABLE_INVOICE', 'Issued invoice terms cannot be edited.');
-    const record = nextRecord(current, values, now);
+    if (isCost && (current.status === 'void' || !['draft', 'rejected'].includes(current.approval_status))) fail('COST_LOCKED', 'Only draft or rejected costs can be edited.');
+    if (kind === 'invoices' && current.approval_status === 'submitted') fail('APPROVAL_PENDING', 'Reject the submitted invoice before editing.');
+    const reset = (isCost || kind === 'invoices') && ['approved', 'rejected'].includes(current.approval_status)
+      ? approvalChange(current, 'invalidate', user, now) : {};
+    const record = nextRecord(current, { ...values, ...reset }, now);
     return { writes: [write(collection, current.id, record)], result: record };
   });
   return send(ctx, 200, result);
+}
+
+function readCost(input, kind, current = {}) {
+  const check = new Checker({ ...current, ...input });
+  const allowed = ['payee', 'reference', 'category', 'description', 'amount_minor', 'incurred_date', ...(kind === 'bills' ? ['due_date'] : [])];
+  for (const key of Object.keys(input)) if (!allowed.includes(key)) check.fail(key, 'This field cannot be set here.');
+  for (const key of ['payee', 'reference', 'category', 'description']) check.text(key, { required: true, min: 1, max: key === 'description' ? 1000 : 200 });
+  moneyField(check, 'amount_minor');
+  dateField(check, 'incurred_date');
+  if (kind === 'bills') {
+    dateField(check, 'due_date');
+    if (check.output.due_date < check.output.incurred_date) check.fail('due_date', 'Due date cannot precede the bill date.');
+  }
+  if (check.output.incurred_date > new Date().toISOString().slice(0, 10)) check.fail('incurred_date', 'Costs cannot be recorded in the future.');
+  return check.done();
+}
+
+async function createCost(ctx, project, input) {
+  const kind = ctx.params.kind;
+  const values = readCost(input, kind);
+  const collection = COLLECTIONS[kind];
+  const id = newId(kind === 'bills' ? 'vbl' : 'exp');
+  return financeCommand(ctx, project, `${kind}.create`, input, [ref(collection, id)], 'issuer', `${kind}.created`, ([_existing], { now, user, project: currentProject }) => {
+    const record = {
+      ...seed(id, project, now), ...values, created_by: user.id, status: 'open',
+      approval_status: 'draft', approval_history: [], paid_minor: 0, payment_history: []
+    };
+    const writes = [write(collection, id, record)];
+    if (!currentProject.finance_retained) writes.push(write('projects', project.id, {
+      ...currentProject, finance_retained: true, expires_at: null, version: (currentProject.version ?? 1) + 1, updated_at: now
+    }));
+    return { writes, result: record };
+  });
+}
+
+async function approvalAction(ctx, project, before, input) {
+  const { kind, action } = ctx.params;
+  const check = new Checker(input);
+  exactFields(check, action === 'reject' ? ['reason'] : []);
+  if (action === 'reject') check.text('reason', { required: true, min: 1, max: 500 });
+  const values = check.done();
+  return financeCommand(ctx, project, `${kind}.${before.id}.${action}`, input, [ref(COLLECTIONS[kind], before.id)], 'issuer', `${kind}.${action}`, ([current], { now, user }) => {
+    own(current, project);
+    matchVersion(ctx, current);
+    if ((kind === 'invoices' && current.document_state !== 'draft') || current.status === 'void') fail('IMMUTABLE_RECORD', 'Only active drafts can enter approval.');
+    const status = current.approval_status ?? 'draft';
+    if (action === 'submit' ? !['draft', 'rejected'].includes(status) : status !== 'submitted') fail('APPROVAL_STATE', 'Submit a draft before approval or rejection. Only rejected records may be resubmitted.');
+    const record = nextRecord(current, approvalChange(current, action, user, now, values.reason), now);
+    return { writes: [write(COLLECTIONS[kind], current.id, record)], result: record };
+  });
+}
+
+async function costAction(ctx, project, before, input) {
+  const { kind, action } = ctx.params;
+  const check = new Checker(input);
+  if (action === 'pay') {
+    exactFields(check, ['amount_minor', 'paid_date', 'reference']);
+    moneyField(check, 'amount_minor');
+    dateField(check, 'paid_date');
+    check.text('reference', { required: true, min: 1, max: 200 });
+  } else if (['reverse-payment', 'void'].includes(action)) {
+    exactFields(check, action === 'void' ? ['reason'] : ['payment_id', 'reason']);
+    check.text('reason', { required: true, min: 1, max: 500 });
+    if (action === 'reverse-payment') check.text('payment_id', { required: true, min: 1, max: 100 });
+  } else fail('NOT_FOUND', 'Unknown cost action.', 404);
+  const values = check.done();
+  const paymentId = newId('cpm');
+  return financeCommand(ctx, project, `${kind}.${before.id}.${action}`, input, [ref(COLLECTIONS[kind], before.id)], 'issuer', `${kind}.${action}`, ([current], { now, user }) => {
+    own(current, project);
+    matchVersion(ctx, current);
+    if (current.status === 'void') fail('COST_VOID', 'A void cost cannot be changed.');
+    let changes;
+    if (action === 'void') {
+      if (current.paid_minor) fail('COST_PAID', 'Reverse recorded payments before voiding this cost.');
+      changes = { status: 'void', void_reason: values.reason, voided_at: now, voided_by: user.id };
+    } else {
+      if (current.approval_status !== 'approved') fail('APPROVAL_REQUIRED', 'Approve this cost before recording payment.');
+      if (action === 'pay') {
+        if (values.paid_date > now.slice(0, 10) || values.paid_date < current.incurred_date) fail('PAYMENT_DATE', 'Payment date must be between the cost date and today.', 400);
+        if (values.amount_minor > current.amount_minor - current.paid_minor) fail('EXCESS_PAYMENT', 'Payment exceeds the outstanding cost.');
+        if (current.payment_history.length >= 100) fail('PAYMENT_LIMIT', 'At most 100 payments per cost. Contact finance for reconciliation.');
+        changes = { paid_minor: current.paid_minor + values.amount_minor, payment_history: [...current.payment_history, { id: paymentId, ...values, recorded_by: user.id, recorded_at: now }] };
+      } else {
+        const payment = current.payment_history.find((entry) => entry.id === values.payment_id);
+        if (!payment || payment.reversed_at) fail('PAYMENT_NOT_REVERSIBLE', 'Choose an unreversed payment on this cost.');
+        changes = {
+          paid_minor: current.paid_minor - payment.amount_minor,
+          payment_history: current.payment_history.map((entry) => entry.id === payment.id ? { ...entry, reversed_at: now, reversed_by: user.id, reversal_reason: values.reason } : entry)
+        };
+      }
+    }
+    const record = nextRecord(current, changes, now);
+    return { writes: [write(COLLECTIONS[kind], current.id, record)], result: record };
+  });
 }
 
 async function sourceAction(ctx, project, kind, before, input) {
@@ -315,6 +414,7 @@ async function issueInvoice(ctx, project, before, input) {
     own(current, project);
     matchVersion(ctx, current);
     requireIssuance(ctx, profile);
+    if (current.approval_status !== 'approved') fail('APPROVAL_REQUIRED', 'Submit and approve this invoice before issuance.');
     requirePlan(plan, project, before.source_type === 'billing_item' ? 'fixed' : 'hourly');
     if (current.document_state !== 'draft') fail('ALREADY_ISSUED', 'Invoice has already been issued.');
     if (current.issue_date !== before.issue_date) fail('INVOICE_CHANGED', 'Reload the invoice date.');
@@ -323,6 +423,10 @@ async function issueInvoice(ctx, project, before, input) {
     const lines = invoiceLines(sources, current.source_type, project, { issuing: true, issueDate: current.issue_date });
     if (lines.some((line, index) => line.source_version !== current.lines[index].source_version)) fail('SOURCE_CHANGED', 'A billing source changed. Create a fresh draft.');
     const calculated = totals(lines, profile);
+    if (profile.version !== current.profile_snapshot?.version ||
+      calculated.total_minor !== current.total_minor || calculated.net_minor !== current.net_minor) {
+      fail('APPROVED_TERMS_CHANGED', 'The billing profile or invoice totals changed after drafting. Create a fresh draft for review and approval.');
+    }
     validateDocumentText([...Object.values(profile).filter((value) => typeof value === 'string'), current.project_name, ...lines.map((line) => line.description)]);
     const billed = (plan.billed_minor ?? 0) + calculated.net_minor;
     if (billed > plan.amount_minor) fail('CONTRACT_CAP', 'Invoice would exceed the accepted contract cap.');
@@ -571,7 +675,9 @@ async function action(ctx) {
   const before = own(await getDoc(collection, ctx.params.id), project);
   const input = await ctx.body();
   let result;
-  if (['billing-items', 'time-statements'].includes(ctx.params.kind)) result = await sourceAction(ctx, project, ctx.params.kind, before, input);
+  if (['invoices', 'bills', 'expenses'].includes(ctx.params.kind) && ['submit', 'approve', 'reject'].includes(ctx.params.action)) result = await approvalAction(ctx, project, before, input);
+  else if (['bills', 'expenses'].includes(ctx.params.kind)) result = await costAction(ctx, project, before, input);
+  else if (['billing-items', 'time-statements'].includes(ctx.params.kind)) result = await sourceAction(ctx, project, ctx.params.kind, before, input);
   else if (ctx.params.kind === 'payments') result = await paymentAction(ctx, project, before, input);
   else if (ctx.params.kind === 'invoices') {
     const handler = { issue: issueInvoice, void: voidInvoice, notify: notifyInvoice }[ctx.params.action];
@@ -618,13 +724,18 @@ async function creditDocument(ctx) {
 }
 async function summary(ctx) {
   const project = await financeProject(ctx, ctx.params.project_id);
-  const [plan, invoiceRecords, payments, credits, refunds, resources] = await Promise.all([
+  const [plan, invoiceRecords, payments, credits, refunds, resources, bills, expenses] = await Promise.all([
     getDoc('billing_plans', basePlanId(project)), allProjectRecords('invoices', project), allProjectRecords('payments', project),
-    allProjectRecords('credit_notes', project), allProjectRecords('refunds', project), allProjectRecords('crm_resources', project)
+    allProjectRecords('credit_notes', project), allProjectRecords('refunds', project), allProjectRecords('crm_resources', project),
+    allProjectRecords('vendor_bills', project), allProjectRecords('project_expenses', project)
   ]);
   const invoices = invoiceRecords.filter((invoice) => invoice.document_state === 'issued').map(invoiceView);
   const sum = (records, field) => records.reduce((total, record) => total + (record[field] ?? 0), 0);
   const today = new Date().toISOString().slice(0, 10);
+  const costs = [...bills, ...expenses].filter((record) => record.status !== 'void' && record.approval_status === 'approved');
+  const approvedCost = sum(costs, 'amount_minor');
+  const costPaid = sum(costs, 'paid_minor');
+  const netRevenue = sum(invoices, 'net_minor') - sum(credits, 'net_minor');
   const atRisk = resources.filter((resource) => {
     const days = Math.max(0, (Date.parse(resource.end_date) - Date.parse(resource.start_date)) / 86400000 + 1);
     return resource.planned_minutes > Math.floor(days / 7 * resource.weekly_capacity_minutes) || resource.end_date < today;
@@ -640,6 +751,9 @@ async function summary(ctx) {
     credited_minor: sum(credits, 'total_minor'), paid_minor: sum(invoices, 'paid_minor'),
     outstanding_minor: sum(invoices, 'outstanding_minor'), unallocated_minor: sum(payments.filter((payment) => payment.status === 'confirmed'), 'unallocated_minor'),
     refunded_minor: sum(refunds, 'amount_minor'), overdue_minor: sum(invoices.filter((invoice) => invoice.overdue), 'outstanding_minor'),
+    net_revenue_minor: netRevenue, approved_cost_minor: approvedCost, cost_paid_minor: costPaid,
+    payables_outstanding_minor: approvedCost - costPaid, project_margin_minor: netRevenue - approvedCost,
+    pending_approval_count: [...invoiceRecords, ...bills, ...expenses].filter((record) => record.approval_status === 'submitted' && record.status !== 'void' && (!record.document_state || record.document_state === 'draft')).length,
     at_risk_resources: atRisk, aging,
     invoice_issuance_enabled: ctx.env.CRM_INVOICE_ISSUANCE_ENABLED === 'true'
   });

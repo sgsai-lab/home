@@ -21,6 +21,8 @@
     { "collectionGroup": "payments", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] },
     { "collectionGroup": "credit_notes", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] },
     { "collectionGroup": "refunds", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] },
+    { "collectionGroup": "vendor_bills", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] },
+    { "collectionGroup": "project_expenses", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] },
     { "collectionGroup": "github_crm_commands", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }] },
     { "collectionGroup": "github_webhook_inbox", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "repository", "order": "ASCENDING" }] },
     { "collectionGroup": "finance_jobs", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "client_id", "order": "ASCENDING" }, { "fieldPath": "project_id", "order": "ASCENDING" }, { "fieldPath": "id", "order": "ASCENDING" }] }
@@ -37,6 +39,11 @@
     { "collectionGroup": "idempotency_records", "fieldPath": "result", "indexes": [] },
     { "collectionGroup": "invoices", "fieldPath": "profile_snapshot", "indexes": [] },
     { "collectionGroup": "invoices", "fieldPath": "lines", "indexes": [] },
+    { "collectionGroup": "invoices", "fieldPath": "approval_history", "indexes": [] },
+    { "collectionGroup": "vendor_bills", "fieldPath": "approval_history", "indexes": [] },
+    { "collectionGroup": "vendor_bills", "fieldPath": "payment_history", "indexes": [] },
+    { "collectionGroup": "project_expenses", "fieldPath": "approval_history", "indexes": [] },
+    { "collectionGroup": "project_expenses", "fieldPath": "payment_history", "indexes": [] },
     { "collectionGroup": "credit_notes", "fieldPath": "profile_snapshot", "indexes": [] },
     { "collectionGroup": "finance_documents", "fieldPath": "content_base64", "indexes": [] }
   ]

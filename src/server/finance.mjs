@@ -7,7 +7,7 @@ export const MAX_MONEY = 1_000_000_000_000;
 export const COLLECTIONS = {
   resources: 'crm_resources', 'billing-items': 'billing_items', 'time-entries': 'time_entries',
   'time-statements': 'time_statements', invoices: 'invoices', payments: 'payments',
-  'credit-notes': 'credit_notes', refunds: 'refunds'
+  'credit-notes': 'credit_notes', refunds: 'refunds', bills: 'vendor_bills', expenses: 'project_expenses'
 };
 export const fail = (code, message, status = 409) => { throw new HttpError(status, code, message); };
 export const versionOf = (record) => `"v${record?.version ?? 0}"`;
@@ -73,6 +73,17 @@ export function requirePlan(plan, project, method) {
 export function requireIssuance(ctx, profile) {
   if (ctx.env.CRM_INVOICE_ISSUANCE_ENABLED !== 'true') fail('ISSUANCE_DISABLED', 'Invoice issuance is disabled. Configure and approve legal/tax requirements before enabling it.', 503);
   if (!profile?.legal_approved || !profile.legal_approval_reference) fail('LEGAL_CONFIGURATION_REQUIRED', 'An approved legal billing profile is required.', 503);
+}
+
+export function approvalChange(record, action, user, now, reason = null) {
+  const history = record.approval_history ?? [];
+  if (history.length >= 50) fail('APPROVAL_HISTORY_LIMIT', 'Approval history is full. Create a new draft and void the old record where permitted.');
+  return {
+    approval_status: { submit: 'submitted', approve: 'approved', reject: 'rejected', invalidate: 'draft' }[action],
+    approved_by: action === 'approve' ? user.id : null,
+    approved_at: action === 'approve' ? now : null,
+    approval_history: [...history, { action, actor_id: user.id, at: now, reason }]
+  };
 }
 
 /** Replays are still authorized; command identity is tenant/actor/operation scoped. */
