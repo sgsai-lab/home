@@ -140,3 +140,65 @@ test('reports include archived projects, enforce scope/row limits and reject uns
   assert.equal(oversized.data.error.code, 'REPORT_TOO_LARGE');
   assert.equal((await ctx.get('?project_id=project_two')).status, 200, 'A project filter narrows oversized scope');
 });
+
+test('workspace profit and loss reconciles multiple projects, credits, approved costs and losses', async (t) => {
+  const ctx = await setup(t);
+  await setDoc('projects', 'second_one', { id: 'second_one', client_id: 'one', name: 'Second project', status: 'delivered', milestones: [] });
+  await ctx.seed('invoices', 'extra_revenue', { project_id: 'second_one', document_state: 'issued', net_minor: 3000, total_minor: 3000, paid_minor: 3000, credited_minor: 0, issue_date: '2026-02-01', due_date: '2026-02-10' });
+  await ctx.seed('project_expenses', 'extra_cost', { project_id: 'second_one', approval_status: 'approved', status: 'open', amount_minor: 500, paid_minor: 500, incurred_date: '2026-02-02' });
+  await ctx.seed('project_expenses', 'loss_cost', { approval_status: 'approved', status: 'open', amount_minor: 40000, paid_minor: 5000, incurred_date: '2026-02-02' }, 'two');
+  const report = (await ctx.get('?from=2026-02-01&to=2026-02-28')).data;
+  assert.equal(report.workspace_pnl.length, 2);
+  const [one, two] = report.workspace_pnl;
+  assert.equal(one.projects_count, 2);
+  assert.equal(one.net_revenue_minor, 12000);
+  assert.equal(one.invoiced_net_minor, 13000);
+  assert.equal(one.credit_net_minor, 1000);
+  assert.equal(one.bill_cost_minor, 5000);
+  assert.equal(one.expense_cost_minor, 500);
+  assert.equal(one.approved_cost_minor, 5500);
+  assert.equal(one.margin_minor, 6500);
+  assert.equal(one.pending_approval_count, 2);
+  assert.equal(two.margin_minor, -20000);
+  assert.equal(report.workspace_pnl.reduce((total, row) => total + row.margin_minor, 0), report.overview.margin_minor);
+  const owner = (await ctx.get('?from=2026-02-01&to=2026-02-28', ctx.owner)).data;
+  assert.equal(owner.workspace_pnl.length, 1);
+  assert.equal(owner.workspace_pnl[0].client_id, 'one');
+  const project = (await ctx.get('?project_id=second_one&from=2026-02-01&to=2026-02-28')).data;
+  assert.equal(project.workspace_pnl.length, 1);
+  assert.equal(project.workspace_pnl[0].margin_minor, 2500);
+  const april = (await ctx.get('?client_id=two&from=2026-04-01&to=2026-04-30')).data.workspace_pnl[0];
+  assert.equal(april.margin_minor, 0);
+  assert.equal(april.payable_minor, 35000, 'Current balances are not historical period activity');
+});
+
+test('invoice and cost registers include paid, draft, rejected and void records without double-counting profit', async (t) => {
+  const ctx = await setup(t);
+  await ctx.seed('invoices', 'paid_invoice', { number: 'INV-PAID', document_state: 'issued', issue_date: '2026-02-01', due_date: '2026-03-01', net_minor: 5000, total_minor: 5900, paid_minor: 5900, credited_minor: 0 });
+  await ctx.seed('project_expenses', 'paid_expense', { payee: 'Paid supplier', reference: 'PAID-EXP', amount_minor: 1432, incurred_date: '2026-02-03', approval_status: 'approved', status: 'open', paid_minor: 1432 });
+  await ctx.seed('project_expenses', 'rejected_expense', { payee: 'Rejected supplier', reference: 'REJECT-EXP', amount_minor: 9000, incurred_date: '2026-02-03', approval_status: 'rejected', status: 'open', paid_minor: 0 });
+  const report = (await ctx.get('?from=2026-02-01&to=2026-02-28', ctx.owner)).data;
+  assert.equal(report.invoices.length, 4);
+  assert.equal(report.invoices.find((row) => row.id === 'paid_invoice').settlement_state, 'paid');
+  assert.equal(report.invoices.find((row) => row.id === 'paid_invoice').outstanding_minor, 0);
+  assert.equal(report.invoices.find((row) => row.id === 'draft').outstanding_minor, 0);
+  assert.equal(report.invoices.find((row) => row.id === 'void').outstanding_minor, 0);
+  assert.equal(report.costs.length, 5);
+  assert.equal(report.costs.find((row) => row.id === 'paid_expense').paid_minor, 1432);
+  assert.equal(report.costs.find((row) => row.id === 'rejected_expense').outstanding_minor, 0);
+  assert.equal(report.overview.approved_cost_minor, 6432);
+  assert.equal(report.overview.net_revenue_minor, 14000);
+  const outside = (await ctx.get('?from=2026-04-01&to=2026-04-30')).data;
+  assert.equal(outside.invoices.length, 0);
+  assert.equal(outside.costs.length, 0);
+  assert.ok(outside.receivables.length > 0);
+  for (const section of ['workspace_pnl', 'invoices', 'costs']) {
+    const csv = await call(ctx.baseUrl, `/api/v1/reports/finance/export?section=${section}&from=2026-02-01&to=2026-02-28`, { token: ctx.owner.token });
+    assert.equal(csv.status, 200);
+    assert.ok(!csv.data.content.includes('Customer two'));
+    if (section === 'costs') {
+      assert.match(csv.data.content, /"14\.32"/);
+      assert.match(csv.data.content, /'\=HYPERLINK/);
+    }
+  }
+});

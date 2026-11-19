@@ -58,13 +58,16 @@
           <button class="button button-secondary" type="submit">Apply filters</button>
         </form>
         <p id="report-period" class="hint" role="status"></p>
-        <p class="hint">Date filters apply to activity and cost categories. Receivables, payables, contract balances, project risks and approvals are current, not historical as-of balances. Archived projects are included unless filtered; deleted projects are excluded.</p>
+        <p class="hint">Date filters apply to activity, workspace profit/loss and invoice/cost registers. Receivables, payables, contract balances, project risks and approvals are current, not historical as-of balances. Archived projects are included unless filtered; deleted projects are excluded.</p>
       </section>
       <div id="report-content" hidden>
         <div class="hub-shell">
           <nav id="report-tabs" class="hub-sidenav" role="tablist" aria-label="Report sections">
             <button id="tab-overview" type="button" role="tab" aria-selected="true" aria-controls="panel-overview" data-hash="overview">Organization overview</button>
+            <button id="tab-workspace-pnl" type="button" role="tab" aria-selected="false" aria-controls="panel-workspace-pnl" data-hash="workspace_pnl" tabindex="-1">Workspace profit and loss</button>
             <button id="tab-projects" type="button" role="tab" aria-selected="false" aria-controls="panel-projects" data-hash="projects" tabindex="-1">Project portfolio</button>
+            <button id="tab-invoices" type="button" role="tab" aria-selected="false" aria-controls="panel-invoices" data-hash="invoices" tabindex="-1">Customer invoice register</button>
+            <button id="tab-costs" type="button" role="tab" aria-selected="false" aria-controls="panel-costs" data-hash="costs" tabindex="-1">Bills and expense register</button>
             <button id="tab-receivables" type="button" role="tab" aria-selected="false" aria-controls="panel-receivables" data-hash="receivables" tabindex="-1">Receivables aging</button>
             <button id="tab-payables" type="button" role="tab" aria-selected="false" aria-controls="panel-payables" data-hash="payables" tabindex="-1">Payables and expenses</button>
             <button id="tab-categories" type="button" role="tab" aria-selected="false" aria-controls="panel-categories" data-hash="categories" tabindex="-1">Cost categories</button>
@@ -81,10 +84,25 @@
               <h3>Monthly activity</h3>
               <div id="trends-table"></div>
             </section>
+            <section id="panel-workspace-pnl" class="panel" role="tabpanel" aria-labelledby="tab-workspace-pnl" hidden>
+              <h2>Workspace profit and loss</h2>
+              <p class="hint">Selected projects grouped by customer workspace. Profit/loss estimate = issued invoice net value less credits, approved supplier bills and approved project expenses in the period. Revenue excludes GST; costs include tax. Draft, rejected and void documents do not contribute. This is a live management estimate, not statutory profit and loss; non-project overheads are not included.</p>
+              <div id="workspace-pnl-table"></div>
+            </section>
             <section id="panel-projects" class="panel" role="tabpanel" aria-labelledby="tab-projects" hidden>
               <h2>Multi-project portfolio</h2>
               <p class="hint">Revenue is current non-void invoice net value by issue date, less credits dated in the period. Costs are currently approved, non-void bills and expenses by incurred date, including tax. Margin is an estimate, not tax profit.</p>
               <div id="projects-table"></div>
+            </section>
+            <section id="panel-invoices" class="panel" role="tabpanel" aria-labelledby="tab-invoices" hidden>
+              <h2>All customer invoices</h2>
+              <p class="hint">Invoices across the selected customer workspaces/projects, filtered by issue date. Includes paid, unpaid, draft, rejected and void invoices, with their current approval and settlement states. Only issued, non-void invoices contribute to revenue. Deals without an invoice are not fabricated or charged automatically. Open a record using existing billing permissions; approval and legal issuance checks still apply.</p>
+              <div id="invoices-table"></div>
+            </section>
+            <section id="panel-costs" class="panel" role="tabpanel" aria-labelledby="tab-costs" hidden>
+              <h2>All supplier bills and expenses</h2>
+              <p class="hint">Bills and expenses incurred in the selected period, including fully paid, draft, rejected and void records. Only approved, non-void costs contribute to profit/loss or current payables. These are internal costs, not automatic customer invoice charges; do not record the same cost as both a bill and an expense.</p>
+              <div id="costs-table"></div>
             </section>
             <section id="panel-receivables" class="panel" role="tabpanel" aria-labelledby="tab-receivables" hidden>
               <h2>Receivables and overdue invoices</h2>

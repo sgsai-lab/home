@@ -32,6 +32,11 @@ test('every non-v1 API path and launch link has a proxy location', () => {
   }
 });
 
+test('API responses preserve strong version ETags for conditional project edits', () => {
+  const api = locationBlocks(config).find((block) => block.head.includes('^~ /api/v1/'));
+  assert.match(api.body, /^\s*gzip off;/m, 'Nginx gzip turns API version ETags into weak validators that fail If-Match');
+});
+
 test('the CSP allows only self plus the reviewed identity and storage origins', () => {
   const csp = config.match(/Content-Security-Policy "([^"]+)"/)[1];
   const origins = [...new Set(csp.match(/https:\/\/[^\s;]+/g))].sort();

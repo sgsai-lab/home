@@ -33,7 +33,9 @@ Delivery remains within the existing billing page/API, with durable events, vers
 
 ### Organization and multi-project Reports
 
-A dedicated `/workspace/reports/` area now follows the grouping in [Zoho Books Reports](https://www.zoho.com/in/books/help/reports/): organization overview, project profitability/health, receivables aging, payables/expenses, cost categories, cash movement and pending approvals. Filters cover workspace, project, project status and activity dates; every section supports CSV and authorized record drill-down.
+A dedicated `/workspace/reports/` area now follows the grouping in [Zoho Books Reports](https://www.zoho.com/in/books/help/reports/): organization overview, workspace profit/loss, project profitability/health, invoice and bill/expense registers, receivables aging, payables/expenses, cost categories, cash movement and pending approvals. Filters cover workspace, project, project status and activity dates; every section supports CSV and authorized record drill-down.
+
+Workspace profit/loss separates net invoicing, credits, approved supplier bills and approved expenses, reconciling to organization totals. Registers show all existing invoice/cost states, including fully paid, rejected and void records, without counting drafts/voids as revenue or unapproved costs as payables. Confirmed scope: this is a register, not automatic invoice creation or expense rebilling; customer approval/legal issuance gates remain unchanged. Project detail pages now link directly to the existing details/status editor, retaining cross-workspace platform-admin and workspace-local admin/owner editing rights.
 
 Confirmed product-owner change: platform administrators may read organization-wide reports across all workspaces without actual ownership. This supersedes the earlier owner-only reporting audience **only for the Reports API/CSV**. Customer users remain limited to actual-owner workspaces, and billing/CRM record reads, mutations and approvals retain existing owner/issuer guards. Read-only report users cannot act on approval queues without those additional permissions.
 

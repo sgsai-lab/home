@@ -181,6 +181,17 @@ test('projects: tenancy, validation, ETag concurrency, sector profiles, soft del
   assert.equal(restored.status, 200);
   assert.equal(restored.data.status, 'in_progress');
   assert.equal(restored.data.milestones[0].done, true);
+  const support = await account(baseUrl, 'project-admin@sgs.test', { role: 'admin' });
+  const supportView = await call(baseUrl, `/api/v1/projects/${project.id}`, { token: support.token });
+  assert.equal(supportView.data.can_edit, true, 'Platform admins need no actual workspace membership to edit project metadata');
+  const supportEdit = await call(baseUrl, `/api/v1/projects/${project.id}`, {
+    method: 'PATCH', token: support.token, headers: { 'if-match': supportView.headers.get('etag') },
+    body: { name: 'Updated learning portal', summary: 'Updated by platform admin', status: 'delivered' }
+  });
+  assert.equal(supportEdit.status, 200);
+  assert.equal(supportEdit.data.name, 'Updated learning portal');
+  assert.equal(supportEdit.data.status, 'delivered');
+  assert.equal((await call(baseUrl, `/api/v1/projects/${project.id}`, { method: 'PATCH', token: teacher.token, body: { status: 'archived' } })).status, 403);
 
   const business = await call(baseUrl, '/api/v1/projects', {
     method: 'POST', token: admin.token, body: { client_id: client.id, name: 'Admin tooling', sector: 'business', sector_profile: { engagement_type: 'build', department: 'Finance' }, use_template: true }

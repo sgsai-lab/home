@@ -6,9 +6,10 @@ import { PROJECT_STATUSES } from './projects.mjs';
 
 const collections = ['invoices', 'credit_notes', 'payments', 'refunds', 'vendor_bills', 'project_expenses'];
 const metrics = ['contract_minor', 'unbilled_contract_minor', 'net_revenue_minor', 'approved_cost_minor', 'margin_minor', 'receivable_minor', 'payable_minor', 'cash_in_minor', 'cash_out_minor', 'cash_net_minor', 'unallocated_minor'];
-const sections = ['overview', 'projects', 'receivables', 'payables', 'categories', 'cash', 'approvals'];
+const sections = ['overview', 'workspace_pnl', 'projects', 'invoices', 'costs', 'receivables', 'payables', 'categories', 'cash', 'approvals'];
 const buckets = () => ({ current: 0, days_1_30: 0, days_31_60: 0, days_61_90: 0, days_90_plus: 0 });
 const zeroMetrics = () => Object.fromEntries(metrics.map((key) => [key, 0]));
+const marginBps = (row) => row.net_revenue_minor > 0 ? Math.round(row.margin_minor / row.net_revenue_minor * 10000) : null;
 const add = (target, key, amount) => {
   const next = (target[key] ?? 0) + amount;
   if (!Number.isSafeInteger(amount) || !Number.isSafeInteger(next)) fail('REPORT_AMOUNT_RANGE', 'Report amounts exceed the supported integer range or need reconciliation.', 503);
@@ -84,9 +85,16 @@ async function financeReport(ctx) {
     currency: 'INR', filters: filter, workspaces: clients.map(({ id, name }) => ({ id, name })),
     project_options: options.map(({ id, client_id, name }) => ({ id, client_id, name })),
     overview: { ...zeroMetrics(), projects_count: projects.length, active_projects_count: 0, at_risk_projects_count: 0, pending_approval_count: 0 },
-    projects: [], receivables: [], payables: [], cash: [], approvals: [], categories: [], trends: [],
+    projects: [], workspace_pnl: [], invoices: [], costs: [], receivables: [], payables: [], cash: [], approvals: [], categories: [], trends: [],
     aging: { receivables: buckets(), payables: buckets() }
   };
+  const workspaceTotals = new Map(selectedClients
+    .filter((client) => !filter.project_id || options.some((project) => project.id === filter.project_id && project.client_id === client.id))
+    .map((client) => [client.id, {
+      ...zeroMetrics(), client_id: client.id, client_name: client.name, projects_count: 0,
+      active_projects_count: 0, at_risk_projects_count: 0, pending_approval_count: 0,
+      invoiced_net_minor: 0, credit_net_minor: 0, bill_cost_minor: 0, expense_cost_minor: 0
+    }]));
   const trends = new Map();
   for (let month = `${filter.from.slice(0, 7)}-01`; month <= filter.to;) {
     const key = month.slice(0, 7);
@@ -100,6 +108,7 @@ async function financeReport(ctx) {
   for (const client of selectedClients) {
     const scopedProjects = projects.filter((project) => project.client_id === client.id);
     if (!scopedProjects.length) continue;
+    const workspace = workspaceTotals.get(client.id);
     const where = [['client_id', '==', client.id], ...(filter.project_id ? [['project_id', '==', filter.project_id]] : [])];
     const loaded = await Promise.all(collections.map((collection) => pages(collection, where, budget)));
     const membership = await getDoc('memberships', `${client.id}__${user.id}`);
@@ -132,18 +141,35 @@ async function financeReport(ctx) {
         report.cash.push({ ...context, id: record.id, kind, date: date.slice(0, 10), direction, amount_minor: amount, reference: reference ?? record.reference ?? record.id });
       };
       const pending = (kind, record) => {
-        if (record.approval_status === 'submitted') report.approvals.push({
-          ...context, id: record.id, kind, reference: record.number ?? record.reference ?? record.id,
-          amount_minor: record.total_minor ?? record.amount_minor, submitted_at: record.approval_history?.findLast((event) => event.action === 'submit')?.at ?? record.updated_at ?? record.created_at
-        });
+        if (record.approval_status === 'submitted') {
+          workspace.pending_approval_count++;
+          report.approvals.push({
+            ...context, id: record.id, kind, reference: record.number ?? record.reference ?? record.id,
+            amount_minor: record.total_minor ?? record.amount_minor, submitted_at: record.approval_history?.findLast((event) => event.action === 'submit')?.at ?? record.updated_at ?? record.created_at
+          });
+        }
       };
       row.contract_minor = plan?.amount_minor ?? 0;
       row.unbilled_contract_minor = Math.max(0, row.contract_minor - (plan?.billed_minor ?? 0));
       for (const invoice of invoices) {
+        const view = invoiceView(invoice);
+        if (inPeriod(invoice.issue_date)) report.invoices.push({
+          ...context, id: invoice.id, kind: 'invoices', reference: invoice.number ?? invoice.id,
+          document_state: invoice.document_state, approval_status: invoice.approval_status ?? null,
+          issue_date: invoice.issue_date, due_date: invoice.due_date ?? null,
+          source_type: invoice.source_type ?? null, net_minor: invoice.net_minor,
+          tax_minor: invoice.total_minor - invoice.net_minor, total_minor: invoice.total_minor,
+          paid_minor: invoice.paid_minor ?? 0, credited_minor: invoice.credited_minor ?? 0,
+          outstanding_minor: invoice.document_state === 'issued' ? view.outstanding_minor : 0,
+          settlement_state: invoice.document_state === 'issued' ? view.settlement_state : invoice.document_state === 'void' ? 'void' : 'not_issued'
+        });
         if (invoice.document_state === 'draft') pending('invoices', invoice);
         if (invoice.document_state !== 'issued') continue;
-        if (inPeriod(invoice.issue_date)) metric('net_revenue_minor', invoice.net_minor, invoice.issue_date);
-        const balance = invoiceView(invoice).outstanding_minor;
+        if (inPeriod(invoice.issue_date)) {
+          metric('net_revenue_minor', invoice.net_minor, invoice.issue_date);
+          add(workspace, 'invoiced_net_minor', invoice.net_minor);
+        }
+        const balance = view.outstanding_minor;
         if (balance > 0) {
           metric('receivable_minor', balance);
           const aging = age(invoice.due_date, today);
@@ -151,13 +177,25 @@ async function financeReport(ctx) {
           report.receivables.push({ ...context, id: invoice.id, kind: 'invoices', reference: invoice.number, issue_date: invoice.issue_date, due_date: invoice.due_date, total_minor: invoice.total_minor, outstanding_minor: balance, ...aging });
         }
       }
-      for (const credit of credits) if (inPeriod(credit.invoice_date)) metric('net_revenue_minor', -credit.net_minor, credit.invoice_date);
+      for (const credit of credits) if (inPeriod(credit.invoice_date)) {
+        metric('net_revenue_minor', -credit.net_minor, credit.invoice_date);
+        add(workspace, 'credit_net_minor', credit.net_minor);
+      }
       for (const [kind, costs] of [['bills', bills], ['expenses', expenses]]) {
         for (const cost of costs) {
+          if (inPeriod(cost.incurred_date)) report.costs.push({
+            ...context, id: cost.id, kind, reference: cost.reference ?? cost.id, payee: cost.payee ?? null,
+            category: cost.category ?? 'Uncategorised', description: cost.description ?? null,
+            status: cost.status, approval_status: cost.approval_status ?? 'draft',
+            incurred_date: cost.incurred_date, due_date: cost.due_date ?? null,
+            amount_minor: cost.amount_minor, paid_minor: cost.paid_minor ?? 0,
+            outstanding_minor: cost.approval_status === 'approved' && cost.status !== 'void' ? Math.max(0, cost.amount_minor - (cost.paid_minor ?? 0)) : 0
+          });
           if (cost.status !== 'void') pending(kind, cost);
           if (cost.approval_status === 'approved' && cost.status !== 'void') {
             if (inPeriod(cost.incurred_date)) {
               metric('approved_cost_minor', cost.amount_minor, cost.incurred_date);
+              add(workspace, kind === 'bills' ? 'bill_cost_minor' : 'expense_cost_minor', cost.amount_minor);
               const key = cost.category ?? 'Uncategorised';
               const category = categoryTotals.get(key) ?? { category: key, amount_minor: 0, bill_minor: 0, expense_minor: 0, count: 0 };
               add(category, 'amount_minor', cost.amount_minor);
@@ -187,15 +225,28 @@ async function financeReport(ctx) {
       for (const refund of refunds) cash('refunds', refund, refund.created_at, 'out', refund.amount_minor, refund.reason);
       row.margin_minor = row.net_revenue_minor - row.approved_cost_minor;
       row.at_risk = !['delivered', 'archived'].includes(project.status) && Boolean(row.overdue_milestones || (project.end_date && project.end_date < today));
-      row.margin_bps = row.net_revenue_minor > 0 ? Math.round(row.margin_minor / row.net_revenue_minor * 10000) : null;
-      if (!['delivered', 'archived'].includes(project.status)) report.overview.active_projects_count++;
-      if (row.at_risk) report.overview.at_risk_projects_count++;
-      for (const key of metrics) add(report.overview, key, row[key]);
+      row.margin_bps = marginBps(row);
+      workspace.projects_count++;
+      if (!['delivered', 'archived'].includes(project.status)) {
+        report.overview.active_projects_count++;
+        workspace.active_projects_count++;
+      }
+      if (row.at_risk) {
+        report.overview.at_risk_projects_count++;
+        workspace.at_risk_projects_count++;
+      }
+      for (const key of metrics) {
+        add(report.overview, key, row[key]);
+        add(workspace, key, row[key]);
+      }
       report.projects.push(row);
     }
   }
   report.overview.pending_approval_count = report.approvals.length;
+  report.workspace_pnl = [...workspaceTotals.values()].map((row) => ({ ...row, margin_bps: marginBps(row) }));
   report.projects.sort((a, b) => a.project_name.localeCompare(b.project_name) || a.project_id.localeCompare(b.project_id));
+  report.invoices.sort((a, b) => a.issue_date.localeCompare(b.issue_date) || a.id.localeCompare(b.id));
+  report.costs.sort((a, b) => a.incurred_date.localeCompare(b.incurred_date) || a.id.localeCompare(b.id));
   for (const key of ['receivables', 'payables']) report[key].sort((a, b) => a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id));
   report.cash.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
   report.approvals.sort((a, b) => a.submitted_at.localeCompare(b.submitted_at) || a.id.localeCompare(b.id));
@@ -209,7 +260,10 @@ async function financeReport(ctx) {
 
 const csvColumns = {
   overview: ['projects_count', ...metrics, 'pending_approval_count'],
+  workspace_pnl: ['client_name', 'projects_count', 'invoiced_net_minor', 'credit_net_minor', 'bill_cost_minor', 'expense_cost_minor', ...metrics, 'margin_bps', 'pending_approval_count'],
   projects: ['client_name', 'project_name', 'status', ...metrics, 'milestones_done', 'milestones_total', 'overdue_milestones', 'at_risk'],
+  invoices: ['client_name', 'project_name', 'reference', 'document_state', 'approval_status', 'issue_date', 'due_date', 'source_type', 'net_minor', 'tax_minor', 'total_minor', 'paid_minor', 'credited_minor', 'outstanding_minor', 'settlement_state'],
+  costs: ['client_name', 'project_name', 'kind', 'reference', 'payee', 'category', 'description', 'status', 'approval_status', 'incurred_date', 'due_date', 'amount_minor', 'paid_minor', 'outstanding_minor'],
   receivables: ['client_name', 'project_name', 'reference', 'issue_date', 'due_date', 'total_minor', 'outstanding_minor', 'days_overdue'],
   payables: ['client_name', 'project_name', 'kind', 'payee', 'reference', 'category', 'incurred_date', 'due_date', 'amount_minor', 'paid_minor', 'outstanding_minor', 'days_overdue'],
   categories: ['category', 'bill_minor', 'expense_minor', 'amount_minor', 'count'],

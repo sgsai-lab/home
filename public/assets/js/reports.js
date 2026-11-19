@@ -6,8 +6,11 @@ const form = $('report-filters');
 const state = { epoch: 0, loadingEpoch: null, data: null, section: 'overview', query: null };
 const urls = new Set();
 const outputIds = ['overview-metrics', 'project-health', 'trends-table', 'projects-table', 'receivables-aging',
-  'receivables-table', 'payables-aging', 'payables-table', 'categories-table', 'cash-table', 'approvals-table'];
+  'receivables-table', 'payables-aging', 'payables-table', 'categories-table', 'cash-table', 'approvals-table',
+  'workspace-pnl-table', 'invoices-table', 'costs-table'];
 const human = (value) => String(value ?? 'Not set').replaceAll('_', ' ');
+const enumColumns = new Set(['document_state', 'approval_status', 'settlement_state', 'source_type', 'status', 'kind', 'direction']);
+const marginPercent = (row) => row.margin_bps === null ? 'Not applicable' : `${(row.margin_bps / 100).toFixed(2)}%`;
 function money(value) {
   const amount = BigInt(value);
   const absolute = amount < 0n ? -amount : amount;
@@ -48,7 +51,7 @@ function table(id, caption, columns, rows) {
   function render() {
     const subset = rows.slice(page * 25, (page + 1) * 25);
     body.replaceChildren(...(subset.length ? subset.map((record) => h('tr', {}, ...columns.map(([, key]) => {
-      const value = typeof key === 'function' ? key(record) : key.endsWith('_minor') ? money(record[key]) : human(record[key]);
+      const value = typeof key === 'function' ? key(record) : key.endsWith('_minor') ? money(record[key]) : enumColumns.has(key) ? human(record[key]) : String(record[key] ?? 'Not set');
       return h('td', {}, value);
     }))) : [h('tr', {}, h('td', { colspan: columns.length, text: 'No matching records.' }))]));
     prev.disabled = page === 0;
@@ -85,10 +88,18 @@ function render(report) {
     ['Month', 'month'], ['Net revenue', 'net_revenue_minor'], ['Approved costs', 'approved_cost_minor'],
     ['Cash in', 'cash_in_minor'], ['Cash out', 'cash_out_minor'], ['Net cash', 'cash_net_minor']
   ], report.trends);
+  table('workspace-pnl-table', 'Workspace profit and loss (management estimate)', [
+    ['Workspace', (r) => h('a', { href: `/workspace/?client=${encodeURIComponent(r.client_id)}`, text: r.client_name })],
+    ['Projects', 'projects_count'], ['Invoiced net (excl. GST)', 'invoiced_net_minor'], ['Credits net', 'credit_net_minor'],
+    ['Net revenue', 'net_revenue_minor'], ['Approved bills (incl. tax)', 'bill_cost_minor'], ['Approved expenses (incl. tax)', 'expense_cost_minor'],
+    ['Total approved costs', 'approved_cost_minor'], ['Profit / loss estimate', 'margin_minor'], ['Margin %', marginPercent],
+    ['Current receivables', 'receivable_minor'], ['Current payables', 'payable_minor'], ['Period net cash', 'cash_net_minor'],
+    ['Awaiting approval', 'pending_approval_count']
+  ], report.workspace_pnl);
   table('projects-table', 'Project portfolio and profitability', [
     ['Workspace', 'client_name'], ['Project', projectLink], ['Status', (r) => PROJECT_STATUS[r.status] ?? human(r.status)],
     ['Contract', 'contract_minor'], ['Period net revenue', 'net_revenue_minor'], ['Period costs', 'approved_cost_minor'],
-    ['Period margin', 'margin_minor'], ['Margin %', (r) => r.margin_bps === null ? 'Not applicable' : `${(r.margin_bps / 100).toFixed(2)}%`],
+    ['Period margin', 'margin_minor'], ['Margin %', marginPercent],
     ['Current receivables', 'receivable_minor'], ['Current payables', 'payable_minor'], ['Period net cash', 'cash_net_minor'],
     ['Milestones', (r) => `${r.milestones_done}/${r.milestones_total}`], ['Overdue milestones', 'overdue_milestones'],
     ['End date', 'end_date'], ['Risk', (r) => r.at_risk ? 'Needs attention' : 'No deadline risk']
@@ -96,6 +107,17 @@ function render(report) {
   const aging = [['Current / not overdue', 'current'], ['1-30 days overdue', 'days_1_30'], ['31-60 days overdue', 'days_31_60'], ['61-90 days overdue', 'days_61_90'], ['Over 90 days', 'days_90_plus']];
   for (const kind of ['receivables', 'payables']) metrics(`${kind}-aging`, report.aging[kind], aging);
   const context = [['Workspace', 'client_name'], ['Project', projectLink]];
+  table('invoices-table', 'Customer invoice register (issue dates in period)', [
+    ...context, ['Invoice / draft', 'reference'], ['Document state', 'document_state'], ['Approval', 'approval_status'],
+    ['Issue date', 'issue_date'], ['Due', 'due_date'], ['Source', 'source_type'], ['Net', 'net_minor'], ['Tax', 'tax_minor'],
+    ['Total', 'total_minor'], ['Paid', 'paid_minor'], ['Credited', 'credited_minor'], ['Current outstanding', 'outstanding_minor'],
+    ['Settlement', 'settlement_state'], ['Action', recordLink]
+  ], report.invoices);
+  table('costs-table', 'Bill and expense register (incurred dates in period)', [
+    ...context, ['Type', 'kind'], ['Payee', 'payee'], ['Reference', 'reference'], ['Category', 'category'],
+    ['Description', 'description'], ['State', 'status'], ['Approval', 'approval_status'], ['Incurred', 'incurred_date'],
+    ['Due', 'due_date'], ['Total', 'amount_minor'], ['Paid', 'paid_minor'], ['Current payable', 'outstanding_minor'], ['Action', recordLink]
+  ], report.costs);
   table('receivables-table', 'Current receivables', [...context, ['Invoice', 'reference'], ['Issue date', 'issue_date'], ['Due', 'due_date'], ['Invoice total', 'total_minor'], ['Outstanding', 'outstanding_minor'], ['Days overdue', 'days_overdue'], ['Action', recordLink]], report.receivables);
   table('payables-table', 'Current payables and expenses', [...context, ['Type', 'kind'], ['Payee', 'payee'], ['Reference', 'reference'], ['Category', 'category'], ['Due / incurred', 'due_date'], ['Total', 'amount_minor'], ['Paid', 'paid_minor'], ['Outstanding', 'outstanding_minor'], ['Days overdue', 'days_overdue'], ['Action', recordLink]], report.payables);
   table('categories-table', 'Period cost categories', [['Category', 'category'], ['Bills', 'bill_minor'], ['Expenses', 'expense_minor'], ['Total', 'amount_minor'], ['Records', 'count']], report.categories);
