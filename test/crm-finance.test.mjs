@@ -56,8 +56,148 @@ async function fixedInvoice(ctx, { amount = 100000, accept = false } = {}) {
   return create(ctx, 'invoices', { source_ids: [item.id], source_type: 'billing_item', issue_date: '2026-11-03' });
 }
 async function issue(ctx, invoice, key) {
+  const submitted = await request(ctx, `invoices/${invoice.id}/submit`, {}, { record: invoice, key: `submit-${invoice.id}-${invoice.version}` });
+  assert.equal(submitted.status, 200, JSON.stringify(submitted.data));
+  const approved = await request(ctx, `invoices/${invoice.id}/approve`, {}, { record: submitted.data, key: `approve-${invoice.id}-${submitted.data.version}` });
+  assert.equal(approved.status, 200, JSON.stringify(approved.data));
+  return rawIssue(ctx, approved.data, key);
+}
+async function rawIssue(ctx, invoice, key) {
   return request(ctx, `invoices/${invoice.id}/issue`, {}, { record: invoice, key });
 }
+
+test('invoice approval requires submission, records rejection and invalidates on edits', async (t) => {
+  const ctx = await setup(t);
+  await configure(ctx);
+  let invoice = await fixedInvoice(ctx);
+  const unapproved = await rawIssue(ctx, invoice);
+  assert.equal(unapproved.status, 409);
+  assert.equal(unapproved.data.error.code, 'APPROVAL_REQUIRED');
+  assert.equal((await request(ctx, `invoices/${invoice.id}/approve`, {}, { record: invoice })).status, 409);
+  invoice = (await request(ctx, `invoices/${invoice.id}/submit`, {}, { record: invoice })).data;
+  assert.equal(invoice.approval_status, 'submitted');
+  assert.equal((await request(ctx, `invoices/${invoice.id}/reject`, {}, { record: invoice })).status, 400);
+  assert.equal((await request(ctx, `invoices/${invoice.id}/approve`, {}, { record: invoice, person: ctx.owner })).status, 403);
+  invoice = (await request(ctx, `invoices/${invoice.id}/reject`, { reason: 'Correct the issue date' }, { record: invoice })).data;
+  assert.equal(invoice.approval_status, 'rejected');
+  invoice = (await request(ctx, `invoices/${invoice.id}`, { issue_date: '2026-11-02' }, { method: 'PATCH', record: invoice })).data;
+  invoice = (await request(ctx, `invoices/${invoice.id}/submit`, {}, { record: invoice })).data;
+  const stale = invoice;
+  invoice = (await request(ctx, `invoices/${invoice.id}/approve`, {}, { record: invoice })).data;
+  assert.equal(invoice.approved_by, ctx.issuer.user.id, 'Self approval is explicitly allowed');
+  assert.equal((await request(ctx, `invoices/${invoice.id}/approve`, {}, { record: stale })).status, 412);
+  assert.deepEqual(invoice.approval_history.map((event) => event.action), ['submit', 'reject', 'invalidate', 'submit', 'approve']);
+  invoice = (await request(ctx, `invoices/${invoice.id}`, { issue_date: '2026-11-03' }, { method: 'PATCH', record: invoice })).data;
+  assert.equal(invoice.approval_status, 'draft');
+  assert.equal((await rawIssue(ctx, invoice)).data.error.code, 'APPROVAL_REQUIRED');
+});
+
+test('approved invoice snapshots cannot silently change during issuance', async (t) => {
+  const ctx = await setup(t);
+  await configure(ctx);
+  let invoice = await fixedInvoice(ctx);
+  invoice = (await request(ctx, `invoices/${invoice.id}/submit`, {}, { record: invoice })).data;
+  invoice = (await request(ctx, `invoices/${invoice.id}/approve`, {}, { record: invoice })).data;
+  const currentProfile = await getDoc('billing_profiles', `${ctx.client.id}__billing`);
+  assert.equal((await request(ctx, 'profile', { ...profile, gst_rate_bps: 1200 }, { method: 'PUT', record: currentProfile })).status, 200);
+  const result = await rawIssue(ctx, invoice);
+  assert.equal(result.status, 409);
+  assert.equal(result.data.error.code, 'APPROVED_TERMS_CHANGED');
+  assert.equal((await queryDocs('invoice_counters')).length, 0);
+});
+
+test('project bills and expenses require approval, reconcile partial payments and retain history', async (t) => {
+  const ctx = await setup(t);
+  let bill = await create(ctx, 'bills', {
+    payee: 'Cloud supplier', reference: 'VENDOR-001', category: 'Hosting', description: 'Project infrastructure',
+    amount_minor: 30000, incurred_date: '2026-11-01', due_date: '2026-11-15'
+  });
+  assert.equal((await getDoc('projects', ctx.project.id)).finance_retained, true);
+  assert.equal((await request(ctx, `bills/${bill.id}/pay`, { amount_minor: 10000, paid_date: '2026-11-03', reference: 'BANK-001' }, { record: bill })).status, 409);
+  bill = (await request(ctx, `bills/${bill.id}/submit`, {}, { record: bill })).data;
+  assert.equal((await request(ctx, `bills/${bill.id}`, { amount_minor: 1 }, { method: 'PATCH', record: bill })).status, 409);
+  bill = (await request(ctx, `bills/${bill.id}/approve`, {}, { record: bill })).data;
+  const key = 'partial-cost-payment';
+  const payment = { amount_minor: 10000, paid_date: '2026-11-03', reference: 'BANK-001' };
+  const results = await Promise.all(Array.from({ length: 5 }, () => request(ctx, `bills/${bill.id}/pay`, payment, { record: bill, key })));
+  assert.ok(results.every((result) => result.status === 200), JSON.stringify(results));
+  bill = results[0].data;
+  assert.equal(bill.paid_minor, 10000);
+  assert.equal((await request(ctx, `bills/${bill.id}/pay`, { ...payment, amount_minor: 20001 }, { record: bill })).status, 409);
+  assert.equal((await request(ctx, `bills/${bill.id}/void`, { reason: 'Duplicate' }, { record: bill })).status, 409);
+  bill = (await request(ctx, `bills/${bill.id}/reverse-payment`, { payment_id: bill.payment_history[0].id, reason: 'Bank returned transfer' }, { record: bill })).data;
+  assert.equal(bill.paid_minor, 0);
+  assert.equal(bill.payment_history[0].reversal_reason, 'Bank returned transfer');
+  const expense = await create(ctx, 'expenses', {
+    payee: 'Team member', reference: 'RECEIPT-001', category: 'Travel', description: 'Customer visit',
+    amount_minor: 5000, incurred_date: '2026-11-02'
+  });
+  const submitted = (await request(ctx, `expenses/${expense.id}/submit`, {}, { record: expense })).data;
+  assert.equal((await request(ctx, 'summary', undefined, { method: 'GET' })).data.pending_approval_count, 1);
+  const approved = (await request(ctx, `expenses/${expense.id}/approve`, {}, { record: submitted })).data;
+  const summary = (await request(ctx, 'summary', undefined, { method: 'GET' })).data;
+  assert.equal(summary.approved_cost_minor, 35000);
+  assert.equal(summary.payables_outstanding_minor, 35000);
+  assert.equal(summary.project_margin_minor, -35000);
+  assert.equal(summary.cost_paid_minor, 0);
+  assert.equal(summary.pending_approval_count, 0);
+  await configure(ctx);
+  const invoice = (await issue(ctx, await fixedInvoice(ctx))).data;
+  await create(ctx, 'credit-notes', { invoice_id: invoice.id, net_minor: 10000, reason: 'Agreed reduction' });
+  const margin = (await request(ctx, 'summary', undefined, { method: 'GET' })).data;
+  assert.equal(margin.net_revenue_minor, 90000, 'Revenue excludes GST and net credits');
+  assert.equal(margin.project_margin_minor, 55000, 'Approved unpaid costs reduce margin, not receipt balances');
+  const outsider = await account(ctx.baseUrl, 'outsider@sgs.test', { role: 'admin' });
+  assert.equal((await request(ctx, 'bills', undefined, { method: 'GET', person: outsider })).status, 404);
+  assert.equal((await request(ctx, `expenses/${expense.id}/pay`, payment, { record: approved, person: ctx.owner })).status, 403);
+  assert.equal((await call(ctx.baseUrl, `/api/v1/projects/${ctx.project.id}`, { method: 'DELETE', token: ctx.issuer.token })).status, 409);
+  const events = await queryDocs('financial_events');
+  assert.ok(events.some((event) => event.action === 'bills.approve'));
+});
+
+test('cost rejection, correction, payment and voiding preserve exact summaries and authority', async (t) => {
+  const ctx = await setup(t);
+  const body = { payee: 'Supplier', reference: 'BILL-1', category: 'Services', description: 'Project work', amount_minor: 9000, incurred_date: '2026-11-01', due_date: '2026-11-15' };
+  for (const invalid of [{ amount_minor: 1.5 }, { incurred_date: '2026-02-30' }, { due_date: '2026-10-01' }, { approval_status: 'approved' }, { paid_minor: 9000 }]) {
+    assert.equal((await request(ctx, 'bills', { ...body, ...invalid })).status, 400);
+  }
+  let bill = await create(ctx, 'bills', body);
+  const command = async (action, input = {}) => {
+    const result = await request(ctx, `bills/${bill.id}/${action}`, input, { record: bill });
+    assert.equal(result.status, 200, JSON.stringify(result.data));
+    bill = result.data;
+  };
+  await command('submit');
+  await command('reject', { reason: 'Wrong amount' });
+  const edited = await request(ctx, `bills/${bill.id}`, { amount_minor: 7000 }, { method: 'PATCH', record: bill });
+  assert.equal(edited.status, 200);
+  bill = edited.data;
+  assert.equal(bill.approval_status, 'draft');
+  assert.equal(bill.approval_history[1].reason, 'Wrong amount');
+  await command('submit');
+  await command('approve');
+  assert.equal((await request(ctx, `bills/${bill.id}`, { amount_minor: 1 }, { method: 'PATCH', record: bill })).status, 409);
+  await command('pay', { amount_minor: 7000, paid_date: '2026-11-03', reference: 'BANK-1' });
+  let summary = (await request(ctx, 'summary', undefined, { method: 'GET' })).data;
+  assert.equal(summary.cost_paid_minor, 7000);
+  assert.equal(summary.payables_outstanding_minor, 0);
+  assert.equal(summary.approved_cost_minor, 7000);
+  await command('reverse-payment', { payment_id: bill.payment_history[0].id, reason: 'Returned' });
+  assert.equal((await request(ctx, `bills/${bill.id}/reverse-payment`, { payment_id: bill.payment_history[0].id, reason: 'Again' }, { record: bill })).status, 409);
+  await command('void', { reason: 'Cancelled supplier order' });
+  assert.equal((await request(ctx, `bills/${bill.id}/submit`, {}, { record: bill })).status, 409);
+  summary = (await request(ctx, 'summary', undefined, { method: 'GET' })).data;
+  assert.equal(summary.approved_cost_minor, 0);
+  assert.equal(summary.project_margin_minor, 0);
+  const secondProject = (await call(ctx.baseUrl, '/api/v1/projects', { method: 'POST', token: ctx.issuer.token, body: { client_id: ctx.client.id, name: 'Other project' } })).data;
+  const crossProject = await call(ctx.baseUrl, `/api/v1/projects/${secondProject.id}/finance/bills/${bill.id}`, { token: ctx.issuer.token });
+  assert.equal(crossProject.status, 404);
+  const key = 'authority-replay';
+  const created = await request(ctx, 'bills', body, { key });
+  assert.equal(created.status, 201);
+  await setDoc('issuer_operators', ctx.issuer.user.id, { id: ctx.issuer.user.id, active: false });
+  assert.equal((await request(ctx, 'bills', body, { key })).status, 403, 'Replays cannot bypass revoked issuer authority');
+});
 
 test('billing profile rejects non-string legal identifiers without server errors', async (t) => {
   const ctx = await setup(t);
@@ -115,6 +255,7 @@ test('finance fixed billing: issue once, GST snapshots, private PDF, payment/cre
   assert.equal(summary.data.unallocated_minor, 35000);
   assert.equal(summary.data.refunded_minor, 15000);
   assert.equal(summary.data.paid_minor, 0);
+  assert.equal(summary.data.net_revenue_minor, 90000);
 });
 
 test('finance hourly: resource deadline, versioned time approval and no duplicate billing', async (t) => {
@@ -147,7 +288,8 @@ test('finance gates, stale versions, overpayments and tenant isolation fail clos
     assert.equal((await request(ctx, kind, undefined, { method: 'GET', person: outsider })).status, 404);
   }
   assert.equal((await request(ctx, 'profile', profile, { method: 'PUT', record: { version: 0 }, person: ctx.owner })).status, 403);
-  const edit = await request(ctx, `invoices/${draft.id}`, { issue_date: '2026-11-04' }, { method: 'PATCH', record: draft });
+  const currentDraft = (await request(ctx, `invoices/${draft.id}`, undefined, { method: 'GET' })).data;
+  const edit = await request(ctx, `invoices/${draft.id}`, { issue_date: '2026-11-04' }, { method: 'PATCH', record: currentDraft });
   assert.equal(edit.status, 200);
   assert.equal((await request(ctx, `invoices/${draft.id}`, { issue_date: '2026-11-05' }, { method: 'PATCH', record: draft })).status, 412);
   const invalid = await request(ctx, 'payments', { amount_minor: -1, received_date: '2026-02-31', reference: 'bad' });

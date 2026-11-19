@@ -75,6 +75,10 @@ The initial production rollout explicitly pins `CRM_INVOICE_ISSUANCE_ENABLED=fal
 
 Deploy [Firestore indexes](../config/firestore/firestore.indexes.json) through the infrastructure owner before enabling CRM workloads. Keep the existing deny-all client rules and production memory fallback disabled. No infrastructure is provisioned automatically by the feature branch.
 
+Reports add workspace-level `client_id,id` composites on projects and financial transaction collections; confirm these are READY before rollout. **Reporting permission change:** every active global platform administrator can view organization-wide financial reports/CSV without workspace ownership or issuer authority. Review administrator assignments before deployment. Billing/CRM record access and mutations still require actual ownership/issuer authorization. Disabling invoice issuance does not disable read-only reporting; downloaded exports cannot be revoked. No report scheduler, public sharing or report persistence is introduced.
+
+Nginx compression is disabled for `/api/v1/` responses so strong version ETags survive unchanged for `If-Match` edits. Static assets remain compressed. Verify a real browser project edit and a stale-version rejection through the container when changing proxy/compression settings; API-only tests cannot detect proxy-weakened ETags. Large report responses are consequently uncompressed at this proxy.
+
 - Set `CRM_INVOICE_ISSUANCE_ENABLED=true` **only after** a qualified India GST reviewer approves the actual issuer, customer details, SAC/rates, numbering, required text, e-invoicing applicability and retention/legal holds. Configure the workspace billing profile with an approval reference. Test fixture legal/bank details are not real configuration.
 - Issuer operators require an audited administrator assignment **and** actual customer workspace owner membership. Customer acceptance requires a non-administrator owner. Test operator revocation before the pilot.
 - `CRM_INVOICE_VOID_ALLOWED=true` is a separate legal gate. Prefer credit notes where legally required; void never releases source claims or recycles a number.

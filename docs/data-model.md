@@ -32,7 +32,7 @@ Memberships are a top-level collection (rather than the `clients/{id}/members` s
 
 CRM financial data is accessible only through actual owner membership, without the global administrator bypass. Issuer authority additionally requires an active `issuer_operators` record and global admin role. Operational issuer assignment events contain no customer amounts. Finance events are not copied into the existing broadly accessible `audit_log`.
 
-The first deal atomically sets `projects.finance_retained = true`, clears expiry, and increments the project version. Such projects cannot enter the 30-day delete/TTL path; archive them instead. No financial TTLs are configured. Production retention/legal holds must be approved before real invoicing. Issuance is implemented but disabled by default; it requires both deployment authorization and a reviewed legal/tax profile.
+The first deal or project bill/expense atomically sets `projects.finance_retained = true`, clears expiry, and increments the project version. Such projects cannot enter the 30-day delete/TTL path; archive them instead. No financial TTLs are configured. Production retention/legal holds must be approved before real invoicing. Issuance is implemented but disabled by default; it requires both deployment authorization and a reviewed legal/tax profile.
 
 `transactDocs()` reads all declared documents before a synchronous bounded mutation callback; write references must be declared and unique. Firestore transactions revalidate user, actual membership, issuer entitlement, project, deal version and command replay. The memory implementation commits without an async interleaving point and stages writes before changing any document. Revisions and acceptances are immutable; plan activation, idempotency result and durable financial event share one transaction.
 
@@ -48,7 +48,8 @@ All financial collection records below carry `id`, `client_id`, `project_id` and
 | `crm_resources` | Role, planned effort/capacity, assignment dates; estimates are not billable time |
 | `billing_items` | Fixed milestones reserve accepted cap; acceptance/cancellation/billing state retained |
 | `time_entries`, `time_statements` | Accepted-rate snapshots, submitted entry-version claims, customer approval/rejection; locked approved work |
-| `invoices` | Draft/issued/void states, legal/source snapshots, number, settlement totals; sources claimed atomically with numbering |
+| `invoices` | Draft/issued/void states, legal/source snapshots, number, settlement totals; separate mandatory submission/approval before issue; sources claimed atomically with numbering |
+| `vendor_bills`, `project_expenses` | Project-linked payee/reference/category/purpose, tax-inclusive INR amount, incurred date (bills also due date); approval state/history, partial payment/reversal history, retained void state |
 | `invoice_counters` | Global issuer fiscal invoice sequences and separate credit-note sequence; never reuse an issued number |
 | `payments` | Confirmed/reversed manual receipts, allocation history, unallocated/refunded balance |
 | `credit_notes`, `refunds` | Immutable correction records; cumulative rounded taxes and available-credit caps |
@@ -57,9 +58,25 @@ All financial collection records below carry `id`, `client_id`, `project_id` and
 
 `billing_plans` retain scheduled/billed totals while accepted additive change orders increase the contract cap and extend the deadline. Original deal revisions/acceptances and financial events preserve evidence; hourly-rate/method/currency changes are rejected rather than repricing old work. No automatic charge or general-ledger posting occurs.
 
+Invoices, vendor bills and expenses start with `approval_status: draft` and `approval_history: []`. Issuer-only transitions append `{action,actor_id,at,reason}` and update `approved_by/approved_at`; self-approval is allowed. Submitted records cannot be edited. Editing an approved invoice or rejected record appends an invalidation and resets approval; approved costs are immutable and may only be paid/reversed or voided when unpaid. Missing approval state on historical invoice drafts is treated as unapproved; already issued invoices are unchanged. Approval history is capped at 50 transitions, explicitly failing rather than truncating.
+
+Costs retain `paid_minor` and up to 100 `payment_history` entries `{id,amount_minor,paid_date,reference,recorded_by,recorded_at}`. Reversal annotates the original entry with `reversed_at/reversed_by/reversal_reason` and releases its balance atomically. `status: void` excludes a cost from summaries but never deletes history. Payment recording never initiates a bank transfer. Do not record the same supplier bill again as an expense. References are text, not receipt-file attachments.
+
+The project margin estimate subtracts approved, non-void, tax-inclusive costs from issued net revenue less net credits. Unpaid approved costs are included; pending/rejected/void costs are excluded. This is not a general ledger, cash-flow profit or input-tax-credit calculation. New cost indexes must be deployed through infrastructure before production use.
+
 `queryPage({documentIdOrder:true})` supports legacy membership records without an `id` data field. Owner notification discovery queries only that workspace's active owner memberships, using document IDs as cursors, then checks active customer users; it does not scan every platform user.
 
 GitHub binding/cache/command/inbox records and external-data retention are described in [GitHub CRM setup](github-crm.md). Financial and GitHub histories are distinct: engineering events cannot change financial balances.
+
+### Reporting read model
+
+`/api/v1/reports/finance` aggregates existing projects, base billing plans, invoices, credit notes, receipts, refunds, vendor bills and expenses; it creates no new collection, report snapshot or TTL. This is an explicit **report-only authorization exception**: global platform administrators can read across workspaces without actual ownership; other users are restricted to actual-owner workspaces. Billing/CRM record access and mutations are unchanged. Metadata choices, aggregates, CSV and detail rows use the same report authorization. Downloaded exports cannot be revoked.
+
+Project/source queries traverse ascending `id` cursor pages to completion, backed by workspace-level `client_id,id` composites. Legacy membership discovery uses document-ID paging and active-owner checks. Reports fail explicitly above 500 selected projects, 50,000 source records or 50,000 expanded cash movements rather than returning truncated totals. Aggregates use safe integer paise and INR only.
+
+Report periods apply to invoice/credit activity, approved costs by incurred date, and cash movements by recorded payment/refund/reversal date. Balances, aging, contract value, project risks and approvals are current. Payment/reversal histories preserve cross-period cash movement; later approvals/voids can restate period revenue/cost views, so reports are not historical accounting snapshots. The [API contract](api.md#organization-and-project-reports) defines these semantics.
+
+The same loaded sources also produce `workspace_pnl` (selected projects grouped by customer workspace with invoice/credit and bill/expense splits), `invoices` (all invoice states by issue date) and `costs` (all bill/expense states by incurred date). Paid, draft, rejected and void documents remain visible in registers without being miscounted as current liabilities or approved revenue/costs. No new indexes, collections, invoice generation or expense rebilling are introduced by these read-only views.
 
 Queries use equality filters only and are served by Firestore's single-field index merging; [config/firestore/firestore.indexes.json](../config/firestore/firestore.indexes.json) adds composites for the hottest multi-field lookups and exempts large fields from indexing. Sorting, free-text search (`q`) and paging happen in the API after loading at most 1,000–5,000 documents for one workspace scope. That is deliberate for the expected scale (tens of workspaces, hundreds of projects); revisit with cursor pagination or Postgres (API-19) before a workspace exceeds a few thousand documents.
 

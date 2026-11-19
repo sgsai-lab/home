@@ -41,7 +41,8 @@ function harness(api) {
     showStatus: (target, message) => { target.textContent = message; },
     setTimeout
   };
-  vm.runInNewContext(`${source.replace(/^import[^\n]+\n/, '')}
+  Object.assign(context, { closeDialog() {}, openDialog() {}, setupDialogs() {} });
+  vm.runInNewContext(`${source.replace(/^import[^\n]+\n/gm, '')}
     globalThis.billing = { minor, money, valuesFrom, request, write, clearPrivateView, renderActions, allRecords, state };
   `, context);
   return { ...context, elements, lifecycle };
@@ -59,6 +60,26 @@ test('billing uses exact INR decimal conversion and rejects invalid or out-of-ra
   for (const value of ['0', '-1', '1.001', '1,000.00', '1e3', '10000000000.01']) {
     assert.throws(() => billing.minor(value), { code: 'VALIDATION' });
   }
+});
+
+test('issuer invoice actions enforce approval and cost actions require approval before payment', () => {
+  const app = harness(async () => ({}));
+  const labels = () => app.document.getElementById('record-actions').children.map((child) => child.textContent);
+  app.billing.state.capabilities = { can_prepare: true };
+  app.billing.renderActions('invoices', { id: 'i', version: 1, document_state: 'draft' });
+  assert.ok(labels().includes('Submit for approval'));
+  assert.ok(!labels().includes('Issue invoice'));
+  app.billing.renderActions('invoices', { id: 'i', document_state: 'draft', approval_status: 'submitted' });
+  assert.deepEqual(labels(), ['Approve record', 'Reject record']);
+  app.billing.renderActions('invoices', { id: 'i', document_state: 'draft', approval_status: 'approved' });
+  assert.ok(labels().includes('Issue invoice'));
+  app.billing.renderActions('bills', { id: 'b', status: 'open', approval_status: 'submitted', paid_minor: 0 });
+  assert.ok(!labels().includes('Record cost payment'));
+  app.billing.renderActions('expenses', { id: 'e', status: 'open', approval_status: 'approved', amount_minor: 500, paid_minor: 0 });
+  assert.ok(labels().includes('Record cost payment'));
+  app.billing.state.capabilities = { can_accept: true };
+  app.billing.renderActions('expenses', { id: 'e', status: 'open', approval_status: 'submitted' });
+  assert.deepEqual(labels(), []);
 });
 
 test('billing requests bypass caches and command retries reuse keys with version preconditions', async () => {

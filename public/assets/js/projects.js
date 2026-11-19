@@ -8,7 +8,8 @@ const dialog = $('project-dialog');
 const filterForm = $('filter-form');
 const editorStatus = $('editor-status');
 const listStatus = $('list-status');
-const initialClient = new URLSearchParams(location.search).get('client_id') ?? '';
+const params = new URLSearchParams(location.search);
+const initialClient = params.get('client_id') ?? '';
 const state = { page: 1, pageSize: 12, q: '', status: '', sector: '', client_id: initialClient, sort: '-updated_at' };
 let editing = null;
 let workspaces = [];
@@ -80,6 +81,17 @@ function openEditor(project, etag) {
   openDialog(dialog, { initialFocus: form.elements.name });
 }
 
+async function openExistingEditor(id) {
+  if (!canEdit) throw new ApiError(403, 'FORBIDDEN', 'Editing requires a verified account with project editing permission.');
+  const { data, headers } = await api(`/projects/${encodeURIComponent(id)}`, { withHeaders: true });
+  if (!data.can_edit) throw new ApiError(403, 'FORBIDDEN', 'You do not have permission to edit this project.');
+  if (![...form.elements.client_id.options].some((option) => option.value === data.client_id)) {
+    const client = await api(`/clients/${encodeURIComponent(data.client_id)}`);
+    form.elements.client_id.append(h('option', { value: client.id, text: client.name }));
+  }
+  openEditor(data, headers.get('ETag'));
+}
+
 form.elements.client_id.addEventListener('change', () => {
   form.elements.sector.value = sectorOf(form.elements.client_id.value);
   renderProfileFields(form.elements.sector.value);
@@ -127,10 +139,7 @@ function renderCard(project) {
   if (project.can_edit && canEdit) {
     const edit = h('button', { type: 'button', className: 'button button-secondary button-small', text: 'Edit' });
     const remove = h('button', { type: 'button', className: 'button button-danger button-small', text: 'Delete' });
-    bindAction(edit, listStatus, async () => {
-      const { data, headers } = await api(`/projects/${encodeURIComponent(project.id)}`, { withHeaders: true });
-      openEditor(data, headers.get('ETag'));
-    });
+    bindAction(edit, listStatus, () => openExistingEditor(project.id));
     bindAction(remove, listStatus, async () => {
       const confirmed = await confirmDialog({
         title: `Delete “${project.name}”?`,
@@ -233,7 +242,8 @@ async function main() {
   }
   await load();
   // The site footer links to /projects/#project-form: open the editor straight away.
-  if (canEdit && ['#project-form', '#new'].includes(location.hash)) openEditor(null);
+  if (params.get('edit')) await openExistingEditor(params.get('edit'));
+  else if (canEdit && ['#project-form', '#new'].includes(location.hash)) openEditor(null);
 }
 
 main().catch((error) => showStatus($('page-status'), describeError(error)));

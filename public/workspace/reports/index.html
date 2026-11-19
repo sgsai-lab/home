@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f5f7">
+  <meta name="robots" content="noindex">
+  <title>Reports — SGS AI Technology</title>
+  <meta name="description" content="Organization and project finance reports, receivables, payables, cash movement and approvals.">
+  <link rel="icon" type="image/x-icon" href="/logo/favicon.ico">
+  <link rel="stylesheet" href="/assets/css/global.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/assets/css/account.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/assets/css/hub.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/workspace/reports/reports-page.css?v=__ASSET_VERSION__">
+  <script src="/assets/js/app.js?v=__ASSET_VERSION__" defer></script>
+  <script type="module" src="/assets/js/reports.js?v=__ASSET_VERSION__"></script>
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <div id="header-mount"></div>
+  <div id="nav-mount"></div>
+  <main id="main" class="auth-main hub-main">
+    <div class="section-wrap">
+      <header class="hub-page-head">
+        <div>
+          <p class="section-kicker">Business intelligence</p>
+          <h1 class="page-title">Reports</h1>
+          <p id="report-access" class="hint">Organization and multi-project reporting.</p>
+        </div>
+        <div class="row-actions">
+          <a class="button button-secondary" href="/workspace/">Workspace</a>
+          <button id="export-report" class="button button-primary" type="button" disabled>Export this report as CSV</button>
+        </div>
+      </header>
+      <p id="page-status" class="form-status" role="alert" hidden></p>
+      <section class="panel" aria-labelledby="filters-heading">
+        <h2 id="filters-heading">Report filters</h2>
+        <form id="report-filters" class="reports-filters">
+          <label class="field"><span>Workspace</span>
+            <select id="report-client" name="client_id"><option value="">All authorized workspaces</option></select>
+          </label>
+          <label class="field"><span>Project</span>
+            <select id="report-project" name="project_id"><option value="">All projects</option></select>
+          </label>
+          <label class="field"><span>Project status</span>
+            <select name="project_status">
+              <option value="">Any status (including archived)</option>
+              <option value="draft">Draft</option>
+              <option value="discovery">Discovery</option>
+              <option value="in_progress">In progress</option>
+              <option value="on_hold">On hold</option>
+              <option value="delivered">Delivered</option>
+              <option value="archived">Archived</option>
+            </select>
+          </label>
+          <label class="field"><span>Activity from</span><input name="from" type="date" required></label>
+          <label class="field"><span>Activity through</span><input name="to" type="date" required></label>
+          <button class="button button-secondary" type="submit">Apply filters</button>
+        </form>
+        <p id="report-period" class="hint" role="status"></p>
+        <p class="hint">Date filters apply to activity, workspace profit/loss and invoice/cost registers. Receivables, payables, contract balances, project risks and approvals are current, not historical as-of balances. Archived projects are included unless filtered; deleted projects are excluded.</p>
+      </section>
+      <div id="report-content" hidden>
+        <div class="hub-shell">
+          <nav id="report-tabs" class="hub-sidenav" role="tablist" aria-label="Report sections">
+            <button id="tab-overview" type="button" role="tab" aria-selected="true" aria-controls="panel-overview" data-hash="overview">Organization overview</button>
+            <button id="tab-workspace-pnl" type="button" role="tab" aria-selected="false" aria-controls="panel-workspace-pnl" data-hash="workspace_pnl" tabindex="-1">Workspace profit and loss</button>
+            <button id="tab-projects" type="button" role="tab" aria-selected="false" aria-controls="panel-projects" data-hash="projects" tabindex="-1">Project portfolio</button>
+            <button id="tab-invoices" type="button" role="tab" aria-selected="false" aria-controls="panel-invoices" data-hash="invoices" tabindex="-1">Customer invoice register</button>
+            <button id="tab-costs" type="button" role="tab" aria-selected="false" aria-controls="panel-costs" data-hash="costs" tabindex="-1">Bills and expense register</button>
+            <button id="tab-receivables" type="button" role="tab" aria-selected="false" aria-controls="panel-receivables" data-hash="receivables" tabindex="-1">Receivables aging</button>
+            <button id="tab-payables" type="button" role="tab" aria-selected="false" aria-controls="panel-payables" data-hash="payables" tabindex="-1">Payables and expenses</button>
+            <button id="tab-categories" type="button" role="tab" aria-selected="false" aria-controls="panel-categories" data-hash="categories" tabindex="-1">Cost categories</button>
+            <button id="tab-cash" type="button" role="tab" aria-selected="false" aria-controls="panel-cash" data-hash="cash" tabindex="-1">Cash movement</button>
+            <button id="tab-approvals" type="button" role="tab" aria-selected="false" aria-controls="panel-approvals" data-hash="approvals" tabindex="-1">Pending approvals</button>
+          </nav>
+          <div class="reports-panels">
+            <section id="panel-overview" class="panel" role="tabpanel" aria-labelledby="tab-overview">
+              <h2>Organization overview</h2>
+              <p class="hint">A project-finance management view, not a balance sheet, statutory profit and loss or bank reconciliation. Platform administrators can report across every workspace, but changing finance records still requires owner and issuer permissions.</p>
+              <dl id="overview-metrics" class="reports-metrics"></dl>
+              <h3>Project health</h3>
+              <ul id="project-health" class="hub-stats"></ul>
+              <h3>Monthly activity</h3>
+              <div id="trends-table"></div>
+            </section>
+            <section id="panel-workspace-pnl" class="panel" role="tabpanel" aria-labelledby="tab-workspace-pnl" hidden>
+              <h2>Workspace profit and loss</h2>
+              <p class="hint">Selected projects grouped by customer workspace. Profit/loss estimate = issued invoice net value less credits, approved supplier bills and approved project expenses in the period. Revenue excludes GST; costs include tax. Draft, rejected and void documents do not contribute. This is a live management estimate, not statutory profit and loss; non-project overheads are not included.</p>
+              <div id="workspace-pnl-table"></div>
+            </section>
+            <section id="panel-projects" class="panel" role="tabpanel" aria-labelledby="tab-projects" hidden>
+              <h2>Multi-project portfolio</h2>
+              <p class="hint">Revenue is current non-void invoice net value by issue date, less credits dated in the period. Costs are currently approved, non-void bills and expenses by incurred date, including tax. Margin is an estimate, not tax profit.</p>
+              <div id="projects-table"></div>
+            </section>
+            <section id="panel-invoices" class="panel" role="tabpanel" aria-labelledby="tab-invoices" hidden>
+              <h2>All customer invoices</h2>
+              <p class="hint">Invoices across the selected customer workspaces/projects, filtered by issue date. Includes paid, unpaid, draft, rejected and void invoices, with their current approval and settlement states. Only issued, non-void invoices contribute to revenue. Deals without an invoice are not fabricated or charged automatically. Open a record using existing billing permissions; approval and legal issuance checks still apply.</p>
+              <div id="invoices-table"></div>
+            </section>
+            <section id="panel-costs" class="panel" role="tabpanel" aria-labelledby="tab-costs" hidden>
+              <h2>All supplier bills and expenses</h2>
+              <p class="hint">Bills and expenses incurred in the selected period, including fully paid, draft, rejected and void records. Only approved, non-void costs contribute to profit/loss or current payables. These are internal costs, not automatic customer invoice charges; do not record the same cost as both a bill and an expense.</p>
+              <div id="costs-table"></div>
+            </section>
+            <section id="panel-receivables" class="panel" role="tabpanel" aria-labelledby="tab-receivables" hidden>
+              <h2>Receivables and overdue invoices</h2>
+              <p class="hint">Current outstanding issued invoices from all dates, after recorded allocations and credits.</p>
+              <dl id="receivables-aging" class="reports-metrics"></dl>
+              <div id="receivables-table"></div>
+            </section>
+            <section id="panel-payables" class="panel" role="tabpanel" aria-labelledby="tab-payables" hidden>
+              <h2>Payables and expenses</h2>
+              <p class="hint">Current approved, non-void unpaid costs from all dates. Expenses without a due date are aged from the incurred date. Record the same cost only once, as a bill or expense.</p>
+              <dl id="payables-aging" class="reports-metrics"></dl>
+              <div id="payables-table"></div>
+            </section>
+            <section id="panel-categories" class="panel" role="tabpanel" aria-labelledby="tab-categories" hidden>
+              <h2>Cost categories</h2>
+              <p class="hint">Approved tax-inclusive costs incurred in the selected activity period. Rejected, draft and void costs do not count.</p>
+              <div id="categories-table"></div>
+            </section>
+            <section id="panel-cash" class="panel" role="tabpanel" aria-labelledby="tab-cash" hidden>
+              <h2>Cash received and paid</h2>
+              <p class="hint">Manual customer receipts, cost payments, refunds and reversals on their own recorded dates. Reversals remain visible even when the original transaction falls outside the period. This is not a bank feed or a complete accounting cash-flow statement.</p>
+              <div id="cash-table"></div>
+            </section>
+            <section id="panel-approvals" class="panel" role="tabpanel" aria-labelledby="tab-approvals" hidden>
+              <h2>Pending approvals</h2>
+              <p class="hint">Current submitted invoices, bills and expenses across the selected projects, regardless of activity dates. Open a record to review; no bulk approval or permission bypass is provided here.</p>
+              <div id="approvals-table"></div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <div id="footer-mount"></div>
+</body>
+</html>

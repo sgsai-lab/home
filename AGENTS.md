@@ -15,6 +15,7 @@ SGS AI Technology website: framework-free, multi-page HTML/CSS/JavaScript plus a
 | `public/assets/js/` | `app.js` (component loader, analytics), `script.js`, account/hub ES modules (`auth.js` API client, `hub.js` shared hub helpers incl. `setupTabs()`, `dialog.js` sheet dialogs and `confirmDialog()`, `upload.js` signed uploads, `workspace.js`, `projects.js`, `admin.js`, `admin-client.js`, `pwa.js`, ...) |
 | `public/assets/css/` | `global.css` (tokens, self-hosted fonts, utilities), `account.css` (auth/account pages), `hub.css` (hub design system: workspace, projects, account, admin consoles, sheet dialogs), legacy `styles.css`/`pages.css` |
 | `public/workspace/`, `public/admin/clients/` | Client hub: workspace, project detail, invite join, launch bridge, workspace management |
+| `public/workspace/reports/`, `src/server/routes/reports.mjs` | Read-only organization/project reports and CSV; platform admins see all workspaces, other users only actual-owner workspaces |
 | `public/sw.js`, `public/offline/` | Service worker and offline page (installable hub) |
 | `public/components/`, `public/sections/` | Fragments (`.html` + optional `.css`/`.js`) mounted at runtime by `app.js` |
 | `src/server/server.mjs` | `createRequestHandler()`: legacy endpoints, request context, router dispatch, error envelope |
@@ -67,6 +68,7 @@ Minimum before handing off: `npm run lint && npm test && npm run build && npm ru
 - Indexable routes must appear in `sitemap.xml`, `ANALYTICS_PATHS` in both `server.mjs` and `app.js`, and `lighthouserc.json`; `noindex` routes must be in `robots.txt`. `test/build.test.mjs` enforces it.
 - The in-memory DB fallback is per-process; production disables it (`ALLOW_MEMORY_DB_FALLBACK=false` in the image) so Firestore failures return 503. `FIRESTORE_DISABLED=true` runs locally without Firestore.
 - Every tenant document carries `client_id`; authorise with `requireMembership(user, clientId, minRole)` from `authz.mjs`, and return 404 (not 403) for other tenants' resources.
+- Reports deliberately allow global platform admins organization-wide financial reads without owner membership. This exception is report-only: billing/CRM reads, mutations and approvals retain actual-owner/issuer checks.
 
 ## Skills
 

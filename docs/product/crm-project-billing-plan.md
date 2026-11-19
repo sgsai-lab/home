@@ -16,6 +16,31 @@ Implemented: owner-only CRM navigation; standard list/detail/create/edit forms; 
 
 Activation pending: actual issuer/legal/bank details and qualified approval, production tax/e-invoicing applicability, GitHub credentials/installation/permissions, infrastructure-managed schedules/secrets/IAM/index deployment, backup/retention approval and a production pilot. Monthly drafts require explicit issuer review; there is no unsupervised charging. V1 uses small private Firestore PDF archives rather than queued GCS document generation, an explicit size cap and Latin-script validation. See [finance API](../api.md#project-finance), [GitHub setup](../github-crm.md) and [operational gates](../deployment.md#crm-activation-and-operations) for the implemented contracts; later sections retain the broader target design, not promises of provisioned services.
 
+### Project billing and expenses extension
+
+The project billing workbench now includes vendor bills, expenses/reimbursements and mandatory invoice/cost approval, using [Zoho Books transaction approvals](https://www.zoho.com/in/books/help/transaction-approval/) as the workflow reference, not a feature-parity claim.
+
+Confirmed product decisions:
+
+- Keep actual workspace ownership plus designated SGS issuer authority for financial mutations; global admins do not gain a finance bypass.
+- Use single-level explicit submission and approval/rejection. Any authorized issuer, including the creator, can approve. Customer scope/time acceptance remains separate.
+- Record project-linked supplier bills and expenses, approve before payment recording, support partial payments/reversals and unpaid-cost voiding with history.
+- Show approved costs, unpaid costs, net issued revenue and an explicitly labelled project margin estimate. Costs include tax; revenue excludes GST and net credits. This is not tax-profit reporting.
+
+Happy path: create/review cost or invoice draft -> submit -> approve -> issue invoice or record actual cost payment -> reconcile. Reject with a reason for correction/resubmission. Editing an approved invoice invalidates approval; approved costs cannot be repriced. Changed invoice billing profiles require fresh drafts. Legacy unissued drafts also require approval; issued originals are unchanged.
+
+Delivery remains within the existing billing page/API, with durable events, version preconditions, idempotency, owner-only reads and retained project history. No new legal issuance gate is enabled. Deploy the vendor-bill/expense indexes before production use. Receipt-file attachments, automatic expense rebilling, bank feeds/transfers, inventory, general-ledger accounting, input-tax credits, GST filing and multi-level approvals remain out of scope.
+
+### Organization and multi-project Reports
+
+A dedicated `/workspace/reports/` area now follows the grouping in [Zoho Books Reports](https://www.zoho.com/in/books/help/reports/): organization overview, workspace profit/loss, project profitability/health, invoice and bill/expense registers, receivables aging, payables/expenses, cost categories, cash movement and pending approvals. Filters cover workspace, project, project status and activity dates; every section supports CSV and authorized record drill-down.
+
+Workspace profit/loss separates net invoicing, credits, approved supplier bills and approved expenses, reconciling to organization totals. Registers show all existing invoice/cost states, including fully paid, rejected and void records, without counting drafts/voids as revenue or unapproved costs as payables. Confirmed scope: this is a register, not automatic invoice creation or expense rebilling; customer approval/legal issuance gates remain unchanged. Project detail pages now link directly to the existing details/status editor, retaining cross-workspace platform-admin and workspace-local admin/owner editing rights.
+
+Confirmed product-owner change: platform administrators may read organization-wide reports across all workspaces without actual ownership. This supersedes the earlier owner-only reporting audience **only for the Reports API/CSV**. Customer users remain limited to actual-owner workspaces, and billing/CRM record reads, mutations and approvals retain existing owner/issuer guards. Read-only report users cannot act on approval queues without those additional permissions.
+
+Period activity is separate from current balances and approvals. Project margins are management estimates; live reports may restate prior periods after approvals/voids. Cash movement uses payment/refund/reversal dates rather than current settlement status, preserving cross-period reversals. No accounting ledger, statutory balance sheet, bank feed, scheduled/public sharing or offline report cache is claimed. See the [reporting contract](../api.md#organization-and-project-reports) and [rollout permission/index review](../deployment.md#crm-activation-and-operations).
+
 ## 1. Executive decision
 
 Extend the existing client hub with a small, project-centric CRM, not a separate CRM product or a replacement for GitHub.
@@ -38,7 +63,7 @@ This proposal addresses the billing/invoicing deferral in the earlier [OneAI pla
 | Fixed-price/milestone and resource-hour billing | Retainers, subscription billing, daily-rate variants, multi-entity consolidation |
 | Resource allocations, rate snapshots, approved time, deadlines, budget alerts | Payroll, leave management, advanced capacity optimization |
 | Draft/issued invoices, authenticated PDF download, manual payment reconciliation | Payment gateways, automatic bank feeds, accounting-system synchronization |
-| Partial payments, credit adjustments, correction and reversal history | Full general ledger, automated revenue recognition, accounts payable |
+| Partial payments, credit adjustments, correction and reversal history; approved project bills and expenses | Full general ledger, automated revenue recognition, bank-integrated payables |
 | GitHub App, issue/task views, sprint views, PR links, controlled task updates | Code hosting/editor, automatic repository provisioning, arbitrary bidirectional sync |
 | Owner-only financial dashboards and durable finance audit events | Broad staff finance roles, customer-facing public payment links |
 

@@ -108,6 +108,8 @@ function renderHeader() {
   $('project-dates').textContent = [project.start_date && `Started ${formatDay(project.start_date)}`, project.end_date && `Target ${formatDay(project.end_date)}`].filter(Boolean).join(' · ');
   $('project-badges').replaceChildren(badge(PROJECT_STATUS[project.status], statusTone(project.status)), ...project.tags.map((tag) => badge(`#${tag}`)));
   $('back-link').href = `/workspace/?client=${encodeURIComponent(project.client_id)}`;
+  $('edit-project').hidden = !project.can_edit;
+  $('edit-project').href = `/projects/?client_id=${encodeURIComponent(project.client_id)}&edit=${encodeURIComponent(project.id)}`;
   const cover = $('project-cover');
   cover.replaceChildren();
   if (project.cover_asset_id) {

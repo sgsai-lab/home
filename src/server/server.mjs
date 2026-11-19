@@ -30,6 +30,7 @@ import { auditRoutes } from './routes/audit.mjs';
 import { crmRoutes } from './routes/crm.mjs';
 import { createFinanceWorkerRoutes, financeRoutes } from './routes/finance.mjs';
 import { createGithubCrmRoutes } from './routes/github-crm.mjs';
+import { reportRoutes } from './routes/reports.mjs';
 
 export { createRateLimiter, sanitizeText };
 
@@ -170,7 +171,7 @@ export function createRequestHandler({
   const deps = { env, sendEmail, verifyGoogleIdToken, verifyAppleIdToken, storage, limiters: createLimiters(limiters) };
   const router = createRouter([
     ...authRoutes, ...userRoutes, ...clientRoutes, ...projectRoutes, ...productRoutes, ...assetRoutes, ...auditRoutes,
-    ...crmRoutes, ...financeRoutes, ...goRoutes,
+    ...crmRoutes, ...financeRoutes, ...reportRoutes, ...goRoutes,
     ...createGithubCrmRoutes({ env, adapter: githubAdapter, verifyServiceIdentity: verifyGithubWorkerIdentity }),
     ...createFinanceWorkerRoutes({ env, verifyServiceIdentity: verifyGithubWorkerIdentity })
   ]);

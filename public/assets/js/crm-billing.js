@@ -1,4 +1,5 @@
 import { api, ApiError, describeError, h, showStatus } from '/assets/js/auth.js?v=__ASSET_VERSION__';
+import { closeDialog, openDialog, setupDialogs } from '/assets/js/dialog.js?v=__ASSET_VERSION__';
 
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -16,17 +17,20 @@ const urls = new Set();
 const titles = {
   resources: 'Resources and deadlines', 'billing-items': 'Fixed billing items',
   'time-entries': 'Time entries', 'time-statements': 'Time statements',
-  invoices: 'Invoices', payments: 'Payments', 'credit-notes': 'Credit notes', refunds: 'Refunds'
+  invoices: 'Invoices', payments: 'Payments', 'credit-notes': 'Credit notes', refunds: 'Refunds',
+  bills: 'Vendor bills', expenses: 'Project expenses'
 };
 const hints = {
   resources: 'Plan effort and weekly capacity; record a start date and delivery deadline.',
   'billing-items': 'Fixed-plan charges. Customer acceptance is recorded explicitly when required.',
   'time-entries': 'Record minutes against a resource. The accepted plan supplies the hourly rate.',
   'time-statements': 'Select multiple time entries for customer approval. Rejection requires a reason.',
-  invoices: 'Create a draft from multiple fixed items or time entries. Optionally select a billing month and explicitly load eligible month-end candidates, including prior-month carryover. Review snapshots before issuing. Delivery and settlement are separate states.',
+  invoices: 'Create a draft from fixed items or approved time. Optionally load month-end candidates, including carryover. Submit for issuer approval before issuing. Editing an approved draft resets approval. Delivery and settlement are separate states.',
   payments: 'Record receipts, allocate against invoices, or reverse with a reason. Choosing an invoice applies the receipt up to its outstanding balance; any remainder stays unallocated. Unallocated credit is shown in the overview.',
   'credit-notes': 'Issue a net-value credit against an invoice; tax is calculated by the server.',
-  refunds: 'Refund only available unallocated payment credit. This records the refund, not a bank transfer.'
+  refunds: 'Refund only available unallocated payment credit. This records the refund, not a bank transfer.',
+  bills: 'Record a supplier bill once, linked to this project. Amounts are tax-inclusive project costs, not input-tax credits. Submit and approve before recording partial or full payments. Do not duplicate the bill as an expense.',
+  expenses: 'Record a project expense or reimbursement once. Submit and approve before recording payment. Amounts include tax; no input-tax credit or automatic customer rebilling is calculated.'
 };
 
 function validation(message) {
@@ -56,11 +60,12 @@ function clearPrivateView() {
   $('billing-content').hidden = true;
   $('record-detail').hidden = true;
   $('record-editor').hidden = true;
+  closeDialog($('record-editor'));
   for (const id of ['finance-summary', 'finance-aging', 'resource-risks', 'records-head', 'records-body',
     'detail-fields', 'detail-lines', 'record-actions', 'editor-body', 'profile-fields', 'github-delivery']) {
     $(id).replaceChildren();
   }
-  for (const id of ['billing-project', 'detail-heading', 'editor-heading', 'editor-hint', 'list-hint', 'issuance-gate']) $(id).textContent = '';
+  for (const id of ['billing-project', 'detail-heading', 'editor-heading', 'editor-hint', 'list-hint', 'issuance-gate', 'approval-count']) $(id).textContent = '';
   $('record-filter').reset();
   $('new-record').hidden = true;
   $('edit-profile').hidden = true;
@@ -156,10 +161,12 @@ const columns = {
   'billing-items': [['Title', 'title'], ['Amount', 'amount_minor'], ['Due', 'due_date'], ['Acceptance', (r) => r.accepted_at ? 'Accepted' : r.requires_acceptance ? 'Required' : 'Not required'], ['State', 'status']],
   'time-entries': [['Work date', 'work_date'], ['Resource', (r) => r.resource_name ?? r.resource_id], ['Minutes', 'minutes'], ['Amount', 'amount_minor'], ['Description', 'description'], ['State', (r) => r.billed_invoice_id ? 'invoiced' : r.approved_at ? 'approved' : r.statement_id ? 'submitted' : 'unsubmitted']],
   'time-statements': [['Statement', 'id'], ['State', (r) => r.status ?? r.state], ['Minutes', 'total_minutes'], ['Amount', 'amount_minor'], ['Submitted', 'created_at'], ['Rejection reason', 'rejection_reason']],
-  invoices: [['Invoice', (r) => r.number || 'Draft'], ['Issued', 'issue_date'], ['Due', 'due_date'], ['Total', 'total_minor'], ['Outstanding', 'outstanding_minor'], ['Document', 'document_state'], ['Delivery', 'delivery_state'], ['Settlement', 'settlement_state']],
+  invoices: [['Invoice', (r) => r.number || 'Draft'], ['Issued', 'issue_date'], ['Due', 'due_date'], ['Total', 'total_minor'], ['Outstanding', 'outstanding_minor'], ['Approval', (r) => r.approval_status ?? (r.document_state === 'draft' ? 'draft' : 'legacy issued')], ['Document', 'document_state'], ['Delivery', 'delivery_state'], ['Settlement', 'settlement_state']],
   payments: [['Reference', 'reference'], ['Received', 'received_date'], ['Amount', 'amount_minor'], ['Unallocated', 'unallocated_minor'], ['State', (r) => r.status ?? (r.reversed_at ? 'Reversed' : 'Recorded')]],
   'credit-notes': [['Credit note', (r) => r.number || r.id], ['Invoice', 'invoice_id'], ['Net credit', 'net_minor'], ['Total credit', 'total_minor'], ['Reason', 'reason']],
-  refunds: [['Refund', 'id'], ['Payment', 'payment_id'], ['Amount', 'amount_minor'], ['Reason', 'reason'], ['Recorded', 'created_at']]
+  refunds: [['Refund', 'id'], ['Payment', 'payment_id'], ['Amount', 'amount_minor'], ['Reason', 'reason'], ['Recorded', 'created_at']],
+  bills: [['Supplier', 'payee'], ['Bill reference', 'reference'], ['Category', 'category'], ['Bill date', 'incurred_date'], ['Due', 'due_date'], ['Cost (incl. tax)', 'amount_minor'], ['Paid', 'paid_minor'], ['Outstanding', (r) => money(r.status === 'void' ? 0 : r.amount_minor - r.paid_minor)], ['Approval', 'approval_status'], ['State', 'status']],
+  expenses: [['Payee', 'payee'], ['Receipt reference', 'reference'], ['Category', 'category'], ['Date', 'incurred_date'], ['Cost (incl. tax)', 'amount_minor'], ['Paid', 'paid_minor'], ['Outstanding', (r) => money(r.status === 'void' ? 0 : r.amount_minor - r.paid_minor)], ['Approval', 'approval_status'], ['State', 'status']]
 };
 
 function cellValue(record, key) {
@@ -206,9 +213,13 @@ async function loadSummary() {
   const totals = [
     ['Contract', 'contract_minor'], ['Invoiced', 'invoiced_minor'], ['Credited', 'credited_minor'],
     ['Paid', 'paid_minor'], ['Outstanding', 'outstanding_minor'], ['Unallocated credit', 'unallocated_minor'],
-    ['Refunded', 'refunded_minor'], ['Overdue', 'overdue_minor']
+    ['Refunded', 'refunded_minor'], ['Overdue', 'overdue_minor'],
+    ['Net invoiced revenue (excl. GST)', 'net_revenue_minor'], ['Approved costs (incl. tax)', 'approved_cost_minor'],
+    ['Cost payments recorded', 'cost_paid_minor'], ['Unpaid approved costs', 'payables_outstanding_minor'],
+    ['Project margin estimate', 'project_margin_minor']
   ];
   $('finance-summary').replaceChildren(...totals.map(([label, key]) => h('div', {}, ...pair(label, money(summary[key])))));
+  $('approval-count').textContent = `${summary.pending_approval_count ?? 0} records awaiting issuer approval. Review Invoices, Vendor bills and Project expenses below. Self-approval is allowed; customer acceptance of scope and time remains separate.`;
   const aging = [['Current / not overdue', 'current'], ['1–30 days', 'days_1_30'], ['31–60 days', 'days_31_60'], ['61–90 days', 'days_61_90'], ['Over 90 days', 'days_90_plus']];
   $('finance-aging').replaceChildren(...aging.map(([label, key]) => h('div', {}, ...pair(label, money(summary.aging?.[key])))));
   $('resource-risks').replaceChildren(...(summary.at_risk_resources?.length
@@ -246,6 +257,7 @@ async function loadProfile() {
 
 function closeEditor() {
   state.editorEpoch++;
+  closeDialog($('record-editor'));
   $('record-editor').hidden = true;
   $('editor-body').replaceChildren();
   $('editor-heading').textContent = '';
@@ -280,7 +292,7 @@ async function selectRecord(resource, record) {
   const epoch = ++state.detailEpoch;
   closeEditor();
   $('record-detail').hidden = true;
-  if (resource === 'invoices') record = await request(`${base}/invoices/${encode(record.id)}`);
+  record = await request(`${base}/${resource}/${encode(record.id)}`);
   if (epoch !== state.detailEpoch) return;
   state.selected = { resource, record };
   $('detail-heading').textContent = `${titles[resource]} · ${labelOf(record)}`;
@@ -293,7 +305,8 @@ async function selectRecord(resource, record) {
     ['Overdue', (r) => r.overdue === undefined ? undefined : r.overdue ? 'Yes' : 'No'],
     ['Mail delivery error', 'delivery_error'], ['Reversal reason', 'reversal_reason'],
     ['Cancelled', 'cancelled_at'], ['Cancellation reason', 'cancellation_reason'],
-    ['Invoice number', 'invoice_number'], ['Refunded', 'refunded_minor']
+    ['Invoice number', 'invoice_number'], ['Refunded', 'refunded_minor'],
+    ['Description', 'description'], ['Approved by', 'approved_by'], ['Void reason', 'void_reason']
   ];
   const seen = new Set();
   const fields = [...columns[resource], ...extra].filter(([, key]) => {
@@ -304,6 +317,16 @@ async function selectRecord(resource, record) {
   });
   $('detail-fields').replaceChildren(...fields.map(([label, key]) => pair(label, cellValue(record, key))).flat());
   $('detail-lines').replaceChildren();
+  if (record.approval_history?.length) {
+    $('detail-lines').append(h('h3', { text: 'Approval history' }), h('ol', {}, ...record.approval_history.map((event) => h('li', {
+      text: `${human(event.action)} · ${event.at} · ${event.actor_id}${event.reason ? ` · ${event.reason}` : ''}`
+    }))));
+  }
+  if (record.payment_history?.length) {
+    $('detail-lines').append(h('h3', { text: 'Cost payment history' }), h('ul', {}, ...record.payment_history.map((payment) => h('li', {
+      text: `${payment.paid_date} · ${money(payment.amount_minor)} · ${payment.reference} · ${payment.recorded_by}${payment.reversed_at ? ` · Reversed ${payment.reversed_at}: ${payment.reversal_reason}` : ''}`
+    }))));
+  }
   if (resource === 'invoices') {
     $('detail-lines').append(invoiceLines(record));
     const snapshot = record.profile_snapshot ?? record.legal_snapshot ?? record.snapshot?.profile;
@@ -337,8 +360,11 @@ function renderActions(resource, record) {
   const issuer = state.capabilities?.can_prepare;
   const customer = state.capabilities?.can_accept;
   const status = record.status ?? record.state;
+  const cost = ['bills', 'expenses'].includes(resource);
+  const approval = record.approval_status ?? 'draft';
   if (issuer && (resource === 'resources' || (resource === 'time-entries' && !record.statement_id && !record.submitted_at && !record.approved_at && !record.billed_invoice_id && (!status || ['draft', 'unsubmitted'].includes(status)))
-    || (resource === 'invoices' && record.document_state === 'draft'))) {
+    || (resource === 'invoices' && record.document_state === 'draft' && approval !== 'submitted')
+    || (cost && status !== 'void' && ['draft', 'rejected'].includes(approval)))) {
     actions.append(button('Edit record', () => openRecordForm(resource, record)));
   }
   const action = (label, name, fields, hint) => {
@@ -346,6 +372,25 @@ function renderActions(resource, record) {
     actions.append(control);
     return control;
   };
+  if (issuer && (cost ? status !== 'void' : resource === 'invoices' && record.document_state === 'draft')) {
+    if (['draft', 'rejected'].includes(approval)) action('Submit for approval', 'submit', [], 'Submit the saved record for review. An authorized SGS issuer must explicitly approve it; self-approval is allowed.');
+    if (approval === 'submitted') {
+      action('Approve record', 'approve', [], 'Confirm the amounts, project, payee/customer and supporting references. Approval is recorded with your identity and time.');
+      action('Reject record', 'reject', [reasonField()], 'Explain what must be corrected before resubmission.');
+    }
+  }
+  if (issuer && cost && status !== 'void') {
+    if (approval === 'approved' && record.paid_minor < record.amount_minor) action('Record cost payment', 'pay', [
+      amountField(), { name: 'paid_date', label: 'Payment date', type: 'date' },
+      { name: 'reference', label: 'Bank / payment reference', max: 200 }
+    ], 'Record an actual payment or reimbursement already made. This does not transfer money. Partial payments are supported.');
+    const reversible = (record.payment_history ?? []).filter((payment) => !payment.reversed_at);
+    if (reversible.length) action('Reverse cost payment', 'reverse-payment', [
+      { name: 'payment_id', label: 'Payment to reverse', type: 'select', options: reversible.map((payment) => [payment.id, `${payment.paid_date} · ${payment.reference} · ${money(payment.amount_minor)}`]) },
+      reasonField()
+    ], 'Correct a mistaken or returned payment. The original payment remains in history; no bank transfer is made.');
+    if (!record.paid_minor) action('Void cost', 'void', [reasonField()], 'Exclude a duplicate or cancelled cost from project totals. Its history is retained.');
+  }
   if (issuer && resource === 'billing-items' && record.status !== 'cancelled' && !record.billed_invoice_id) {
     action('Cancel billing item', 'cancel', [reasonField()], 'Cancel this unbilled item with an audit reason. The record is preserved and its scheduled contract cap is released.');
   }
@@ -357,7 +402,7 @@ function renderActions(resource, record) {
     action('Reject statement', 'reject', [reasonField()], 'Provide a reason so the issuer can correct the entries.');
   }
   if (issuer && resource === 'invoices') {
-    if (record.document_state === 'draft') {
+    if (record.document_state === 'draft' && approval === 'approved') {
       const issue = action('Issue invoice', 'issue', [], 'Issuing creates a legal snapshot and invoice number. Legal configuration and the external server issuance gate must both allow issuance.');
       if (state.issuanceEnabled === false) {
         issue.disabled = true;
@@ -502,7 +547,7 @@ function editor(title, hint, specs, record, save, extra) {
     status);
   $('editor-body').replaceChildren(form);
   $('record-editor').hidden = false;
-  $('editor-heading').focus();
+  openDialog($('record-editor'), { initialFocus: $('editor-heading') });
   const ready = populateChoices(fields, record, epoch);
   submit.disabled = true;
   ready.then(() => { if (epoch === state.editorEpoch) submit.disabled = false; }).catch((error) => {
@@ -665,6 +710,15 @@ function openRecordForm(resource, record = {}) {
       picker = sourcePicker('billing-items', true);
     }
   }
+  if (['bills', 'expenses'].includes(resource)) specs = [
+    { name: 'payee', label: resource === 'bills' ? 'Supplier name' : 'Payee / person to reimburse', max: 200 },
+    { name: 'reference', label: resource === 'bills' ? 'Supplier bill reference' : 'Receipt reference', max: 200 },
+    { name: 'category', label: 'Cost category (e.g. Hosting, Travel)', max: 200 },
+    { name: 'description', label: 'Business purpose / description', type: 'textarea', max: 1000 },
+    amountField('amount_minor', 'Total project cost (INR, including tax)'),
+    { name: 'incurred_date', label: resource === 'bills' ? 'Bill date' : 'Expense date', type: 'date' },
+    ...(resource === 'bills' ? [{ name: 'due_date', label: 'Payment due date', type: 'date' }] : [])
+  ];
   if (resource === 'payments') specs = [
     invoiceField(true), amountField(), { name: 'received_date', label: 'Date received', type: 'date' },
     { name: 'reference', label: 'Bank / receipt reference', max: 200 }
@@ -754,13 +808,15 @@ async function main() {
     if (!capabilities.can_prepare && !capabilities.can_accept) throw new ApiError(403, 'FORBIDDEN', 'Finance is available only to workspace owners.');
     if (generation !== state.generation) return;
     state.capabilities = capabilities;
-    state.resource = 'resources';
+    state.resource = Object.hasOwn(titles, params.get('kind')) ? params.get('kind') : 'resources';
     $('record-type').value = state.resource;
     $('billing-project').textContent = project.name ?? projectId;
     $('back-link').href = `/workspace/project/?id=${encode(projectId)}`;
+    $('billing-reports').href = `/workspace/reports/?client_id=${encode(clientId)}&project_id=${encode(projectId)}`;
     await Promise.all([loadSummary(), loadProfile(), loadList()]);
     if (generation !== state.generation) return;
     $('billing-content').hidden = false;
+    if (params.get('record')) await selectRecord(state.resource, { id: params.get('record') });
     mountGithub().catch(report);
   } catch (error) {
     if (generation === state.generation) clearPrivateView();
@@ -790,5 +846,9 @@ $('next-page').addEventListener('click', () => {
   if (state.next) loadList(state.next).catch(report);
 });
 $('refresh-billing').addEventListener('click', () => main().catch(report));
+setupDialogs();
+$('record-editor').addEventListener('close', () => {
+  if (!$('record-editor').open) closeEditor();
+});
 window.addEventListener('pagehide', clearPrivateView);
 window.addEventListener('pageshow', () => main().catch(report));
