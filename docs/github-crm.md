@@ -89,6 +89,24 @@ The command index does not require `id ASC` because the worker does not use docu
 
 ## GitHub App and deployment setup
 
+### Organization-owner registration
+
+An organization owner or authorized App manager must finish registration and installation in GitHub; the deployment workflow cannot invent an App ID or authorize its own installation. Follow [GitHub's registration guide](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app).
+
+For an `sgsai-lab`-owned App, open [New GitHub App](https://github.com/organizations/sgsai-lab/settings/apps/new) while signed in with the appropriate organization permission:
+
+- Suggested name: `SGS AI Project CRM` (choose another if unavailable); homepage `https://sgsaitechnology.com`.
+- Webhook URL: `https://sgsaitechnology.com/api/v1/github-crm/webhooks`; keep SSL verification enabled. Set a high-entropy secret directly in GitHub and Secret Manager, never in chat or source.
+- Use installation-token authentication, not an OAuth user sign-in flow. Configure the permissions/events below; add repository Pull requests **read** for PR views.
+- Register, record the actual **App ID** (not Client ID), generate a PEM private key and store it directly in Secret Manager through an approved secret-management workflow. Do not commit/download it into the repository.
+- Install on the selected customer organization/repositories and authorize its organization Project v2 access. In the website, an assigned issuer with actual workspace ownership binds the specific project to the canonical repository and board URLs.
+
+Until credentials are deployed, the webhook endpoint reports unconfigured; do not treat failed pre-activation deliveries as successful. After activation verify delivery, and explicitly redeliver approved failed setup events where needed.
+
+### Deployment wiring
+
+The [activation checklist](deployment.md#activation-inputs-and-readiness) maps repository variables to the API environment below. Set `CRM_GITHUB_ENABLED=true` only when App ID, both Secret Manager names, worker audience/account, permissions, indexes and scheduling are ready. When false/unset, the workflow does not mount App credentials even if their names are recorded. Worker identity can be configured independently for finance recovery.
+
 Configure these API container environment variables:
 
 | Variable | Required for | Value |
@@ -103,6 +121,7 @@ Install the GitHub App on each selected organization and grant only the needed p
 
 - Repository metadata: read.
 - Issues: read/write (create issues).
+- Pull requests: read.
 - Organization Projects: read/write (read Project v2, add newly created issues, update project fields).
 - Subscribe the webhook to `issues`, `pull_request`, and Project v2 item changes as needed for refresh notifications.
 

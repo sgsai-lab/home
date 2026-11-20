@@ -87,8 +87,43 @@ jobs:
           APPLE_STATE_SECRET_SECRET: ${{ vars.APPLE_STATE_SECRET_SECRET }}
           ANDROID_CERT_SHA256: ${{ vars.ANDROID_CERT_SHA256 }}
           APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          CRM_INVOICE_ISSUANCE_ENABLED: ${{ vars.CRM_INVOICE_ISSUANCE_ENABLED }}
+          CRM_INVOICE_APPROVAL_REFERENCE: ${{ vars.CRM_INVOICE_APPROVAL_REFERENCE }}
+          CRM_GITHUB_ENABLED: ${{ vars.CRM_GITHUB_ENABLED }}
+          GITHUB_APP_ID: ${{ vars.CRM_GITHUB_APP_ID }}
+          GITHUB_APP_PRIVATE_KEY_SECRET: ${{ vars.CRM_GITHUB_APP_PRIVATE_KEY_SECRET }}
+          GITHUB_WEBHOOK_SECRET_SECRET: ${{ vars.CRM_GITHUB_WEBHOOK_SECRET }}
+          GITHUB_CRM_WORKER_AUDIENCE: ${{ vars.CRM_WORKER_AUDIENCE }}
+          GITHUB_CRM_WORKER_SERVICE_ACCOUNT: ${{ vars.CRM_WORKER_SERVICE_ACCOUNT }}
         run: |
           set -euo pipefail
+          invoice_enabled="${CRM_INVOICE_ISSUANCE_ENABLED:-false}"
+          github_enabled="${CRM_GITHUB_ENABLED:-false}"
+          for flag in "$invoice_enabled" "$github_enabled"; do
+            if [[ "$flag" != "true" && "$flag" != "false" ]]; then
+              echo "CRM activation flags must be exactly true or false." >&2
+              exit 1
+            fi
+          done
+          worker_audience="${GITHUB_CRM_WORKER_AUDIENCE:-}"
+          worker_account="${GITHUB_CRM_WORKER_SERVICE_ACCOUNT:-}"
+          if [[ -n "$worker_audience" || -n "$worker_account" || "$github_enabled" == "true" || "$invoice_enabled" == "true" ]]; then
+            if [[ ! "$worker_audience" =~ ^https://[^[:space:]\|]+$ || ! "$worker_account" =~ ^[a-zA-Z0-9-]+@[a-zA-Z0-9-]+\.iam\.gserviceaccount\.com$ ]]; then
+              echo "CRM workers require an HTTPS OIDC audience and a service-account email." >&2
+              exit 1
+            fi
+          fi
+          approval_reference="${CRM_INVOICE_APPROVAL_REFERENCE:-}"
+          if [[ "$invoice_enabled" == "true" && -z "${approval_reference//[[:space:]]/}" ]]; then
+            echo "Invoice issuance requires a qualified legal review approval reference." >&2
+            exit 1
+          fi
+          if [[ "$github_enabled" == "true" ]]; then
+            if [[ ! "${GITHUB_APP_ID:-}" =~ ^[1-9][0-9]*$ || ! "${GITHUB_APP_PRIVATE_KEY_SECRET:-}" =~ ^[a-zA-Z0-9_-]+$ || ! "${GITHUB_WEBHOOK_SECRET_SECRET:-}" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+              echo "GitHub activation requires a numeric App ID and both Secret Manager secret names." >&2
+              exit 1
+            fi
+          fi
           secrets=""
           if [[ -n "$SMTP_USER_SECRET" && -n "$SMTP_PASS_SECRET" ]]; then
             secrets="SMTP_USER=$SMTP_USER_SECRET:latest,SMTP_PASS=$SMTP_PASS_SECRET:latest"
@@ -102,9 +137,12 @@ jobs:
           if [[ -n "${APPLE_STATE_SECRET_SECRET:-}" ]]; then
             secrets="${secrets:+$secrets,}APPLE_STATE_SECRET=$APPLE_STATE_SECRET_SECRET:latest"
           fi
-          secret_args=()
+          if [[ "$github_enabled" == "true" ]]; then
+            secrets="${secrets:+$secrets,}GITHUB_APP_PRIVATE_KEY=$GITHUB_APP_PRIVATE_KEY_SECRET:latest,GITHUB_WEBHOOK_SECRET=$GITHUB_WEBHOOK_SECRET_SECRET:latest"
+          fi
+          secret_args=(--clear-secrets)
           if [[ -n "$secrets" ]]; then
-            secret_args+=(--set-secrets "$secrets")
+            secret_args=(--set-secrets "$secrets")
           fi
           # "|" delimiter (gcloud ^|^ syntax) because GOOGLE_CLIENT_IDS and similar values contain commas.
           env_vars=""
@@ -133,9 +171,14 @@ jobs:
           add_env PUBLIC_ASSETS_BUCKET "${PUBLIC_ASSETS_BUCKET:-}"
           add_env ANDROID_CERT_SHA256 "${ANDROID_CERT_SHA256:-}"
           add_env APPLE_TEAM_ID "${APPLE_TEAM_ID:-}"
-          # Initial CRM rollout: legal approval and GitHub App setup are deferred.
-          add_env CRM_INVOICE_ISSUANCE_ENABLED false
+          add_env CRM_INVOICE_ISSUANCE_ENABLED "$invoice_enabled"
+          # Voiding remains a separate reviewed legal activation.
           add_env CRM_INVOICE_VOID_ALLOWED false
+          add_env GITHUB_CRM_WORKER_AUDIENCE "$worker_audience"
+          add_env GITHUB_CRM_WORKER_SERVICE_ACCOUNT "$worker_account"
+          if [[ "$github_enabled" == "true" ]]; then
+            add_env GITHUB_APP_ID "$GITHUB_APP_ID"
+          fi
           gcloud run deploy sgs-ai-website \
             --project "$GCP_PROJECT_ID" \
             --region "$GCP_REGION" \
